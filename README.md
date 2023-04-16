@@ -1,4 +1,4 @@
-# algo<em>R</em>ythm
+# algo<em>R</em>hythm
 
 This project was project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
