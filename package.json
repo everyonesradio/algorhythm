@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "prettier": "npx prettier --write ./",
+    "prebuild": "prisma generate && prisma db push"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",
@@ -23,6 +25,7 @@
   "devDependencies": {
     "@types/node": "^22.7.5",
     "eslint-config-next": "^14.2.15",
+    "prettier": "3.3.3",
     "prisma": "^5.20.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.6.3"
