@@ -4,9 +4,6 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Algorhythm",
   description: "AI image recognition app for vinyls",
-  icons: {
-    icon: '/',
-  }
 };
 
 export default function RootLayout({
