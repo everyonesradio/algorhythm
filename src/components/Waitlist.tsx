@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 // ** React/Next.js Imports
 import { useRouter } from "next/navigation";
@@ -44,7 +44,7 @@ const Waitlist = () => {
           theme: "colored",
         });
 
-        router.push("/demo")
+        router.push("/demo");
       } catch (error) {
         console.error("Server error:", error);
       }
