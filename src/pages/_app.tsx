@@ -7,6 +7,7 @@ import { Analytics } from "@vercel/analytics/react";
 
 // ** Custom Components, Hooks, Utils, etc.
 import Meta from "@/components/Meta";
+import { api } from "@/utils/trpc";
 
 // ** Styles
 import "@/styles/globals.css";
@@ -24,4 +25,4 @@ function App({ Component, pageProps }: AppProps) {
   );
 }
 
-export default App;
+export default api.withTRPC(App);
