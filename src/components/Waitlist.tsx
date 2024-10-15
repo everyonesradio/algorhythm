@@ -7,10 +7,15 @@ import React, { useState, useEffect } from "react";
 // ** Third-Party Imports
 import { ToastContainer, toast } from "react-toastify";
 
+// ** Custom Components, Hooks, Utils, etc.
+import { api } from "@/utils/trpc";
+
 const Waitlist = () => {
   const router = useRouter();
   const [email, setEmail] = useState<string>();
   const [errorMessage, setErrorMessage] = useState<string>();
+
+  const { mutateAsync: waitlistEntry } = api.waitlist.add.useMutation();
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEmail(e.target.value);
@@ -29,9 +34,12 @@ const Waitlist = () => {
 
     if (email) {
       try {
-        console.log("Email:", email);
+        const res = await waitlistEntry({
+          email: email,
+        });
 
         setEmail("");
+        setErrorMessage("");
 
         toast.success("success", {
           position: "bottom-right",
