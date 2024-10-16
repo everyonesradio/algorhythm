@@ -3,7 +3,7 @@ import Image from "next/image";
 import React from "react";
 
 // ** Custom Components, Hooks, Utils, etc.
-import Waitlist from "@/components/Waitlist";
+import Waitlist from "@/components/waitlist";
 
 const Home = () => {
   return (
@@ -15,9 +15,7 @@ const Home = () => {
           width={220}
           height={220}
         />
-        <span className='text-md font-semibold underline'>
-          AI for music vinyls
-        </span>
+        <span className='text-sm underline'>AI for music vinyls</span>
       </div>
       <Waitlist />
     </main>
