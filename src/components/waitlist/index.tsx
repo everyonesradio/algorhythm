@@ -1,5 +1,3 @@
-"use client";
-
 // ** React/Next.js Imports
 import { useRouter } from "next/navigation";
 import React, { useState, useEffect } from "react";
@@ -38,10 +36,13 @@ const Waitlist = () => {
           email: email,
         });
 
+        // Reset states
         setEmail("");
         setErrorMessage("");
 
-        toast.success("success", {
+        router.push("/demo");
+
+        toast.success(res.message, {
           position: "bottom-right",
           autoClose: 2000,
           hideProgressBar: true,
@@ -51,8 +52,6 @@ const Waitlist = () => {
           progress: undefined,
           theme: "colored",
         });
-
-        router.push("/demo");
       } catch (error) {
         console.error("Server error:", error);
       }
@@ -101,7 +100,7 @@ const Waitlist = () => {
             className='flex h-10 shrink-0 items-center justify-center gap-2 text-white bg-black px-4 py-2 text-sm font-semibold transition-all'
             type='submit'
           >
-            <span>Join the waitlist</span>
+            <span>Submit</span>
           </button>
         </div>
       </form>
