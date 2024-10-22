@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>6a1c42b2-IMG_5402.png</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>4</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>sango_da rocinha 4</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>7</xmin>
+<ymin>559</ymin>
+<xmax>2783</xmax>
+<ymax>3255</ymax>
+</bndbox>
+</object>
+</annotation>

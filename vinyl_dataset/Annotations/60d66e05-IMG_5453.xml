@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>60d66e05-IMG_5453.jpeg</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>3</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>jorja smith_be right back</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>1572</xmin>
+<ymin>513</ymin>
+<xmax>2804</xmax>
+<ymax>1684</ymax>
+</bndbox>
+</object>
+<object>
+<name>ankhlejohn_as a man thinketh</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>171</xmin>
+<ymin>1674</ymin>
+<xmax>1482</xmax>
+<ymax>2943</ymax>
+</bndbox>
+</object>
+</annotation>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>c5afc5c8-IMG_5538.png</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>4</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>madvillain_madvillainy</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>191</xmin>
+<ymin>1124</ymin>
+<xmax>2600</xmax>
+<ymax>3460</ymax>
+</bndbox>
+</object>
+</annotation>

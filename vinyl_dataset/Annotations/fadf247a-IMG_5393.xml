@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>fadf247a-IMG_5393.png</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>4</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>ankhlejohn_as a man thinketh</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>301</xmin>
+<ymin>819</ymin>
+<xmax>2570</xmax>
+<ymax>3049</ymax>
+</bndbox>
+</object>
+</annotation>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>d72eae7b-IMG_5422_1.png</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>4</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>ankhlejohn_as a man thinketh</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>167</xmin>
+<ymin>1959</ymin>
+<xmax>1593</xmax>
+<ymax>3359</ymax>
+</bndbox>
+</object>
+<object>
+<name>madvillain_madvillainy</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>1412</xmin>
+<ymin>494</ymin>
+<xmax>2733</xmax>
+<ymax>1627</ymax>
+</bndbox>
+</object>
+</annotation>

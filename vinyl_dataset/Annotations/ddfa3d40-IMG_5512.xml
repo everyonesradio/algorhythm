@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>ddfa3d40-IMG_5512.jpeg</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>3</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>vince staples_vince staples</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>1661</xmin>
+<ymin>741</ymin>
+<xmax>2899</xmax>
+<ymax>1889</ymax>
+</bndbox>
+</object>
+<object>
+<name>free nationals_free nationals</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>167</xmin>
+<ymin>1873</ymin>
+<xmax>1460</xmax>
+<ymax>3172</ymax>
+</bndbox>
+</object>
+</annotation>

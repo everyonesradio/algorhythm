@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>e8812b53-IMG_5491.jpeg</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>3</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>wiki_half god</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>277</xmin>
+<ymin>1776</ymin>
+<xmax>1535</xmax>
+<ymax>3022</ymax>
+</bndbox>
+</object>
+<object>
+<name>amaarae_the angel you don't know</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>1742</xmin>
+<ymin>916</ymin>
+<xmax>2913</xmax>
+<ymax>2032</ymax>
+</bndbox>
+</object>
+</annotation>

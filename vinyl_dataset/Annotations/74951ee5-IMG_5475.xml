@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>74951ee5-IMG_5475.jpeg</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>3</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>navy blue_song of sage: post panic!</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>157</xmin>
+<ymin>1811</ymin>
+<xmax>1462</xmax>
+<ymax>3054</ymax>
+</bndbox>
+</object>
+<object>
+<name>vince staples_vince staples</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>1437</xmin>
+<ymin>699</ymin>
+<xmax>2687</xmax>
+<ymax>1794</ymax>
+</bndbox>
+</object>
+</annotation>

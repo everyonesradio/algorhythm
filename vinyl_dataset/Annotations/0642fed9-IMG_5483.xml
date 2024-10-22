@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>0642fed9-IMG_5483.jpeg</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>3</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>jorja smith_be right back</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>160</xmin>
+<ymin>1822</ymin>
+<xmax>1532</xmax>
+<ymax>3140</ymax>
+</bndbox>
+</object>
+<object>
+<name>zogo_please please</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>1561</xmin>
+<ymin>669</ymin>
+<xmax>2815</xmax>
+<ymax>1823</ymax>
+</bndbox>
+</object>
+</annotation>

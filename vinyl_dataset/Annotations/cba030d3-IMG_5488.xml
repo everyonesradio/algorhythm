@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>cba030d3-IMG_5488.jpeg</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>3</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>wiki_half god</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>150</xmin>
+<ymin>1884</ymin>
+<xmax>1555</xmax>
+<ymax>3278</ymax>
+</bndbox>
+</object>
+<object>
+<name>manu dibango_cubafrica</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>1591</xmin>
+<ymin>746</ymin>
+<xmax>2911</xmax>
+<ymax>1951</ymax>
+</bndbox>
+</object>
+</annotation>

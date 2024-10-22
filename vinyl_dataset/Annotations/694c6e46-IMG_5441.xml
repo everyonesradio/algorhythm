@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>694c6e46-IMG_5441.jpeg</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>3</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>vince staples_vince staples</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>340</xmin>
+<ymin>1667</ymin>
+<xmax>1656</xmax>
+<ymax>2927</ymax>
+</bndbox>
+</object>
+<object>
+<name>willow_lately i feel everything</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>1619</xmin>
+<ymin>600</ymin>
+<xmax>2882</xmax>
+<ymax>1709</ymax>
+</bndbox>
+</object>
+</annotation>

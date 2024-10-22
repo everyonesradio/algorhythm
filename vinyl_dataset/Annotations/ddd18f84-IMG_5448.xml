@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>ddd18f84-IMG_5448.jpeg</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>3</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>willow_lately i feel everything</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>1567</xmin>
+<ymin>468</ymin>
+<xmax>2922</xmax>
+<ymax>1689</ymax>
+</bndbox>
+</object>
+<object>
+<name>ankhlejohn_as a man thinketh</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>167</xmin>
+<ymin>1773</ymin>
+<xmax>1594</xmax>
+<ymax>3133</ymax>
+</bndbox>
+</object>
+</annotation>

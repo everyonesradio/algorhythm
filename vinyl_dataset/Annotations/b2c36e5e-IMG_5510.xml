@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>b2c36e5e-IMG_5510.jpeg</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>3</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>free nationals_free nationals</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>84</xmin>
+<ymin>1843</ymin>
+<xmax>1412</xmax>
+<ymax>3139</ymax>
+</bndbox>
+</object>
+<object>
+<name>jorja smith_be right back</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>1522</xmin>
+<ymin>570</ymin>
+<xmax>2787</xmax>
+<ymax>1713</ymax>
+</bndbox>
+</object>
+</annotation>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>cb56e995-IMG_5457.jpeg</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>3</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>ankhlejohn_as a man thinketh</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>106</xmin>
+<ymin>1796</ymin>
+<xmax>1491</xmax>
+<ymax>3173</ymax>
+</bndbox>
+</object>
+<object>
+<name>sango_da rocinha 4</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>1424</xmin>
+<ymin>586</ymin>
+<xmax>2794</xmax>
+<ymax>1821</ymax>
+</bndbox>
+</object>
+</annotation>

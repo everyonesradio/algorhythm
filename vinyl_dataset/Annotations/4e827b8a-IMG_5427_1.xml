@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>4e827b8a-IMG_5427_1.png</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>4</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>manu dibango_cubafrica</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>1656</xmin>
+<ymin>596</ymin>
+<xmax>2988</xmax>
+<ymax>1783</ymax>
+</bndbox>
+</object>
+<object>
+<name>elujay_circumvnt</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>13</xmin>
+<ymin>1676</ymin>
+<xmax>1385</xmax>
+<ymax>2986</ymax>
+</bndbox>
+</object>
+</annotation>

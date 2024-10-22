@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>c17247a5-KANYE-WEST-FRONT-1365x2048.png</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>1366</width>
+<height>2048</height>
+<depth>4</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>kanye west_my beautiful dark twisted fantasy</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>209</xmin>
+<ymin>654</ymin>
+<xmax>1089</xmax>
+<ymax>1506</ymax>
+</bndbox>
+</object>
+</annotation>

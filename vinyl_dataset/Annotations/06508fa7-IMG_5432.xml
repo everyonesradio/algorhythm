@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>06508fa7-IMG_5432.jpeg</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>3</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>frank ocean_blonde</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>1565</xmin>
+<ymin>1006</ymin>
+<xmax>2826</xmax>
+<ymax>2171</ymax>
+</bndbox>
+</object>
+<object>
+<name>elujay_circumvnt</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>75</xmin>
+<ymin>1732</ymin>
+<xmax>1313</xmax>
+<ymax>2936</ymax>
+</bndbox>
+</object>
+</annotation>

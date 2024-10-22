@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>4af8418a-IMG_5505.jpeg</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>3</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>frank ocean_blonde</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>1642</xmin>
+<ymin>577</ymin>
+<xmax>2924</xmax>
+<ymax>1809</ymax>
+</bndbox>
+</object>
+<object>
+<name>manu dibango_cubafrica</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>301</xmin>
+<ymin>1667</ymin>
+<xmax>1639</xmax>
+<ymax>2994</ymax>
+</bndbox>
+</object>
+</annotation>

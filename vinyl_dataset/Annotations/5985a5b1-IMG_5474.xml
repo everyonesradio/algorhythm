@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>5985a5b1-IMG_5474.jpeg</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>3</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>navy blue_song of sage: post panic!</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>124</xmin>
+<ymin>1643</ymin>
+<xmax>1499</xmax>
+<ymax>2942</ymax>
+</bndbox>
+</object>
+<object>
+<name>amaarae_the angel you don't know</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>1477</xmin>
+<ymin>469</ymin>
+<xmax>2760</xmax>
+<ymax>1595</ymax>
+</bndbox>
+</object>
+</annotation>

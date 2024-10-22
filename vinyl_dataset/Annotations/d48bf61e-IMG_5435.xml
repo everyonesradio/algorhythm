@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>d48bf61e-IMG_5435.png</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>4</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>elujay_circumvnt</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>139</xmin>
+<ymin>1755</ymin>
+<xmax>1460</xmax>
+<ymax>3037</ymax>
+</bndbox>
+</object>
+<object>
+<name>earl sweatchirt_feet of clay</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>1639</xmin>
+<ymin>953</ymin>
+<xmax>2882</xmax>
+<ymax>2135</ymax>
+</bndbox>
+</object>
+</annotation>

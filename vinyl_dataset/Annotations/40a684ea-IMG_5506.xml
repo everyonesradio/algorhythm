@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<annotation>
+<folder>images</folder>
+<filename>40a684ea-IMG_5506.jpeg</filename>
+<source>
+<database>MyDatabase</database>
+<annotation>COCO2017</annotation>
+<image>flickr</image>
+<flickrid>NULL</flickrid>
+<annotator>1</annotator>
+</source>
+<owner>
+<flickrid>NULL</flickrid>
+<name>Label Studio</name>
+</owner>
+<size>
+<width>3024</width>
+<height>4032</height>
+<depth>3</depth>
+</size>
+<segmented>0</segmented>
+<object>
+<name>vince staples_vince staples</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>107</xmin>
+<ymin>1922</ymin>
+<xmax>1479</xmax>
+<ymax>3204</ymax>
+</bndbox>
+</object>
+<object>
+<name>frank ocean_blonde</name>
+<pose>Unspecified</pose>
+<truncated>0</truncated>
+<difficult>0</difficult>
+<bndbox>
+<xmin>1550</xmin>
+<ymin>652</ymin>
+<xmax>2832</xmax>
+<ymax>1867</ymax>
+</bndbox>
+</object>
+</annotation>
