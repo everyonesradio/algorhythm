@@ -78,11 +78,11 @@ const Waitlist = () => {
   }, [errorMessage]);
 
   return (
-    <>
+    <div className='container mx-auto max-w-sm'>
       <form
         onSubmit={handleSubmit}
         method='POST'
-        className='mt-12 sm:mt-24 md:mt-32 max-w-sm'
+        className='w-full pt-8'
       >
         <div className='flex flex-col gap-2 sm:flex-row'>
           <label className='sr-only' htmlFor='email-address'>
@@ -116,7 +116,7 @@ const Waitlist = () => {
         pauseOnHover
         theme='colored'
       />
-    </>
+    </div>
   );
 };
 
