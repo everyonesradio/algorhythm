@@ -14,6 +14,13 @@
   }
 }
 
+@font-face {
+  font-family: "eightbitdragon";
+  font-style: regular;
+  font-weight: 200;
+  src: url("/fonts/EightBitDragon-anqx.ttf") format("truetype");
+}
+
 body {
   color: rgb(var(--foreground-rgb));
   background: rgb(var(--background-rgb));
