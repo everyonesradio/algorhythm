@@ -6,6 +6,7 @@ import React from "react";
 import { Analytics } from "@vercel/analytics/react";
 
 // ** Custom Components, Hooks, Utils, etc.
+import Banner from "@/components/banner";
 import Meta from "@/components/Meta";
 import { api } from "@/utils/trpc";
 
@@ -19,6 +20,7 @@ function App({ Component, pageProps }: AppProps) {
       <Meta />
       <Analytics />
       <div className='overflow-x-hidden'>
+        <Banner />
         <Component {...pageProps} />
       </div>
     </>
