@@ -15,13 +15,13 @@ const Home = () => {
         <Image
           src={"/images/vinyl.png"}
           alt={"vinyl animation"}
-          className="pb-2 animate-spin"
+          className='pb-2 animate-spin'
           width={220}
           height={220}
         />
         <TypeAnimation
           sequence={["algoRhythm"]}
-          speed={{ type: "keyStrokeDelayInMs", value: 125 }}
+          speed={{ type: "keyStrokeDelayInMs", value: 100 }}
           wrapper='span'
           cursor={false}
           style={{
@@ -30,9 +30,7 @@ const Home = () => {
             fontFamily: "eightbitdragon",
           }}
         />
-        <span className='text-md font-semibold'>
-          AI for music vinyls
-        </span>
+        <span className='text-md font-semibold'>AI for music vinyls</span>
       </div>
       <Waitlist />
     </main>

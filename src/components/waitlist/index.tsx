@@ -79,11 +79,7 @@ const Waitlist = () => {
 
   return (
     <div className='container mx-auto max-w-sm'>
-      <form
-        onSubmit={handleSubmit}
-        method='POST'
-        className='w-full pt-8'
-      >
+      <form onSubmit={handleSubmit} method='POST' className='w-full pt-8'>
         <div className='flex flex-col gap-2 sm:flex-row'>
           <label className='sr-only' htmlFor='email-address'>
             Email address
@@ -92,7 +88,7 @@ const Waitlist = () => {
             className='text-accent-500 block h-10 w-full appearance-none px-4 py-2 border-2 border-black placeholder-zinc-400 duration-200 focus:outline-none focus:ring-zinc-300 sm:text-sm'
             id='email-address'
             name='email'
-            placeholder='name@example.com'
+            placeholder='Enter your email address'
             value={email}
             onChange={handleEmailChange}
           />
