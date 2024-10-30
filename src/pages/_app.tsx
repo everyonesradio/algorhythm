@@ -20,7 +20,9 @@ function App({ Component, pageProps }: AppProps) {
       <Meta />
       <Analytics />
       <div className='overflow-x-hidden'>
-        <Banner />
+        <div className='fixed top-0 z-10 w-full'>
+          <Banner />
+        </div>
         <Component {...pageProps} />
       </div>
     </>
