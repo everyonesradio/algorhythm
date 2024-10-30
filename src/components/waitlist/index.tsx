@@ -85,7 +85,7 @@ const Waitlist = () => {
             Email address
           </label>
           <input
-            className='text-accent-500 block h-10 w-full appearance-none px-4 py-2 border-2 border-black placeholder-zinc-400 duration-200 focus:outline-none focus:ring-zinc-300 sm:text-sm'
+            className='text-accent-500 block h-10 w-full px-4 py-2 border-2 border-black placeholder-zinc-400 duration-200 focus:outline-none focus:ring-zinc-300 sm:text-sm'
             id='email-address'
             name='email'
             placeholder='Enter your email address'
