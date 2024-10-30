@@ -30,7 +30,7 @@ const Home = () => {
             fontFamily: "eightbitdragon",
           }}
         />
-        <span className='text-md font-semibold'>AI for music vinyls</span>
+        <span className='text-md font-semibold'>vinyl recognition app</span>
       </div>
       <Waitlist />
     </main>
