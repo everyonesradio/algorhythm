@@ -11,7 +11,7 @@ import Waitlist from "@/components/waitlist";
 const Home = () => {
   return (
     <main className='flex min-h-screen flex-col items-center justify-center p-8'>
-      <div className='flex flex-col w-full max-w-5xl items-center justify-center font-sans lg:flex'>
+      <div className='flex flex-col w-full max-w-5xl items-center justify-center font-sans'>
         <Image
           src={"/images/vinyl.png"}
           alt={"vinyl animation"}
@@ -21,7 +21,7 @@ const Home = () => {
         />
         <TypeAnimation
           sequence={["algoRhythm"]}
-          speed={{ type: "keyStrokeDelayInMs", value: 100 }}
+          speed={{ type: "keyStrokeDelayInMs", value: 125 }}
           wrapper='span'
           cursor={false}
           style={{
