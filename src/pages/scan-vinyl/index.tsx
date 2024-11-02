@@ -8,14 +8,15 @@ import Webcam from "react-webcam";
 
 // ** Custom Components, Hooks, Utils, etc.
 import DigitalAlbum from "@/components/digital-album";
+import { useBoolean } from "@/hooks/use-boolean";
 import SpotifyAPI from "@lib/spotify";
 import { drawRect } from "@/utils/draw-rectangle";
 
 const VinylScan = () => {
+  const albumModal = useBoolean();
   const webcamRef = useRef<Webcam | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [spotifyResults, setSpotifyResults] = useState<any>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const processedVinyls = useRef<Set<string>>(new Set());
   const [lastDetectedVinyl, setLastDetectedVinyl] = useState<string | null>(
     null
@@ -92,7 +93,7 @@ const VinylScan = () => {
       drawRect(obj, ctx!);
 
       // After successful detection
-      const detectedVinyl = "amaarae_the angel you dont know"; // Adjust based on your model's output === obj[0]?.class
+      const detectedVinyl = obj[0]?.class; // Adjust based on your model's output
 
       // TODO: Fix this logic so that it doesn't store instances of the vinyls
       //       Instead, it should handle one vinyl at a time
@@ -103,7 +104,7 @@ const VinylScan = () => {
 
         if (response) {
           setSpotifyResults(response);
-          setIsDrawerOpen(true);
+          albumModal.setTrue();
         }
       }
     }
@@ -124,10 +125,10 @@ const VinylScan = () => {
         ref={canvasRef}
         className='absolute left-0 right-0 mx-auto text-center z-10 w-[640px] h-[480px]'
       />
-      {spotifyResults && isDrawerOpen && (
+      {spotifyResults && albumModal.value && (
         <DigitalAlbum
-          isOpen={isDrawerOpen}
-          onClose={() => setIsDrawerOpen(false)}
+          isOpen={albumModal.value}
+          onClose={albumModal.setFalse}
           albumData={spotifyResults}
           vinyl={lastDetectedVinyl!}
         />
