@@ -7,28 +7,32 @@ import * as cocossd from "@tensorflow-models/coco-ssd";
 import Webcam from "react-webcam";
 
 // ** Custom Components, Hooks, Utils, etc.
+import DigitalAlbum from "@/components/digital-album";
 import SpotifyAPI from "@lib/spotify";
 import { drawRect } from "@/utils/draw-rectangle";
 
-const Demo = () => {
+const VinylScan = () => {
   const webcamRef = useRef<Webcam | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [lastDetectedVinyl, setLastDetectedVinyl] = useState<string | null>(null);
+  const [spotifyResults, setSpotifyResults] = useState<any>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const processedVinyls = useRef<Set<string>>(new Set());
+  const [lastDetectedVinyl, setLastDetectedVinyl] = useState<string | null>(
+    null
+  );
 
-  // Search for Spotify album
   const searchSpotify = async (detectedVinyl: string): Promise<any> => {
     try {
       // Split the detected string into artist and album
-      const [artist, album] = detectedVinyl.split('_');
-      
+      const [artist, album] = detectedVinyl.split("_");
+
       // Create a search query that combines artist and album
       const searchQuery = `artist:${artist} album:${album}`;
-      
+
       // Perform a combined search for both artist and album
       const response = await SpotifyAPI.search(
         searchQuery,
-        ['artist', 'album'],
+        ["artist", "album"],
         undefined, // market
         50, // limit
         0 // offset
@@ -89,14 +93,18 @@ const Demo = () => {
 
       // After successful detection
       const detectedVinyl = "amaarae_the angel you dont know"; // Adjust based on your model's output === obj[0]?.class
-      
+
+      // TODO: Fix this logic so that it doesn't store instances of the vinyls
+      //       Instead, it should handle one vinyl at a time
       if (detectedVinyl && !processedVinyls.current.has(detectedVinyl)) {
         processedVinyls.current.add(detectedVinyl);
         setLastDetectedVinyl(detectedVinyl);
-        const spotifyResults = await searchSpotify(detectedVinyl);
+        const response = await searchSpotify(detectedVinyl);
 
-        // Handle spotify results here
-        console.log("Spotify Results:", spotifyResults);
+        if (response) {
+          setSpotifyResults(response);
+          setIsDrawerOpen(true);
+        }
       }
     }
   };
@@ -106,7 +114,7 @@ const Demo = () => {
   }, []);
 
   return (
-    <div className='flex min-h-screen items-center justify-center'>
+    <div className='flex min-h-screen min-w-screen items-center justify-center'>
       <Webcam
         ref={webcamRef}
         muted={true}
@@ -116,8 +124,16 @@ const Demo = () => {
         ref={canvasRef}
         className='absolute left-0 right-0 mx-auto text-center z-10 w-[640px] h-[480px]'
       />
+      {spotifyResults && isDrawerOpen && (
+        <DigitalAlbum
+          isOpen={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          albumData={spotifyResults}
+          vinyl={lastDetectedVinyl!}
+        />
+      )}
     </div>
   );
 };
 
-export default Demo;
+export default VinylScan;
