@@ -13,22 +13,24 @@ import { drawRect } from "@/utils/draw-rectangle";
 const VinylScan = () => {
   const webcamRef = useRef<Webcam | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [lastDetectedVinyl, setLastDetectedVinyl] = useState<string | null>(null);
+  const [lastDetectedVinyl, setLastDetectedVinyl] = useState<string | null>(
+    null
+  );
   const processedVinyls = useRef<Set<string>>(new Set());
 
   // Search for Spotify album
   const searchSpotify = async (detectedVinyl: string): Promise<any> => {
     try {
       // Split the detected string into artist and album
-      const [artist, album] = detectedVinyl.split('_');
-      
+      const [artist, album] = detectedVinyl.split("_");
+
       // Create a search query that combines artist and album
       const searchQuery = `artist:${artist} album:${album}`;
-      
+
       // Perform a combined search for both artist and album
       const response = await SpotifyAPI.search(
         searchQuery,
-        ['artist', 'album'],
+        ["artist", "album"],
         undefined, // market
         50, // limit
         0 // offset
@@ -89,7 +91,7 @@ const VinylScan = () => {
 
       // After successful detection
       const detectedVinyl = "amaarae_the angel you dont know"; // Adjust based on your model's output === obj[0]?.class
-      
+
       if (detectedVinyl && !processedVinyls.current.has(detectedVinyl)) {
         processedVinyls.current.add(detectedVinyl);
         setLastDetectedVinyl(detectedVinyl);

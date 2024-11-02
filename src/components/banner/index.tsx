@@ -13,11 +13,11 @@ const Banner = () => {
   const currentRoute = router.pathname;
 
   const getBannerMessage = (route: string) => {
-    if (route === '/scan-vinyl') {
-      return "Scan your vinyl!"
+    if (route === "/scan-vinyl") {
+      return "Scan your vinyl!";
     }
-    return "Sign up for the waitlist to access our product demo!"
-  }
+    return "Sign up for the waitlist to access our product demo!";
+  };
 
   const bannerMessage = getBannerMessage(currentRoute);
 
