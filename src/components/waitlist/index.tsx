@@ -40,7 +40,7 @@ const Waitlist = () => {
         setEmail("");
         setErrorMessage("");
 
-        router.push("/demo");
+        router.push("/scan-vinyl");
 
         toast.success(res.message, {
           position: "bottom-right",

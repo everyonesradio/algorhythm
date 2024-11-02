@@ -10,7 +10,7 @@ import Webcam from "react-webcam";
 import SpotifyAPI from "@lib/spotify";
 import { drawRect } from "@/utils/draw-rectangle";
 
-const Demo = () => {
+const VinylScan = () => {
   const webcamRef = useRef<Webcam | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [lastDetectedVinyl, setLastDetectedVinyl] = useState<string | null>(null);
@@ -120,4 +120,4 @@ const Demo = () => {
   );
 };
 
-export default Demo;
+export default VinylScan;
