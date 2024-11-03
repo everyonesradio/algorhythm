@@ -16,8 +16,8 @@ const VinylScan = () => {
   const albumModal = useBoolean();
   const webcamRef = useRef<Webcam | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [spotifyResults, setSpotifyResults] = useState<any>(null);
   const processedVinyls = useRef<Set<string>>(new Set());
+  const [spotifyResults, setSpotifyResults] = useState<any>(null);
   const [lastDetectedVinyl, setLastDetectedVinyl] = useState<string | null>(
     null
   );
