@@ -8,42 +8,19 @@ import Webcam from "react-webcam";
 
 // ** Custom Components, Hooks, Utils, etc.
 import DigitalAlbum from "@/components/digital-album";
+import { useBoolean } from "@/hooks/use-boolean";
 import SpotifyAPI from "@lib/spotify";
 import { drawRect } from "@/utils/draw-rectangle";
 
 const VinylScan = () => {
+  const albumModal = useBoolean();
   const webcamRef = useRef<Webcam | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [spotifyResults, setSpotifyResults] = useState<any>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const processedVinyls = useRef<Set<string>>(new Set());
+  const [spotifyResults, setSpotifyResults] = useState<any>(null);
   const [lastDetectedVinyl, setLastDetectedVinyl] = useState<string | null>(
     null
   );
-
-  const searchSpotify = async (detectedVinyl: string): Promise<any> => {
-    try {
-      // Split the detected string into artist and album
-      const [artist, album] = detectedVinyl.split("_");
-
-      // Create a search query that combines artist and album
-      const searchQuery = `artist:${artist} album:${album}`;
-
-      // Perform a combined search for both artist and album
-      const response = await SpotifyAPI.search(
-        searchQuery,
-        ["artist", "album"],
-        undefined, // market
-        50, // limit
-        0 // offset
-      );
-
-      return response;
-    } catch (error) {
-      console.error("Failed to fetch album:", error);
-      return null;
-    }
-  };
 
   // Object detection function
   const runCocoModel = async () => {
@@ -103,9 +80,32 @@ const VinylScan = () => {
 
         if (response) {
           setSpotifyResults(response);
-          setIsDrawerOpen(true);
+          albumModal.setTrue();
         }
       }
+    }
+  };
+
+  const searchSpotify = async (detectedVinyl: string): Promise<any> => {
+    try {
+      // Split the detected string into artist and album
+      const [artist, album] = detectedVinyl.split("_");
+
+      // Create a search query that combines artist and album
+      const searchQuery = `artist:${artist} album:${album}`;
+
+      const response = await SpotifyAPI.search(
+        searchQuery,
+        ["album"],
+        undefined, // market
+        50, // limit
+        0 // offset
+      );
+
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch album:", error);
+      return null;
     }
   };
 
@@ -114,20 +114,20 @@ const VinylScan = () => {
   }, []);
 
   return (
-    <div className='flex min-h-screen min-w-screen items-center justify-center'>
+    <div className='flex min-h-screen min-w-screen items-center justify-center p-4'>
       <Webcam
         ref={webcamRef}
         muted={true}
-        className='absolute left-0 right-0 mx-auto text-center z-10 w-[640px] h-[480px]'
+        className='absolute left-0 right-0 mx-auto text-center z-10 w-[360px] sm:w-[640px] h-[480px]'
       />
       <canvas
         ref={canvasRef}
-        className='absolute left-0 right-0 mx-auto text-center z-10 w-[640px] h-[480px]'
+        className='absolute left-0 right-0 mx-auto text-center z-10 w-[360px] sm:w-[640px] h-[480px]'
       />
-      {spotifyResults && isDrawerOpen && (
+      {spotifyResults && albumModal.value && (
         <DigitalAlbum
-          isOpen={isDrawerOpen}
-          onClose={() => setIsDrawerOpen(false)}
+          isOpen={albumModal.value}
+          onClose={albumModal.setFalse}
           albumData={spotifyResults}
           vinyl={lastDetectedVinyl!}
         />
