@@ -22,30 +22,6 @@ const VinylScan = () => {
     null
   );
 
-  const searchSpotify = async (detectedVinyl: string): Promise<any> => {
-    try {
-      // Split the detected string into artist and album
-      const [artist, album] = detectedVinyl.split("_");
-
-      // Create a search query that combines artist and album
-      const searchQuery = `artist:${artist} album:${album}`;
-
-      // Perform a combined search for both artist and album
-      const response = await SpotifyAPI.search(
-        searchQuery,
-        ["artist", "album"],
-        undefined, // market
-        50, // limit
-        0 // offset
-      );
-
-      return response;
-    } catch (error) {
-      console.error("Failed to fetch album:", error);
-      return null;
-    }
-  };
-
   // Object detection function
   const runCocoModel = async () => {
     try {
@@ -93,7 +69,7 @@ const VinylScan = () => {
       drawRect(obj, ctx!);
 
       // After successful detection
-      const detectedVinyl = obj[0]?.class; // Adjust based on your model's output
+      const detectedVinyl = "amaarae_the angel you dont know"; // Adjust based on your model's output === obj[0]?.class
 
       // TODO: Fix this logic so that it doesn't store instances of the vinyls
       //       Instead, it should handle one vinyl at a time
@@ -110,20 +86,43 @@ const VinylScan = () => {
     }
   };
 
+  const searchSpotify = async (detectedVinyl: string): Promise<any> => {
+    try {
+      // Split the detected string into artist and album
+      const [artist, album] = detectedVinyl.split("_");
+
+      // Create a search query that combines artist and album
+      const searchQuery = `artist:${artist} album:${album}`;
+
+      const response = await SpotifyAPI.search(
+        searchQuery,
+        ["album"],
+        undefined, // market
+        50, // limit
+        0 // offset
+      );
+
+      return response;
+    } catch (error) {
+      console.error("Failed to fetch album:", error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     runCocoModel();
   }, []);
 
   return (
-    <div className='flex min-h-screen min-w-screen items-center justify-center'>
+    <div className='flex min-h-screen min-w-screen items-center justify-center p-4'>
       <Webcam
         ref={webcamRef}
         muted={true}
-        className='absolute left-0 right-0 mx-auto text-center z-10 w-[640px] h-[480px]'
+        className='absolute left-0 right-0 mx-auto text-center z-10 w-[360px] sm:w-[640px] h-[480px]'
       />
       <canvas
         ref={canvasRef}
-        className='absolute left-0 right-0 mx-auto text-center z-10 w-[640px] h-[480px]'
+        className='absolute left-0 right-0 mx-auto text-center z-10 w-[360px] sm:w-[640px] h-[480px]'
       />
       {spotifyResults && albumModal.value && (
         <DigitalAlbum
