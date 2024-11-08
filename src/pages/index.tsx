@@ -21,7 +21,7 @@ const Home = () => {
         />
         <TypeAnimation
           sequence={["algoRhythm"]}
-          speed={{ type: "keyStrokeDelayInMs", value: 125 }}
+          speed={{ type: "keyStrokeDelayInMs", value: 120 }}
           wrapper='span'
           cursor={false}
           style={{
