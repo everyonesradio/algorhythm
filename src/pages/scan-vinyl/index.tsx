@@ -16,13 +16,20 @@ const VinylScan = () => {
   const albumModal = useBoolean();
   const webcamRef = useRef<Webcam | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const processedVinyls = useRef<Set<string>>(new Set());
+  const _processedVinyls = useRef<Set<string>>(new Set());
   const [spotifyResults, setSpotifyResults] = useState<any>(null);
   const [lastDetectedVinyl, setLastDetectedVinyl] = useState<string | null>(
     null
   );
 
   // Object detection function
+  /**
+    Notes:
+    - Vinyl covers can be detected by mainly two methods: 
+      a) cover art has to be labelled by artist and album metadata
+      b) model must be trained on the shape of a vinyl cover, this way cover art could be mapped on it
+      c) need a labelled dataset of vinyl cover art
+      
   const runCocoModel = async () => {
     try {
       tf.backend();
@@ -85,6 +92,7 @@ const VinylScan = () => {
       }
     }
   };
+  **/
 
   const searchSpotify = async (detectedVinyl: string): Promise<any> => {
     try {
@@ -102,7 +110,7 @@ const VinylScan = () => {
         0 // offset
       );
 
-      return response;
+      setSpotifyResults(response);
     } catch (error) {
       console.error("Failed to fetch album:", error);
       return null;
@@ -110,7 +118,15 @@ const VinylScan = () => {
   };
 
   useEffect(() => {
-    runCocoModel();
+    const timer = setTimeout(() => {
+      const detectedVinyl = "amaarae_the angel you dont know";
+      setLastDetectedVinyl(detectedVinyl);
+      searchSpotify(detectedVinyl).then(() => {
+        albumModal.setTrue();
+      });
+    }, 4700);
+
+    return () => clearTimeout(timer);
   }, []);
 
   return (
