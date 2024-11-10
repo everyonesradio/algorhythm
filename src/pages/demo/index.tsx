@@ -28,6 +28,15 @@ const Demo = () => {
           }}
         />
         <span className='text-md font-semibold'>vinyl recognition app</span>
+        <div className='w-64 h-px bg-gray-600 my-4'></div>
+        <div className='flex flex-col items-center justify-center pt-4'>
+          <span className='text-lg font-eightbitdragon font-semibold'>
+            A2B Vinyl Listening Session
+          </span>
+          <span className='text-md font-semibold'>THURSDAY NOV. 14</span>
+          <span className='text-md font-semibold'>8PM -10PM</span>
+          <span className='text-md font-semibold'>1201 K Street NW</span>
+        </div>
       </div>
     </main>
   );
