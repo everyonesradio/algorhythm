@@ -28,8 +28,9 @@ const VinylScan = () => {
     - Vinyl covers can be detected by mainly two methods: 
       a) cover art has to be labelled by artist and album metadata
       b) model must be trained on the shape of a vinyl cover, this way cover art could be mapped on it
-      c) need a labelled dataset of vinyl cover art
       
+    - Need a labelled dataset of vinyl cover art
+
   const runCocoModel = async () => {
     try {
       tf.backend();
