@@ -34,7 +34,7 @@ const VinylScan = () => {
   const runCocoModel = async () => {
     try {
       tf.backend();
-      const net = await cocossd.load();
+      const net = await cocossd.load(); // Use custom vinyl model here === tf.loadLayersModel('/model/custom_model.json')
 
       const detectFrame = async () => {
         await detect(net);
