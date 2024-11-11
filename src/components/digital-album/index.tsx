@@ -1,6 +1,12 @@
 // ** React/Next.js Imports
-import Image from "next/image";
 import React from "react";
+
+// ** Third-Party Imports
+import { OrbitControls } from "@react-three/drei";
+import { Canvas } from "@react-three/fiber";
+
+// ** Custom Components, Hooks, Utils, etc.
+import Vinyl3D from "@/components/vinyl-cover";
 
 // ** Icon Imports
 import { FaSpotify } from "react-icons/fa";
@@ -37,22 +43,20 @@ const DigitalAlbum: React.FC<Props> = ({
         <IoClose className='text-black' size={24} />
       </button>
       {/* Display album data here */}
-      <div className='flex flex-col items-center justify-center space-y-4 p-4 text-black'>
+      <div className='flex flex-col items-center justify-center w-full h-full p-4 text-black'>
         <div className='flex flex-col items-center justify-center '>
-          <span>{album.name}</span>
+          <span className='font-eightbitdragon text-lg sm:text-2xl'>{album.name}</span>
           <span>
             {album.artists[0].name} - {album.release_date.split("-")[0]}
           </span>
         </div>
-        <Image
-          className='w-full h-full object-cover'
-          src={album.images[0]?.url}
-          alt='Album Cover'
-          width={100}
-          height={100}
-        />
+        <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
+          <pointLight position={[10, 10, 10]} />
+          <Vinyl3D coverArt={album.images[0]?.url} />
+          <OrbitControls makeDefault />
+        </Canvas>
         <button
-          className='flex items-center space-x-2 bg-black text-white p-2 rounded-full'
+          className='flex items-center space-x-2 bg-black text-white p-2 px-4 rounded-full'
           onClick={() => window.open(album.external_urls?.spotify, "_blank")}
         >
           <FaSpotify className='text-lg' />
