@@ -144,7 +144,7 @@ const VinylScan = () => {
       {spotifyResults && albumModal.value && (
         <DigitalAlbum
           isOpen={albumModal.value}
-          onClose={albumModal.setFalse}
+          handleClose={albumModal.setFalse}
           albumData={spotifyResults}
           vinyl={lastDetectedVinyl!}
         />
