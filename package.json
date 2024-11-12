@@ -11,6 +11,9 @@
     "prebuild": "prisma generate && prisma db push"
   },
   "dependencies": {
+    "@emotion/react": "^11.13.3",
+    "@emotion/styled": "^11.13.0",
+    "@mui/material": "^6.1.6",
     "@prisma/client": "^5.20.0",
     "@react-spring/three": "^9.7.5",
     "@react-three/drei": "^9.0.1",
