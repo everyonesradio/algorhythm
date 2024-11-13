@@ -4,7 +4,8 @@ import React, { useRef, useEffect, useState } from "react";
 // ** Third-Party Imports
 import * as tf from "@tensorflow/tfjs";
 import * as cocossd from "@tensorflow-models/coco-ssd";
-import Camera from 'react-html5-camera-photo';
+import MobileDetect from "mobile-detect";
+import Camera from "react-html5-camera-photo";
 
 // ** Custom Components, Hooks, Utils, etc.
 import DigitalAlbum from "@/components/digital-album";
@@ -95,6 +96,7 @@ const VinylScan = () => {
   };
   **/
 
+  // Searches Spotify API for album using artist and album name
   const searchSpotify = async (detectedVinyl: string): Promise<any> => {
     try {
       // Split the detected string into artist and album
@@ -118,6 +120,7 @@ const VinylScan = () => {
     }
   };
 
+  // TODO: Remove this once the model is trained
   useEffect(() => {
     const timer = setTimeout(() => {
       const detectedVinyl = "amaarae_the angel you dont know";
@@ -130,11 +133,19 @@ const VinylScan = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Determines the camera facing mode based on device type
+  const getCameraMode = () => {
+    if (typeof window === 'undefined') return 'user';
+  
+    const md = new MobileDetect(window.navigator.userAgent);
+    const isMobile = md.mobile();
+
+    return isMobile ? "environment" : "user";
+  };
+
   return (
-    <div className='flex w-full min-h-screen min-w-screen items-center justify-center p-4'>
-      <Camera
-        isFullscreen={true}
-      />
+    <div className='flex min-h-screen w-full items-center justify-center p-4'>
+      <Camera idealFacingMode={getCameraMode()} isFullscreen />
       <canvas
         ref={canvasRef}
         className='absolute left-0 right-0 mx-auto text-center z-10 w-[360px] sm:w-[640px] h-[480px]'
