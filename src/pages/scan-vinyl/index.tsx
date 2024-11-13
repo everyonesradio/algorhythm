@@ -22,7 +22,6 @@ const VinylScan = () => {
     null
   );
 
-  // Object detection function
   /**
     Notes:
     - Vinyl covers can be detected by mainly two methods: 
@@ -31,6 +30,7 @@ const VinylScan = () => {
       
     - Need a labelled dataset of vinyl cover art
 
+  // Object detection function
   const runCocoModel = async () => {
     try {
       tf.backend();
@@ -125,7 +125,7 @@ const VinylScan = () => {
       searchSpotify(detectedVinyl).then(() => {
         albumModal.setTrue();
       });
-    }, 4700);
+    }, 5000);
 
     return () => clearTimeout(timer);
   }, []);
