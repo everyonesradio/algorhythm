@@ -145,8 +145,8 @@ const VinylScan = () => {
 
   return (
     <div className='flex min-h-screen w-full items-center justify-center p-4'>
-      <Camera idealFacingMode={getCameraMode()} isFullscreen />
-      <canvas
+      <Camera idealFacingMode={getCameraMode()} isImageMirror={true}/>
+      <canvas 
         ref={canvasRef}
         className='absolute left-0 right-0 mx-auto text-center z-10 w-[360px] sm:w-[640px] h-[480px]'
       />
