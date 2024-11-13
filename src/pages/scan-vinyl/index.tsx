@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useState } from "react";
 // ** Third-Party Imports
 import * as tf from "@tensorflow/tfjs";
 import * as cocossd from "@tensorflow-models/coco-ssd";
-import Webcam from "react-webcam";
+import Camera from 'react-html5-camera-photo';
 
 // ** Custom Components, Hooks, Utils, etc.
 import DigitalAlbum from "@/components/digital-album";
@@ -14,7 +14,7 @@ import { drawRect } from "@/utils/draw-rectangle";
 
 const VinylScan = () => {
   const albumModal = useBoolean();
-  const webcamRef = useRef<Webcam | null>(null);
+  const webcamRef = useRef<typeof Camera | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const _processedVinyls = useRef<Set<string>>(new Set());
   const [spotifyResults, setSpotifyResults] = useState<any>(null);
@@ -131,11 +131,9 @@ const VinylScan = () => {
   }, []);
 
   return (
-    <div className='flex min-h-screen min-w-screen items-center justify-center p-4'>
-      <Webcam
-        ref={webcamRef}
-        muted={true}
-        className='absolute left-0 right-0 mx-auto text-center z-10 w-[360px] sm:w-[640px] h-[480px]'
+    <div className='flex w-full min-h-screen min-w-screen items-center justify-center p-4'>
+      <Camera
+        isFullscreen={true}
       />
       <canvas
         ref={canvasRef}
