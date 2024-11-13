@@ -39,11 +39,11 @@ const DigitalAlbum: React.FC<Props> = ({
       onClose={handleClose}
       sx={{
         "& .MuiDrawer-paper": {
-          width: '100vw',
+          width: "100vw",
           borderTopLeftRadius: 16,
           borderTopRightRadius: 16,
           boxShadow: 3,
-          border: 'none'
+          border: "none",
         },
       }}
     >
