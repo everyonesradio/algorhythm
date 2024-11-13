@@ -135,7 +135,9 @@ const VinylScan = () => {
 
   // Determines the camera facing mode based on device type
   const getCameraMode = () => {
-    const md = new MobileDetect(navigator.userAgent);
+    if (typeof window === 'undefined') return 'user';
+  
+    const md = new MobileDetect(window.navigator.userAgent);
     const isMobile = md.mobile();
 
     return isMobile ? "environment" : "user";
