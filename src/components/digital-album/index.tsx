@@ -37,6 +37,15 @@ const DigitalAlbum: React.FC<Props> = ({
       anchor={"bottom"}
       open={isOpen}
       onClose={handleClose}
+      sx={{
+        "& .MuiDrawer-paper": {
+          width: '100vw',
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+          boxShadow: 3,
+          border: 'none'
+        },
+      }}
     >
       <Box sx={{ height: 700, padding: 4 }}>
         <div className='flex flex-col items-center justify-center h-5/6 w-full min-w-screen bg-white'>
@@ -52,15 +61,17 @@ const DigitalAlbum: React.FC<Props> = ({
               <span className='font-eightbitdragon text-lg sm:text-2xl'>
                 {album.name}
               </span>
-              <span>
+              <span className='font-medium'>
                 {album.artists[0].name} - {album.release_date.split("-")[0]}
               </span>
             </div>
-            <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
-              <pointLight position={[10, 10, 10]} />
-              <Vinyl3D coverArt={album.images[0]?.url} />
-              <OrbitControls makeDefault />
-            </Canvas>
+            <div className='w-full h-2/3 sm:h-5/6'>
+              <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
+                <pointLight position={[10, 10, 10]} />
+                <Vinyl3D coverArt={album.images[0]?.url} />
+                <OrbitControls makeDefault />
+              </Canvas>
+            </div>
             <button
               className='flex items-center space-x-2 bg-black text-white p-2 px-4 rounded-full'
               onClick={() =>

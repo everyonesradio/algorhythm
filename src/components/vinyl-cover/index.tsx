@@ -5,7 +5,6 @@ import React, { useRef, useEffect } from "react";
 import { useFrame, useLoader } from "@react-three/fiber";
 import * as THREE from "three";
 import { Html } from "@react-three/drei";
-import { a as three } from "@react-spring/three";
 
 // ** Custom Components, Hooks, Utils, etc.
 import Card from "@/components/vinyl-cover/3DCard";
@@ -29,7 +28,7 @@ const Vinyl3D: React.FC<Props> = ({ coverArt }) => {
   });
 
   return (
-    <mesh ref={meshRef} scale={2}>
+    <mesh ref={meshRef} scale={2.5}>
       <Html occlude distanceFactor={1.5} position={[0, 0, 0.51]} transform>
         <Card
           style={{
