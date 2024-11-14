@@ -5,7 +5,7 @@ import React, { useRef, useEffect, useState } from "react";
 import * as tf from "@tensorflow/tfjs";
 import * as cocossd from "@tensorflow-models/coco-ssd";
 import MobileDetect from "mobile-detect";
-import Camera from "react-html5-camera-photo";
+import { Camera, CameraType } from "react-camera-pro";
 
 // ** Custom Components, Hooks, Utils, etc.
 import DigitalAlbum from "@/components/digital-album";
@@ -15,7 +15,7 @@ import { drawRect } from "@/utils/draw-rectangle";
 
 const VinylScan = () => {
   const albumModal = useBoolean();
-  const webcamRef = useRef<typeof Camera | null>(null);
+  const cameraRef = useRef<CameraType | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const _processedVinyls = useRef<Set<string>>(new Set());
   const [spotifyResults, setSpotifyResults] = useState<any>(null);
@@ -51,20 +51,20 @@ const VinylScan = () => {
   const detect = async (net: cocossd.ObjectDetection) => {
     // Check if data is available
     if (
-      typeof webcamRef.current !== "undefined" &&
-      webcamRef.current !== null &&
-      webcamRef.current.video !== null &&
-      webcamRef.current.video.readyState === 4 &&
+      typeof cameraRef.current !== "undefined" &&
+      cameraRef.current !== null &&
+      cameraRef.current.video !== null &&
+      cameraRef.current.video.readyState === 4 &&
       canvasRef.current !== null
     ) {
       // Get video properties
-      const video = webcamRef.current.video;
-      const videoWidth = webcamRef.current.video.videoWidth;
-      const videoHeight = webcamRef.current.video.videoHeight;
+      const video = cameraRef.current.video;
+      const videoWidth = cameraRef.current.video.videoWidth;
+      const videoHeight = cameraRef.current.video.videoHeight;
 
       // Set video width
-      webcamRef.current.video.width = videoWidth;
-      webcamRef.current.video.height = videoHeight;
+      cameraRef.current.video.width = videoWidth;
+      cameraRef.current.video.height = videoHeight;
 
       // Set canvas height and width
       canvasRef.current.width = videoWidth;
@@ -82,8 +82,10 @@ const VinylScan = () => {
 
       // TODO: Fix this logic so that it doesn't store instances of the vinyls
       //       Instead, it should handle one vinyl at a time
-      if (detectedVinyl && !processedVinyls.current.has(detectedVinyl)) {
-        processedVinyls.current.add(detectedVinyl);
+
+
+      if (detectedVinyl && !_processedVinyls.current.has(detectedVinyl)) {
+        _processedVinyls.current.add(detectedVinyl);
         setLastDetectedVinyl(detectedVinyl);
         const response = await searchSpotify(detectedVinyl);
 
@@ -135,8 +137,8 @@ const VinylScan = () => {
 
   // Determines the camera facing mode based on device type
   const getCameraMode = () => {
-    if (typeof window === 'undefined') return 'user';
-  
+    if (typeof window === "undefined") return "user";
+
     const md = new MobileDetect(window.navigator.userAgent);
     const isMobile = md.mobile();
 
@@ -145,8 +147,8 @@ const VinylScan = () => {
 
   return (
     <div className='flex min-h-screen w-full items-center justify-center p-4'>
-      <Camera idealFacingMode={getCameraMode()} isImageMirror={false}/>
-      <canvas 
+      <Camera ref={cameraRef} facingMode={getCameraMode()} errorMessages={{}} />
+      <canvas
         ref={canvasRef}
         className='absolute left-0 right-0 mx-auto text-center z-10 w-[360px] sm:w-[640px] h-[480px]'
       />
@@ -161,5 +163,4 @@ const VinylScan = () => {
     </div>
   );
 };
-
 export default VinylScan;
