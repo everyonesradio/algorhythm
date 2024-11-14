@@ -10,8 +10,8 @@ import { api } from "@/utils/trpc";
 
 const Waitlist = () => {
   const router = useRouter();
-  const [email, setEmail] = useState<string>();
-  const [errorMessage, setErrorMessage] = useState<string>();
+  const [email, setEmail] = useState<string>("");
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   const { mutateAsync: waitlistEntry } = api.waitlist.add.useMutation();
 
@@ -36,12 +36,6 @@ const Waitlist = () => {
           email: email,
         });
 
-        // Reset states
-        setEmail("");
-        setErrorMessage("");
-
-        router.push("/scan-vinyl");
-
         toast.success(res.message, {
           position: "bottom-right",
           autoClose: 2000,
@@ -52,6 +46,12 @@ const Waitlist = () => {
           progress: undefined,
           theme: "colored",
         });
+
+        router.push("/scan-vinyl");
+
+        // Reset states
+        setEmail("");
+        setErrorMessage("");
       } catch (error) {
         console.error("Server error:", error);
       }
