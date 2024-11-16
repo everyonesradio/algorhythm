@@ -47,7 +47,15 @@ const DigitalAlbum: React.FC<Props> = ({
         },
       }}
     >
-      <Box sx={{ height: 700, padding: 4 }}>
+      <Box
+        sx={{
+          height: {
+            xs: 450, // mobile first - 450px for small screens
+            sm: 700, // 700px for screens sm and up
+          },
+          padding: 4,
+        }}
+      >
         <div className='flex flex-col items-center justify-center h-5/6 w-full min-w-screen bg-white'>
           <button
             className='text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 absolute top-2.5 end-2.5 flex items-center justify-center dark:hover:bg-gray-600 dark:hover:text-white'
