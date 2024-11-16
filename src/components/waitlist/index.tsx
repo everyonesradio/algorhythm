@@ -36,6 +36,10 @@ const Waitlist = () => {
           email: email,
         });
 
+        // Reset states
+        setEmail("");
+        setErrorMessage("");
+
         toast.success(res.message, {
           position: "bottom-right",
           autoClose: 2000,
@@ -47,11 +51,9 @@ const Waitlist = () => {
           theme: "colored",
         });
 
-        router.push("/scan-vinyl");
-
-        // Reset states
-        setEmail("");
-        setErrorMessage("");
+        setTimeout(() => {
+          router.push("/scan-vinyl");
+        }, 2000);
       } catch (error) {
         console.error("Server error:", error);
       }
