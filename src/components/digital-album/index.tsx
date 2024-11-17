@@ -50,7 +50,7 @@ const DigitalAlbum: React.FC<Props> = ({
       <Box
         sx={{
           height: {
-            xs: 450, // mobile first - 450px for small screens
+            xs: 540, // mobile first - 540px for small screens
             sm: 700, // 700px for screens sm and up
           },
           padding: 4,
