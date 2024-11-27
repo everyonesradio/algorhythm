@@ -12,6 +12,7 @@ import DigitalAlbum from "@/components/digital-album";
 import { useBoolean } from "@/hooks/use-boolean";
 import SpotifyAPI from "@lib/spotify";
 import { drawRect } from "@/utils/draw-rectangle";
+import { api } from "@/utils/trpc";
 
 const VinylScan = () => {
   const albumModal = useBoolean();
@@ -22,6 +23,8 @@ const VinylScan = () => {
   const [lastDetectedVinyl, setLastDetectedVinyl] = useState<string | null>(
     null
   );
+
+  const { mutateAsync: musicIDXEntry } = api.musicIDX.add.useMutation();
 
   /**
     Notes:
@@ -116,6 +119,10 @@ const VinylScan = () => {
       );
 
       setSpotifyResults(response);
+
+      await musicIDXEntry({
+        spotifyData: response.albums?.items?.[0],
+      });
     } catch (error) {
       console.error("Failed to fetch album:", error);
       return null;
@@ -125,7 +132,7 @@ const VinylScan = () => {
   // TODO: Remove this once the model is trained
   useEffect(() => {
     const timer = setTimeout(() => {
-      const detectedVinyl = "amaarae_the angel you dont know";
+      const detectedVinyl = "el cousteau_merci, non merci";
       setLastDetectedVinyl(detectedVinyl);
       searchSpotify(detectedVinyl).then(() => {
         albumModal.setTrue();
