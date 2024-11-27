@@ -106,7 +106,7 @@ const VinylScan = () => {
     try {
       // Split the detected string into artist and album
       const [artist, album] = detectedVinyl.split("_");
-
+//test
       // Create a search query that combines artist and album
       const searchQuery = `artist:${artist} album:${album}`;
 
