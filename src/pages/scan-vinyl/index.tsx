@@ -118,7 +118,9 @@ const VinylScan = () => {
         0 // offset
       );
 
-      setSpotifyResults(response);
+      // TODO: Parse spotify response for custom data object
+      // response should provide a link to a spotify asset (album, artist, tracks)
+      setSpotifyResults(response); 
 
       await musicIDXEntry({
         spotifyData: response.albums?.items?.[0],
