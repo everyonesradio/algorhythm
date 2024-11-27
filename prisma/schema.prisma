@@ -22,5 +22,6 @@ model Waitlist {
 model MusicIDX {
   id        String    @id @default(auto()) @map("_id") @db.ObjectId
   createdAt DateTime?
+  artistName String?
   spotifyData Json?
 }
