@@ -127,10 +127,7 @@ const VinylScan = () => {
 
       // Validate artist match
       const foundArtist = foundAlbum.artists?.[0];
-      if (
-        !foundArtist ||
-        foundArtist.name.toLowerCase() !== artist.toLowerCase()
-      ) {
+      if (foundArtist.name.toLowerCase() !== artist.toLowerCase()) {
         console.log("Artist mismatch");
         return null;
       }
