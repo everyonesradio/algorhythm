@@ -8,7 +8,10 @@ export const musicIDXRouter = createTRPCRouter({
   add: publicProcedure
     .input(
       z.object({
-        spotifyData: z.object({}).optional(),
+        artistName: z.string().optional(),
+        artistLink: z.string().optional(),
+        albumLink: z.string().optional(),
+        spotifyId: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
