@@ -12,18 +12,21 @@ import DigitalAlbum from "@/components/digital-album";
 import { useBoolean } from "@/hooks/use-boolean";
 import SpotifyAPI from "@lib/spotify";
 import { drawRect } from "@/utils/draw-rectangle";
+import { api } from "@/utils/trpc";
 
 const VinylScan = () => {
   const albumModal = useBoolean();
   const cameraRef = useRef<CameraType | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const _processedVinyls = useRef<Set<string>>(new Set());
-  const [spotifyResults, setSpotifyResults] = useState<any>(null);
+  const [spotifyResult, setSpotifyResult] = useState<any>(null);
   const [lastDetectedVinyl, setLastDetectedVinyl] = useState<string | null>(
     null
   );
 
-  /**
+  const { mutateAsync: musicIDXEntry } = api.musicIDX.add.useMutation();
+
+  /**  TODO: Train custom vinyl recognition model
     Notes:
     - Vinyl covers can be detected by mainly two methods: 
       a) cover art has to be labelled by artist and album metadata
@@ -115,22 +118,59 @@ const VinylScan = () => {
         0 // offset
       );
 
-      setSpotifyResults(response);
+      // Early validation of album existence
+      const foundAlbum = response?.albums?.items?.[0];
+      if (!foundAlbum) {
+        console.log("Album not found");
+        return null;
+      }
+
+      // Validate artist match
+      const foundArtist = foundAlbum.artists?.[0];
+      if (
+        !foundArtist ||
+        foundArtist.name.toLowerCase() !== artist.toLowerCase()
+      ) {
+        console.log("Artist mismatch");
+        return null;
+      }
+
+      // Only set results and process if we have valid data
+      setSpotifyResult(foundAlbum);
+      await processSpotifyAlbum(foundAlbum);
     } catch (error) {
       console.error("Failed to fetch album:", error);
       return null;
     }
   };
 
-  // TODO: Remove this once the model is trained
+  const processSpotifyAlbum = async (album: any) => {
+    const artist = album.artists?.[0];
+    const spotifyArtistUrlRegex = /^https:\/\/open\.spotify\.com\/artist\/.+$/;
+    const spotifyAlbumUrlRegex = /^https:\/\/open\.spotify\.com\/album\/.+$/;
+
+    const artistLink = artist.external_urls?.spotify;
+    const albumLink = album.external_urls?.spotify;
+
+    await musicIDXEntry({
+      artistName: artist.name,
+      artistLink: spotifyArtistUrlRegex.test(artistLink)
+        ? artistLink
+        : undefined,
+      albumLink: spotifyAlbumUrlRegex.test(albumLink) ? albumLink : undefined,
+      spotifyId: artist.id,
+    });
+  };
+
+  // Simulate a vinyl detection after 5 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
-      const detectedVinyl = "amaarae_the angel you dont know";
+      const detectedVinyl = "LUCKI_GEMINI!";
       setLastDetectedVinyl(detectedVinyl);
       searchSpotify(detectedVinyl).then(() => {
         albumModal.setTrue();
       });
-    }, 5000);
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, []);
@@ -152,11 +192,11 @@ const VinylScan = () => {
         ref={canvasRef}
         className='absolute left-0 right-0 mx-auto text-center z-10 w-[360px] sm:w-[640px] h-[480px]'
       />
-      {spotifyResults && albumModal.value && (
+      {spotifyResult && albumModal.value && (
         <DigitalAlbum
           isOpen={albumModal.value}
           handleClose={albumModal.setFalse}
-          albumData={spotifyResults}
+          album={spotifyResult}
           vinyl={lastDetectedVinyl!}
         />
       )}

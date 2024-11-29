@@ -53,7 +53,7 @@ const Waitlist = () => {
 
         setTimeout(() => {
           router.push("/scan-vinyl");
-        }, 2000);
+        }, 600);
       } catch (error) {
         console.error("Server error:", error);
       }
