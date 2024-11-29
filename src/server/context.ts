@@ -2,6 +2,7 @@
 import { createCallerFactory, createTRPCRouter } from "@/server/trpc";
 
 import { waitlistRouter } from "./routers/waitlist";
+import { musicIDXRouter } from "./routers/music-idx";
 
 /**
  * This is the primary router for your server.
@@ -10,6 +11,7 @@ import { waitlistRouter } from "./routers/waitlist";
  */
 export const appRouter = createTRPCRouter({
   waitlist: waitlistRouter,
+  musicIDX: musicIDXRouter,
 });
 
 // export type definition of API

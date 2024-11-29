@@ -18,3 +18,14 @@ model Waitlist {
   email     String
   timestamp DateTime?
 }
+
+// MusicIDX is a organized by artist
+// Using Spotify as the primary source of data 
+model MusicIDX {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt   DateTime?
+  artistName  String?
+  artistLink  String?
+  albumLink   String?
+  spotifyId   String?
+}

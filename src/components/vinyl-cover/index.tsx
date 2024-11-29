@@ -1,8 +1,8 @@
 // ** React/Next.js Imports
-import React, { useRef, useEffect } from "react";
+import React, { useRef } from "react";
 
 // ** Third-Party Imports
-import { useFrame, useLoader } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { Html } from "@react-three/drei";
 
