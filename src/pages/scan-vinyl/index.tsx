@@ -26,7 +26,7 @@ const VinylScan = () => {
 
   const { mutateAsync: musicIDXEntry } = api.musicIDX.add.useMutation();
 
-  /**
+  /**  TODO: Train custom vinyl recognition model
     Notes:
     - Vinyl covers can be detected by mainly two methods: 
       a) cover art has to be labelled by artist and album metadata
@@ -106,7 +106,7 @@ const VinylScan = () => {
     try {
       // Split the detected string into artist and album
       const [artist, album] = detectedVinyl.split("_");
-//test
+
       // Create a search query that combines artist and album
       const searchQuery = `artist:${artist} album:${album}`;
 
@@ -131,7 +131,7 @@ const VinylScan = () => {
     }
   };
 
-  // TODO: Remove this once the model is trained
+  // Simulate a vinyl detection after 5 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
       const detectedVinyl = "el cousteau_merci, non merci";
