@@ -118,23 +118,43 @@ const VinylScan = () => {
         0 // offset
       );
 
-      // TODO: Parse spotify response for custom data object
-      // response should provide a link to a spotify asset (album, artist, tracks)
-      setSpotifyResults(response); 
-
-      await musicIDXEntry({
-        spotifyData: response.albums?.items?.[0],
-      });
+      setSpotifyResults(response);
+      await processSpotifyAlbum(response, artist);
     } catch (error) {
       console.error("Failed to fetch album:", error);
       return null;
     }
   };
 
+  const processSpotifyAlbum = async (response: any, searchArtist: string) => {
+    const album = response?.albums?.items?.[0];
+    if (!album) return null;
+
+    const artist = album.artists?.[0];
+    if (!artist || artist.name.toLowerCase() !== searchArtist.toLowerCase()) {
+      return null;
+    }
+
+    const spotifyArtistUrlRegex = /^https:\/\/open\.spotify\.com\/artist\/.+$/;
+    const spotifyAlbumUrlRegex = /^https:\/\/open\.spotify\.com\/album\/.+$/;
+
+    const artistLink = artist.external_urls?.spotify;
+    const albumLink = album.external_urls?.spotify;
+
+    await musicIDXEntry({
+      artistName: artist.name,
+      artistLink: spotifyArtistUrlRegex.test(artistLink)
+        ? artistLink
+        : undefined,
+      albumLink: spotifyAlbumUrlRegex.test(albumLink) ? albumLink : undefined,
+      spotifyId: artist.id,
+    });
+  };
+
   // Simulate a vinyl detection after 5 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
-      const detectedVinyl = "el cousteau_merci, non merci";
+      const detectedVinyl = "LUCKI_GEMINI!";
       setLastDetectedVinyl(detectedVinyl);
       searchSpotify(detectedVinyl).then(() => {
         albumModal.setTrue();
