@@ -19,9 +19,12 @@ model Waitlist {
   timestamp DateTime?
 }
 
-model MusicIDX {
+model MusicIDX { // Using Spotify as the source of truth
   id        String    @id @default(auto()) @map("_id") @db.ObjectId
   createdAt DateTime?
   artistName String?
+  albumLink String?
+  trackLink String?
+  spotifyId String?
   spotifyData Json?
 }
