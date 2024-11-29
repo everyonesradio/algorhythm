@@ -19,7 +19,7 @@ const VinylScan = () => {
   const cameraRef = useRef<CameraType | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const _processedVinyls = useRef<Set<string>>(new Set());
-  const [spotifyResults, setSpotifyResults] = useState<any>(null);
+  const [spotifyResult, setSpotifyResult] = useState<any>(null);
   const [lastDetectedVinyl, setLastDetectedVinyl] = useState<string | null>(
     null
   );
@@ -118,23 +118,34 @@ const VinylScan = () => {
         0 // offset
       );
 
-      setSpotifyResults(response);
-      await processSpotifyAlbum(response, artist);
+      // Early validation of album existence
+      const foundAlbum = response?.albums?.items?.[0];
+      if (!foundAlbum) {
+        console.log("Album not found");
+        return null;
+      }
+
+      // Validate artist match
+      const foundArtist = foundAlbum.artists?.[0];
+      if (
+        !foundArtist ||
+        foundArtist.name.toLowerCase() !== artist.toLowerCase()
+      ) {
+        console.log("Artist mismatch");
+        return null;
+      }
+
+      // Only set results and process if we have valid data
+      setSpotifyResult(foundAlbum);
+      await processSpotifyAlbum(foundAlbum);
     } catch (error) {
       console.error("Failed to fetch album:", error);
       return null;
     }
   };
 
-  const processSpotifyAlbum = async (response: any, searchArtist: string) => {
-    const album = response?.albums?.items?.[0];
-    if (!album) return null;
-
+  const processSpotifyAlbum = async (album: any) => {
     const artist = album.artists?.[0];
-    if (!artist || artist.name.toLowerCase() !== searchArtist.toLowerCase()) {
-      return null;
-    }
-
     const spotifyArtistUrlRegex = /^https:\/\/open\.spotify\.com\/artist\/.+$/;
     const spotifyAlbumUrlRegex = /^https:\/\/open\.spotify\.com\/album\/.+$/;
 
@@ -159,7 +170,7 @@ const VinylScan = () => {
       searchSpotify(detectedVinyl).then(() => {
         albumModal.setTrue();
       });
-    }, 5000);
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, []);
@@ -181,11 +192,11 @@ const VinylScan = () => {
         ref={canvasRef}
         className='absolute left-0 right-0 mx-auto text-center z-10 w-[360px] sm:w-[640px] h-[480px]'
       />
-      {spotifyResults && albumModal.value && (
+      {spotifyResult && albumModal.value && (
         <DigitalAlbum
           isOpen={albumModal.value}
           handleClose={albumModal.setFalse}
-          albumData={spotifyResults}
+          album={spotifyResult}
           vinyl={lastDetectedVinyl!}
         />
       )}
