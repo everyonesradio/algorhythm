@@ -17,19 +17,17 @@ import { IoClose } from "react-icons/io5";
 interface Props {
   isOpen: boolean;
   handleClose: () => void;
-  albumData: any;
+  album: any;
   vinyl: string;
 }
 
 const DigitalAlbum: React.FC<Props> = ({
   isOpen,
   handleClose,
-  albumData,
+  album,
   vinyl,
 }) => {
-  const album = albumData?.albums?.items?.[0];
-
-  console.log("Spotify results: ", albumData?.albums?.items?.[0]);
+  console.log("Spotify results: ", album);
   console.log("Detected vinyl: ", vinyl);
 
   return (
