@@ -87,6 +87,7 @@ const DigitalAlbum: React.FC<Props> = ({
               <FaSpotify className='text-lg' />
               <span>Add album to library</span>
             </button>
+            {/* Generate links to other streaming platforms */}
           </div>
         </div>
       </Box>
