@@ -2,7 +2,7 @@
 import { z } from "zod";
 
 // ** Custom Components, Hooks, Utils, etc.
-import { createTRPCRouter, publicProcedure } from "../trpc";
+import { createTRPCRouter, publicProcedure } from "../../api/trpc";
 
 export const musicIDXRouter = createTRPCRouter({
   add: publicProcedure
@@ -26,4 +26,6 @@ export const musicIDXRouter = createTRPCRouter({
         message: "Album data stored successfully!",
       };
     }),
+
+  // Call to add platformLinks by spotifyId
 });

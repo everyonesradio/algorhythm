@@ -2,7 +2,7 @@
 import { z } from "zod";
 
 // ** Custom Components, Hooks, Utils, etc.
-import { createTRPCRouter, publicProcedure } from "../trpc";
+import { createTRPCRouter, publicProcedure } from "../../trpc";
 
 export const waitlistRouter = createTRPCRouter({
   add: publicProcedure
