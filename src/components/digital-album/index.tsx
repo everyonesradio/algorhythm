@@ -1,5 +1,5 @@
 // ** React/Next.js Imports
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 // ** Third-Party Imports
 import Box from "@mui/material/Box";
@@ -8,7 +8,10 @@ import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 
 // ** Custom Components, Hooks, Utils, etc.
+import SearchCard from "@/components/search-card";
 import Vinyl3D from "@/components/vinyl-cover";
+import { Adapter } from "@/config/enum";
+import { search, SearchResult } from "@/server/services/search";
 
 // ** Icon Imports
 import { FaSpotify } from "react-icons/fa";
@@ -27,6 +30,28 @@ const DigitalAlbum: React.FC<Props> = ({
   album,
   vinyl,
 }) => {
+  const [platformLinks, setPlatformLinks] = useState<SearchResult | undefined>();
+
+  useEffect(() => {
+    const fetchSearchResults = async () => {
+      if (album?.external_urls?.spotify) {
+        const searchResult = await search({
+          link: album.external_urls.spotify,
+          adapters: [
+            Adapter.YouTube,
+            Adapter.AppleMusic,
+            Adapter.Deezer,
+            Adapter.SoundCloud,
+            Adapter.Tidal,
+          ],
+        });
+        setPlatformLinks(searchResult);
+      }
+    };
+
+    fetchSearchResults();
+  }, [album]);
+
   console.log("Spotify results: ", album);
   console.log("Detected vinyl: ", vinyl);
 
@@ -88,11 +113,11 @@ const DigitalAlbum: React.FC<Props> = ({
               <span>Add album to library</span>
             </button>
             {/* Generate links to other streaming platforms */}
+            {platformLinks && <SearchCard searchResult={platformLinks} />}
           </div>
         </div>
       </Box>
     </Drawer>
   );
 };
-
 export default DigitalAlbum;
