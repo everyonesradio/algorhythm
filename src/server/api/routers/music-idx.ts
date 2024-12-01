@@ -32,34 +32,34 @@ export const musicIDXRouter = createTRPCRouter({
 
   // Call to add platformLinks by spotifyId
   search: publicProcedure
-  .input(
+    .input(
       z.object({
         albumLink: z.string(),
       })
     )
     .query(async ({ ctx, input }) => {
-    const searchResult = await search({
-      link: input.albumLink,
-      adapters: [
-        // Adapter.Spotify,
-        Adapter.YouTube,
-        Adapter.AppleMusic,
-        Adapter.Deezer,
-        Adapter.SoundCloud,
-        Adapter.Tidal,
-      ],
-    });
-
-    if (!searchResult) {
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Album not found",
+      const searchResult = await search({
+        link: input.albumLink,
+        adapters: [
+          // Adapter.Spotify,
+          Adapter.YouTube,
+          Adapter.AppleMusic,
+          Adapter.Deezer,
+          Adapter.SoundCloud,
+          Adapter.Tidal,
+        ],
       });
-    }
 
-    return {
-      message: "Album data retrieved successfully!",
-      links: searchResult,
-    };
-  })
+      if (!searchResult) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Album not found",
+        });
+      }
+
+      return {
+        message: "Album data retrieved successfully!",
+        links: searchResult,
+      };
+    }),
 });

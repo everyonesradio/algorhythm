@@ -1,12 +1,15 @@
-export const SPOTIFY_LINK_REGEX = /^https:\/\/open\.spotify\.com\/(?:intl-[a-z]{2}\/)?(album|artist|playlist)\/(\w{11,24})(?:[\?#].*)?$/;
+export const SPOTIFY_LINK_REGEX =
+  /^https:\/\/open\.spotify\.com\/(?:intl-[a-z]{2}\/)?(album|artist|playlist)\/(\w{11,24})(?:[\?#].*)?$/;
 
 export const SPOTIFY_LINK_MOBILE_REGEX = /^https:\/\/spotify\.link\/(\w+)/;
-export const SPOTIFY_LINK_DESKTOP_REGEX =/(https:\/\/open\.spotify\.com\/(album|playlist|artist)\/(\w+))/;
+export const SPOTIFY_LINK_DESKTOP_REGEX =
+  /(https:\/\/open\.spotify\.com\/(album|playlist|artist)\/(\w+))/;
 
 export const YOUTUBE_LINK_REGEX =
   /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com|youtu\.be|music\.youtube\.com)\/(?:watch\?v=|embed\/|v\/|shorts\/|playlist\?list=|channel\/)?([\w-]{11,})(?:\S+)?(?:&si=\S+)?/;
 
-export const APPLE_MUSIC_LINK_REGEX = /^https:\/\/music\.apple\.com\/(?:[a-z]{2}\/)?(?:album|playlist|artist)\/([\w-]+)(?:\/([\w-]+))?(?:\?.*)?/;
+export const APPLE_MUSIC_LINK_REGEX =
+  /^https:\/\/music\.apple\.com\/(?:[a-z]{2}\/)?(?:album|playlist|artist)\/([\w-]+)(?:\/([\w-]+))?(?:\?.*)?/;
 
 export const DEEZER_LINK_REGEX =
   /^https:\/\/www\.deezer\.com\/(?:[a-z]{2}\/)?(?:album|playlist|artist)\/(\d+)/;

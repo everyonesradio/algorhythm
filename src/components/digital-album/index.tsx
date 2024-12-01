@@ -97,7 +97,9 @@ const DigitalAlbum: React.FC<Props> = ({
               <span>Add album to library</span>
             </button>
             {/* Generate links to other streaming platforms */}
-            {searchResult?.links && <SearchCard searchResult={searchResult.links} />}
+            {searchResult?.links && (
+              <SearchCard searchResult={searchResult.links} />
+            )}
           </div>
         </div>
       </Box>
