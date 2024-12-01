@@ -20,15 +20,14 @@ interface Props {
   isOpen: boolean;
   handleClose: () => void;
   album: any;
-  vinyl: string;
 }
 
 const DigitalAlbum: React.FC<Props> = ({
   isOpen,
   handleClose,
   album,
-  vinyl,
 }) => {
+  const { mutateAsync: musicIDXEntry } = api.musicIDX.add.useMutation();
   const { data: searchResult } = api.musicIDX.search.useQuery(
     { albumLink: album?.external_urls?.spotify },
     {
@@ -36,8 +35,30 @@ const DigitalAlbum: React.FC<Props> = ({
     }
   );
 
-  console.log("Album link: ", album?.external_urls?.spotify);
-  console.log("Detected vinyl: ", vinyl);
+  const processSpotifyAlbum = async (album: any) => {
+    const artist = album.artists?.[0];
+    const spotifyArtistUrlRegex = /^https:\/\/open\.spotify\.com\/artist\/.+$/;
+    const spotifyAlbumUrlRegex = /^https:\/\/open\.spotify\.com\/album\/.+$/;
+
+    const artistLink = artist.external_urls?.spotify;
+    const albumLink = album.external_urls?.spotify;
+
+    await musicIDXEntry({
+      artistName: artist.name,
+      artistLink: spotifyArtistUrlRegex.test(artistLink)
+        ? artistLink
+        : undefined,
+      albumLink: spotifyAlbumUrlRegex.test(albumLink) ? albumLink : undefined,
+      spotifyId: artist.id,
+    });
+  };
+
+  useEffect(() => {
+    if (album?.external_urls?.spotify) {
+      processSpotifyAlbum(album);
+      console.log("Album link: ", album?.external_urls?.spotify);
+    }
+  }, [album?.external_urls?.spotify]);
 
   return (
     <Drawer
