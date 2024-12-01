@@ -1,6 +1,9 @@
-import type { AnyNode, Cheerio, CheerioAPI } from "cheerio";
+// ** Third-Party Imports
+import type { Cheerio, CheerioAPI } from "cheerio";
+import type { AnyNode } from "domhandler";
 import { compareTwoStrings } from "string-similarity";
 
+// ** Custom Components, Hooks, Utils, etc.
 import { RESPONSE_COMPARE_MIN_SCORE } from "@/config/constants";
 
 export function responseMatchesQuery(response: string, query: string) {
