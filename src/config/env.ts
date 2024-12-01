@@ -1,4 +1,4 @@
-import { version } from "../../package.json";
+import packageJson from "../../package.json";
 
 export const ENV = {
   adapters: {
@@ -34,7 +34,7 @@ export const ENV = {
   },
   app: {
     url: process.env.APP_URL!,
-    version: version,
+    version: packageJson.version,
   },
   cache: {
     databasePath: process.env.DATABASE_PATH ?? ":memory:",
