@@ -162,7 +162,7 @@ const VinylScan = () => {
   // Simulate a vinyl detection after 5 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
-      const detectedVinyl = "LUCKI_GEMINI!";
+      const detectedVinyl = "navy blue_memoirs in armour";
       setLastDetectedVinyl(detectedVinyl);
       searchSpotify(detectedVinyl).then(() => {
         albumModal.setTrue();
