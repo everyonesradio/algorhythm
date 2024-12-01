@@ -28,4 +28,5 @@ model MusicIDX {
   artistLink  String?
   albumLink   String?
   spotifyId   String?
+  platformLinks Json?
 }

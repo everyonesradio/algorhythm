@@ -127,10 +127,7 @@ const VinylScan = () => {
 
       // Validate artist match
       const foundArtist = foundAlbum.artists?.[0];
-      if (
-        !foundArtist ||
-        foundArtist.name.toLowerCase() !== artist.toLowerCase()
-      ) {
+      if (foundArtist.name.toLowerCase() !== artist.toLowerCase()) {
         console.log("Artist mismatch");
         return null;
       }
@@ -165,7 +162,7 @@ const VinylScan = () => {
   // Simulate a vinyl detection after 5 seconds
   useEffect(() => {
     const timer = setTimeout(() => {
-      const detectedVinyl = "LUCKI_GEMINI!";
+      const detectedVinyl = "navy blue_memoirs in armour";
       setLastDetectedVinyl(detectedVinyl);
       searchSpotify(detectedVinyl).then(() => {
         albumModal.setTrue();

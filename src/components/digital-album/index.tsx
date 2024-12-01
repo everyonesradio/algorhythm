@@ -1,5 +1,5 @@
 // ** React/Next.js Imports
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 // ** Third-Party Imports
 import Box from "@mui/material/Box";
@@ -8,7 +8,9 @@ import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 
 // ** Custom Components, Hooks, Utils, etc.
+import SearchCard from "@/components/search-card";
 import Vinyl3D from "@/components/vinyl-cover";
+import { api } from "@/utils/trpc";
 
 // ** Icon Imports
 import { FaSpotify } from "react-icons/fa";
@@ -27,7 +29,14 @@ const DigitalAlbum: React.FC<Props> = ({
   album,
   vinyl,
 }) => {
-  console.log("Spotify results: ", album);
+  const { data: searchResult } = api.musicIDX.search.useQuery(
+    { albumLink: album?.external_urls?.spotify },
+    {
+      enabled: !!album?.external_urls?.spotify,
+    }
+  );
+
+  console.log("Album link: ", album?.external_urls?.spotify);
   console.log("Detected vinyl: ", vinyl);
 
   return (
@@ -87,11 +96,14 @@ const DigitalAlbum: React.FC<Props> = ({
               <FaSpotify className='text-lg' />
               <span>Add album to library</span>
             </button>
+            {/* Generate links to other streaming platforms */}
+            {searchResult?.links && (
+              <SearchCard searchResult={searchResult.links} />
+            )}
           </div>
         </div>
       </Box>
     </Drawer>
   );
 };
-
 export default DigitalAlbum;
