@@ -1,20 +1,13 @@
 import { createCache } from "cache-manager";
-import Keyv from "keyv";
-import KeyvRedis from "@keyv/redis";
 
 import { ENV } from "@/config/env";
 import type { Parser } from "@/config/enum";
 
 import { SearchMetadata, SearchResultLink } from "@/server/services/search";
 
-const redisStore = new KeyvRedis({
-  url: "redis://localhost:6379",
-});
+// Memory store by default
+const cacheStore = createCache();
 
-export const cacheStore = createCache({
-  stores: [new Keyv({ store: redisStore })],
-  ttl: ENV.cache.expTime,
-});
 export const cacheSearchResultLink = async (
   url: URL,
   searchResultLink: SearchResultLink
@@ -52,10 +45,14 @@ export const cacheSpotifyAccessToken = async (
 ) => {
   await cacheStore.set("spotify:accessToken", accessToken, expTime);
 };
+
 export const getCachedSpotifyAccessToken = async (): Promise<
   string | undefined
 > => {
-  return cacheStore.get("spotify:accessToken");
+  const result = await cacheStore.get("spotify:accessToken");
+  return result === null || result === undefined
+    ? undefined
+    : (result as string);
 };
 
 export const cacheShortenLink = async (link: string, refer: string) => {
@@ -65,5 +62,8 @@ export const cacheShortenLink = async (link: string, refer: string) => {
 export const getCachedShortenLink = async (
   link: string
 ): Promise<string | undefined> => {
-  return cacheStore.get(`url-shortener:${link}`);
+  const result = await cacheStore.get(`url-shortener:${link}`);
+  return result === null || result === undefined
+    ? undefined
+    : (result as string);
 };
