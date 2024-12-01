@@ -30,7 +30,6 @@ export const musicIDXRouter = createTRPCRouter({
       };
     }),
 
-  // Call to add platformLinks by spotifyId
   search: publicProcedure
     .input(
       z.object({
@@ -41,7 +40,7 @@ export const musicIDXRouter = createTRPCRouter({
       const searchResult = await search({
         link: input.albumLink,
         adapters: [
-          // Adapter.Spotify,
+          Adapter.Spotify,
           Adapter.YouTube,
           Adapter.AppleMusic,
           Adapter.Deezer,
