@@ -15,6 +15,7 @@ import {
 } from "@/config/constants";
 import { defaultHeaders, fetchMetadata } from "@/server/services/metadata";
 import HttpClient from "@/utils/http-client";
+import { retry } from "@/utils/retry";
 
 enum SpotifyMetadataType {
   Song = "music.song",
@@ -42,7 +43,20 @@ export const getSpotifyMetadata = async (id: string, link: string) => {
   }
 
   try {
-    let html = await fetchMetadata(link);
+    // Implement retry logic for fetching metadata
+    const fetchWithRetry = retry(
+      async () => {
+        const html = await fetchMetadata(link);
+        return html;
+      },
+      {
+        retries: 3,
+        backoff: true,
+        delay: 1000,
+      }
+    );
+
+    let html = await fetchWithRetry();
 
     if (SPOTIFY_LINK_MOBILE_REGEX.test(link)) {
       link = html.match(SPOTIFY_LINK_DESKTOP_REGEX)?.[0] ?? "";
@@ -51,7 +65,6 @@ export const getSpotifyMetadata = async (id: string, link: string) => {
         throw new Error("Invalid mobile spotify link");
       }
 
-      // wait a random amount of time to avoid rate limiting
       await new Promise((res) => setTimeout(res, Math.random() * 1000));
 
       logger.info(
@@ -59,8 +72,15 @@ export const getSpotifyMetadata = async (id: string, link: string) => {
       );
 
       html = await HttpClient.get<string>(link, {
-        headers: defaultHeaders,
-        retries: 2,
+        headers: {
+          ...defaultHeaders,
+          Accept:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.5",
+          Connection: "keep-alive",
+        },
+        timeout: 10000,
+        retries: 3,
       });
     }
 
@@ -92,6 +112,7 @@ export const getSpotifyMetadata = async (id: string, link: string) => {
 
     return metadata;
   } catch (err) {
+    logger.error(`Spotify metadata fetch failed for ${link}:`, err);
     throw new Error(`[${getSpotifyMetadata.name}] (${link}) ${err}`);
   }
 };
