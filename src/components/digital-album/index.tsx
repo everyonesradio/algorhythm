@@ -22,11 +22,7 @@ interface Props {
   album: any;
 }
 
-const DigitalAlbum: React.FC<Props> = ({
-  isOpen,
-  handleClose,
-  album,
-}) => {
+const DigitalAlbum: React.FC<Props> = ({ isOpen, handleClose, album }) => {
   const { mutateAsync: musicIDXEntry } = api.musicIDX.add.useMutation();
   const { data: searchResult } = api.musicIDX.search.useQuery(
     { albumLink: album?.external_urls?.spotify },
