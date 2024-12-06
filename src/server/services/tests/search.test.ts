@@ -1,7 +1,10 @@
-import { search } from "@/server/services/search";
-import { getSearchParser } from "@/parsers/link";
+// ** Third-Party Imports
+import { describe, it, expect } from "vitest";
+
+// ** Custom Components, Hooks, Utils, etc.
 import { Adapter, Parser } from "@/config/enum";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { getSearchParser } from "@/parsers/link";
+import { search } from "@/server/services/search";
 
 describe("Album Search Integration", () => {
   const spotifyUrl = "https://open.spotify.com/album/4HgkXIyPXtXueFq7swBqXa";

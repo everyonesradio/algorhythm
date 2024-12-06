@@ -1,3 +1,4 @@
+// ** Custom Components, Hooks, Utils, etc.
 import packageJson from "../../package.json";
 
 export const ENV = {
