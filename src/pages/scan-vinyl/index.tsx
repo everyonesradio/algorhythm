@@ -12,7 +12,6 @@ import DigitalAlbum from "@/components/digital-album";
 import { useBoolean } from "@/hooks/use-boolean";
 import SpotifyAPI from "@lib/spotify";
 import { drawRect } from "@/utils/draw-rectangle";
-import { api } from "@/utils/trpc";
 
 const VinylScan = () => {
   const albumModal = useBoolean();
@@ -20,11 +19,9 @@ const VinylScan = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const _processedVinyls = useRef<Set<string>>(new Set());
   const [spotifyResult, setSpotifyResult] = useState<any>(null);
-  const [lastDetectedVinyl, setLastDetectedVinyl] = useState<string | null>(
+  const [_lastDetectedVinyl, setLastDetectedVinyl] = useState<string | null>(
     null
   );
-
-  const { mutateAsync: musicIDXEntry } = api.musicIDX.add.useMutation();
 
   /**  TODO: Train custom vinyl recognition model
     Notes:
@@ -132,31 +129,12 @@ const VinylScan = () => {
         return null;
       }
 
-      // Only set results and process if we have valid data
+      // Only set results if we have valid data
       setSpotifyResult(foundAlbum);
-      await processSpotifyAlbum(foundAlbum);
     } catch (error) {
       console.error("Failed to fetch album:", error);
       return null;
     }
-  };
-
-  const processSpotifyAlbum = async (album: any) => {
-    const artist = album.artists?.[0];
-    const spotifyArtistUrlRegex = /^https:\/\/open\.spotify\.com\/artist\/.+$/;
-    const spotifyAlbumUrlRegex = /^https:\/\/open\.spotify\.com\/album\/.+$/;
-
-    const artistLink = artist.external_urls?.spotify;
-    const albumLink = album.external_urls?.spotify;
-
-    await musicIDXEntry({
-      artistName: artist.name,
-      artistLink: spotifyArtistUrlRegex.test(artistLink)
-        ? artistLink
-        : undefined,
-      albumLink: spotifyAlbumUrlRegex.test(albumLink) ? albumLink : undefined,
-      spotifyId: artist.id,
-    });
   };
 
   // Simulate a vinyl detection after 5 seconds
@@ -194,7 +172,6 @@ const VinylScan = () => {
           isOpen={albumModal.value}
           handleClose={albumModal.setFalse}
           album={spotifyResult}
-          vinyl={lastDetectedVinyl!}
         />
       )}
     </div>

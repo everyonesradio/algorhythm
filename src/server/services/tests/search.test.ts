@@ -1,16 +1,19 @@
-import { search } from "@/server/services/search";
-import { getSearchParser } from "@/parsers/link";
+// ** Third-Party Imports
+import { describe, it, expect } from "vitest";
+
+// ** Custom Components, Hooks, Utils, etc.
 import { Adapter, Parser } from "@/config/enum";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { getSearchParser } from "@/parsers/link";
+import { search } from "@/server/services/search";
 
 describe("Album Search Integration", () => {
-  const spotifyUrl = "https://open.spotify.com/album/2noRn2Aes5aoNVsU6iWThc";
+  const spotifyUrl = "https://open.spotify.com/album/4HgkXIyPXtXueFq7swBqXa";
 
   describe("parse", () => {
     it("should correctly extract Spotify album ID", async () => {
       const parser = getSearchParser(spotifyUrl);
       expect(parser.type).toBe(Parser.Spotify);
-      expect(parser.id).toBe("2noRn2Aes5aoNVsU6iWThc");
+      expect(parser.id).toBe("4HgkXIyPXtXueFq7swBqXa");
     });
   });
 
