@@ -1,8 +1,9 @@
+// ** Third-Party Imports
 import axios, { AxiosError } from "axios";
 import axiosRetry from "axios-retry";
 
+// ** Custom Components, Hooks, Utils, etc.
 import { DEFAULT_TIMEOUT } from "@/config/constants";
-
 import { logger } from "@/utils/logger";
 
 type HttpClientOptions = {

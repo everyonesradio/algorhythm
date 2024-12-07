@@ -26,6 +26,11 @@ export async function shortenLink(link: string) {
   let refer = link;
 
   try {
+    if (!ENV.utils.urlShortener.apiUrl) {
+      logger.error("[url-shortener] API URL is not configured");
+      return refer;
+    }
+
     const response = await HttpClient.post<ApiResponse>(
       ENV.utils.urlShortener.apiUrl,
       {
@@ -43,6 +48,8 @@ export async function shortenLink(link: string) {
     await cacheShortenLink(link, refer);
   } catch (err) {
     logger.error(`[url-shortener] (${link}) request failed ${err}`);
+    // Return original link if shortening fails
+    return link;
   }
 
   return refer;

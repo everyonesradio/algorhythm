@@ -1,11 +1,12 @@
+// ** Custom Components, Hooks, Utils, etc.
 import packageJson from "../../package.json";
 
 export const ENV = {
   adapters: {
     spotify: {
       authUrl: process.env.SPOTIFY_AUTH_URL!,
-      clientId: process.env.SPOTIFY_CLIENT_ID!,
-      clientSecret: process.env.SPOTIFY_CLIENT_SECRET!,
+      clientId: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID!,
+      clientSecret: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET!,
       apiUrl: process.env.SPOTIFY_API_URL!,
       clientVersion: process.env.SPOTIFY_CLIENT_VERSION!,
     },
@@ -33,7 +34,7 @@ export const ENV = {
     },
   },
   app: {
-    url: process.env.APP_URL!,
+    url: process.env.NEXT_PUBLIC_BASE_URL!,
     version: packageJson.version,
   },
   cache: {
