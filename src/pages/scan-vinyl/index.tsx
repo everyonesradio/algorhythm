@@ -27,7 +27,7 @@ const VinylScan = () => {
     Notes:
     - Vinyl covers can be detected by mainly two methods: 
       a) cover art has to be labelled by artist and album metadata
-      b) model must be trained on the shape of a vinyl cover, this way cover art could be mapped on it
+      b) 2D cover art could be rendered in a 3D env to train the vinyl detection model
       
     - Need a labelled dataset of vinyl cover art
 
@@ -137,15 +137,15 @@ const VinylScan = () => {
     }
   };
 
-  // Simulate a vinyl detection after 5 seconds
+  // Simulate vinyl detection
   useEffect(() => {
     const timer = setTimeout(() => {
-      const detectedVinyl = "navy blue_memoirs in armour";
+      const detectedVinyl = "Larry June_Doing It For Me";
       setLastDetectedVinyl(detectedVinyl);
       searchSpotify(detectedVinyl).then(() => {
         albumModal.setTrue();
       });
-    }, 1000);
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, []);
@@ -177,4 +177,5 @@ const VinylScan = () => {
     </div>
   );
 };
+
 export default VinylScan;

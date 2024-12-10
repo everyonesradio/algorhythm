@@ -1,7 +1,8 @@
 // ** React/Next.js Imports
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 
 // ** Third-Party Imports
+import { Loader2 } from "lucide-react";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
 import { OrbitControls } from "@react-three/drei";
@@ -13,7 +14,6 @@ import Vinyl3D from "@/components/vinyl-cover";
 import { api } from "@/utils/trpc";
 
 // ** Icon Imports
-import { FaSpotify } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
 
 interface Props {
@@ -74,53 +74,48 @@ const DigitalAlbum: React.FC<Props> = ({ isOpen, handleClose, album }) => {
       <Box
         sx={{
           height: {
-            xs: 540, // mobile first - 540px for small screens
+            xs: 640, // mobile first - 640px for small screens
             sm: 700, // 700px for screens sm and up
           },
           padding: 4,
         }}
       >
-        <div className='flex flex-col items-center justify-center h-5/6 w-full min-w-screen bg-white'>
+        <div className='flex flex-col items-center justify-center w-full h-full min-w-screen bg-white'>
           <button
             className='text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm w-8 h-8 absolute top-2.5 end-2.5 flex items-center justify-center dark:hover:bg-gray-600 dark:hover:text-white'
             onClick={handleClose}
           >
             <IoClose className='text-black' size={24} />
           </button>
-          {/* Display album data here */}
-          <div className='flex flex-col items-center justify-center w-full h-full p-4 text-black'>
-            <div className='flex flex-col items-center justify-center '>
-              <span className='font-eightbitdragon text-lg sm:text-2xl'>
-                {album.name}
-              </span>
-              <span className='font-medium'>
-                {album.artists[0].name} - {album.release_date.split("-")[0]}
-              </span>
+          {!searchResult?.links ? (
+            <div className='flex items-center justify-center my-32'>
+              <Loader2 className='h-16 w-16 animate-spin text-black' />
             </div>
-            <div className='w-full h-2/3 sm:h-5/6'>
-              <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
-                <pointLight position={[10, 10, 10]} />
-                <Vinyl3D coverArt={album.images[0]?.url} />
-                <OrbitControls makeDefault />
-              </Canvas>
-            </div>
-            <button
-              className='flex items-center space-x-2 bg-black text-white p-2 px-4 rounded-full'
-              onClick={() =>
-                window.open(album.external_urls?.spotify, "_blank")
-              }
-            >
-              <FaSpotify className='text-lg' />
-              <span>Add album to library</span>
-            </button>
-            {/* Generate links to other streaming platforms */}
-            {searchResult?.links && (
+          ) : (
+            <div className='flex flex-col items-center justify-center w-full h-full p-4 text-black'>
+              <div className='flex flex-col items-center justify-center'>
+                <span className='font-eightbitdragon text-lg sm:text-2xl'>
+                  {album.name}
+                </span>
+                <span className='font-medium'>
+                  {album.artists[0].name} - {album.release_date.split("-")[0]}
+                </span>
+              </div>
+              <div className='w-full h-2/3 sm:h-5/6'>
+                <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
+                  <pointLight position={[10, 10, 10]} />
+                  <Vinyl3D coverArt={album.images[0]?.url} />
+                  <OrbitControls makeDefault />
+                </Canvas>
+              </div>
+              {/* Generate links to streaming platforms */}
               <SearchCard searchResult={searchResult.links} />
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </Box>
     </Drawer>
   );
 };
+
 export default DigitalAlbum;
