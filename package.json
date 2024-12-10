@@ -38,6 +38,7 @@
     "axios-retry": "^4.5.0",
     "cache-manager": "^6.2.0",
     "cheerio": "^1.0.0",
+    "lucide-react": "^0.468.0",
     "mobile-detect": "^1.4.5",
     "next": "^14.2.15",
     "pino-pretty": "^7.0.0",
