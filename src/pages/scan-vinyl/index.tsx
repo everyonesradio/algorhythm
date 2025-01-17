@@ -140,7 +140,7 @@ const VinylScan = () => {
   // Simulate vinyl detection
   useEffect(() => {
     const timer = setTimeout(() => {
-      const detectedVinyl = "Larry June_Doing It For Me";
+      const detectedVinyl = "Frank Ocean_Blonde";
       setLastDetectedVinyl(detectedVinyl);
       searchSpotify(detectedVinyl).then(() => {
         albumModal.setTrue();
