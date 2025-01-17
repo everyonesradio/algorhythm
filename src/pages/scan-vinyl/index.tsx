@@ -145,7 +145,7 @@ const VinylScan = () => {
       searchSpotify(detectedVinyl).then(() => {
         albumModal.setTrue();
       });
-    }, 2000);
+    }, 4000);
 
     return () => clearTimeout(timer);
   }, []);
