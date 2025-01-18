@@ -14,19 +14,36 @@ export const musicIDXRouter = createTRPCRouter({
         artistName: z.string().optional(),
         artistLink: z.string().optional(),
         albumLink: z.string().optional(),
-        spotifyId: z.string().optional(),
+        spotifyId: z.string(),
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await ctx.prisma.musicIDX.create({
-        data: {
-          ...input,
-          createdAt: new Date(),
+      if (!input.spotifyId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Spotify ID is required",
+        });
+      }
+
+      const existingRecord = await ctx.prisma.musicIDX.findUnique({
+        where: {
+          spotifyId: input.spotifyId,
         },
       });
 
+      if (!existingRecord) {
+        await ctx.prisma.musicIDX.create({
+          data: {
+            ...input,
+            createdAt: new Date(),
+          },
+        });
+      }
+
       return {
-        message: "Album data stored successfully!",
+        message: existingRecord
+          ? "Album already exists"
+          : "Album data stored successfully!",
       };
     }),
 
