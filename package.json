@@ -10,7 +10,8 @@
     "lint:fix": "next lint --fix",
     "test": "NODE_ENV=test vitest",
     "prettier": "npx prettier --write ./",
-    "prebuild": "prisma generate && prisma db push"
+    "prebuild": "prisma generate && prisma db push",
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@emotion/react": "^11.13.3",
