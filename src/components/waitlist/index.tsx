@@ -1,6 +1,6 @@
 // ** React/Next.js Imports
 import { useRouter } from "next/navigation";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
 // ** Third-Party Imports
 import { ToastContainer, toast } from "react-toastify";
@@ -11,7 +11,6 @@ import { api } from "@/utils/trpc";
 const Waitlist = () => {
   const router = useRouter();
   const [email, setEmail] = useState<string>("");
-  const [errorMessage, setErrorMessage] = useState<string>("");
 
   const { mutateAsync: waitlistEntry } = api.waitlist.add.useMutation();
 
@@ -26,44 +25,7 @@ const Waitlist = () => {
     const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
 
     if (!email || !emailRegex.test(email)) {
-      setErrorMessage("Please enter a valid email address!");
-      return;
-    }
-
-    if (email) {
-      try {
-        const res = await waitlistEntry({
-          email: email,
-        });
-
-        // Reset states
-        setEmail("");
-        setErrorMessage("");
-
-        toast.success(res.message, {
-          position: "bottom-right",
-          autoClose: 2000,
-          hideProgressBar: true,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: false,
-          progress: undefined,
-          theme: "colored",
-        });
-
-        setTimeout(() => {
-          router.push("/scan-vinyl");
-        }, 600);
-      } catch (error) {
-        console.error("Server error:", error);
-      }
-    }
-  };
-
-  useEffect(() => {
-    // Error handling with react-toastify
-    if (errorMessage) {
-      toast.error(errorMessage, {
+      toast.error("Please enter a valid email address!", {
         position: "bottom-right",
         autoClose: 2000,
         hideProgressBar: true,
@@ -73,11 +35,34 @@ const Waitlist = () => {
         progress: undefined,
         theme: "colored",
       });
+      return;
     }
 
-    // Reset error message
-    setErrorMessage("");
-  }, [errorMessage]);
+    try {
+      const res = await waitlistEntry({
+        email: email,
+      });
+
+      setEmail("");
+
+      toast.success(res.message, {
+        position: "bottom-right",
+        autoClose: 2000,
+        hideProgressBar: true,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: false,
+        progress: undefined,
+        theme: "colored",
+      });
+
+      setTimeout(() => {
+        router.push("/scan-vinyl");
+      }, 600);
+    } catch (error) {
+      console.error("Server error:", error);
+    }
+  };
 
   return (
     <div className='container mx-auto max-w-sm'>
@@ -95,7 +80,7 @@ const Waitlist = () => {
             onChange={handleEmailChange}
           />
           <button
-            className='flex h-10 shrink-0 items-center justify-center gap-2 text-white bg-black px-4 py-2 text-sm font-semibold transition-all'
+            className='flex h-10 shrink-0 items-center justify-center gap-2 text-white bg-black px-4 py-2 text-sm font-semibold transition-transform duration-150 active:scale-[0.97]'
             type='submit'
           >
             <span>Submit</span>

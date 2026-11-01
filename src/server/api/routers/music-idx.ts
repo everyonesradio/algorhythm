@@ -5,7 +5,7 @@ import { z } from "zod";
 // ** Custom Components, Hooks, Utils, etc.
 import { createTRPCRouter, publicProcedure } from "../../api/trpc";
 import { Adapter } from "@/config/enum";
-import { search, SearchResult } from "@/server/services/search";
+import { search } from "@/server/services/search";
 
 export const musicIDXRouter = createTRPCRouter({
   add: publicProcedure
@@ -53,7 +53,7 @@ export const musicIDXRouter = createTRPCRouter({
         albumLink: z.string(),
       })
     )
-    .query(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       const searchResult = await search({
         link: input.albumLink,
         adapters: [

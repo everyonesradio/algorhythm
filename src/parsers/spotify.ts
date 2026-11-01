@@ -112,7 +112,7 @@ export const getSpotifyMetadata = async (id: string, link: string) => {
 
     return metadata;
   } catch (err) {
-    logger.error(`Spotify metadata fetch failed for ${link}:`, err);
+    logger.error(err, `Spotify metadata fetch failed for ${link}`);
     throw new Error(`[${getSpotifyMetadata.name}] (${link}) ${err}`);
   }
 };

@@ -1,9 +1,8 @@
 import { createCache } from "cache-manager";
 
-import { ENV } from "@/config/env";
 import type { Parser } from "@/config/enum";
 
-import { SearchMetadata, SearchResultLink } from "@/server/services/search";
+import type { SearchMetadata, SearchResultLink } from "@/server/services/search";
 
 // Memory store by default
 const cacheStore = createCache();

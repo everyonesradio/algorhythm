@@ -2,16 +2,13 @@
 import React, { useRef, useEffect, useState } from "react";
 
 // ** Third-Party Imports
-import * as tf from "@tensorflow/tfjs";
-import * as cocossd from "@tensorflow-models/coco-ssd";
 import MobileDetect from "mobile-detect";
-import { Camera, CameraType } from "react-camera-pro";
+import { Camera, type CameraType } from "react-camera-pro";
 
 // ** Custom Components, Hooks, Utils, etc.
 import DigitalAlbum from "@/components/digital-album";
 import { useBoolean } from "@/hooks/use-boolean";
 import SpotifyAPI from "@lib/spotify";
-import { drawRect } from "@/utils/draw-rectangle";
 
 const VinylScan = () => {
   const albumModal = useBoolean();
