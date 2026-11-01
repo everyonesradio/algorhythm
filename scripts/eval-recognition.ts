@@ -2,6 +2,10 @@
  * Measure recognition quality on real phone photos and calibrate thresholds.
  *
  *   npm run vinyl:eval -- --dir ./eval-photos [--crop 0.9]
+ *   npm run vinyl:eval -- --dir ./eval-photos --crops 0.95,0.7,0.5
+ *
+ * --crops scores each photo the way the app does: several centre crops are
+ * searched and the most useful result wins (see pickBestView).
  *
  * Name each photo after the MusicBrainz release-group id it shows, e.g.
  *   eval-photos/3f6a3c1e-....jpg   eval-photos/3f6a3c1e-...-angle2.jpg
@@ -23,18 +27,25 @@ import { PrismaClient } from "@prisma/client";
 import { ACTIVE_EMBEDDING_MODEL } from "@/lib/embeddings/config";
 import { loadEmbedder } from "@/lib/embeddings/embedder";
 import { findNearestCovers } from "@/server/services/vinyl/index-search";
-import { rankHits } from "@/server/services/vinyl/ranking";
+import {
+  DEFAULT_THRESHOLDS,
+  pickBestView,
+  rankHits,
+} from "@/server/services/vinyl/ranking";
 
-import { centerSquare, toRawImage } from "./lib/images";
+import { centerSquare, toRawImage } from "@/server/services/catalog/images";
 
 
 const { values } = parseArgs({
   options: {
     dir: { type: "string" },
     crop: { type: "string", default: "1" },
+    crops: { type: "string" },
   },
 });
 if (!values.dir) throw new Error("--dir is required");
+
+const thresholds = DEFAULT_THRESHOLDS;
 
 const MBID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 const prisma = new PrismaClient();
@@ -58,11 +69,18 @@ const main = async () => {
 
   for (const file of files) {
     const expected = (MBID.exec(file))?.[0]?.toLowerCase() ?? null;
-    const img = await centerSquare(readFileSync(join(values.dir!, file)), Number(values.crop));
-    const vector = await embedder.embed(await toRawImage(embedder, img));
-    const hits = await findNearestCovers(prisma, vector, ACTIVE_EMBEDDING_MODEL, 50);
+    const photo = readFileSync(join(values.dir!, file));
+    const fractions = (values.crops ?? values.crop!).split(",").map(Number);
+    const views = [];
+    for (const fraction of fractions) {
+      const img = await centerSquare(photo, fraction);
+      const vector = await embedder.embed(await toRawImage(embedder, img));
+      const hits = await findNearestCovers(prisma, vector, ACTIVE_EMBEDDING_MODEL, 50);
+      views.push({ hits, ...rankHits(hits, 5, thresholds) });
+    }
+    const { hits } = views[pickBestView(views)];
     const ranked = rankHits(hits, 5, { match: -1, margin: -1, candidate: -1 });
-    const decision = rankHits(hits);
+    const decision = rankHits(hits, 5, thresholds);
     status[decision.status]++;
 
     const albums = await prisma.album.findMany({

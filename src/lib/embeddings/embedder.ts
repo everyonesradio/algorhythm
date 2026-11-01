@@ -64,6 +64,13 @@ const createEmbedder = async (
   // Never look for weights on our own server; always pull from the HF hub
   // (cached by the browser Cache API / ~/.cache on Node after first load).
   tf.env.allowLocalModels = false;
+  // Serverless file systems are read-only except /tmp; cache weights there.
+  if (typeof window === "undefined" && typeof process !== "undefined") {
+    const dir =
+      process.env.TRANSFORMERS_CACHE ??
+      (process.env.VERCEL ? "/tmp/transformers-cache" : undefined);
+    if (dir) tf.env.cacheDir = dir;
+  }
 
   const loadOpts = {
     dtype: cfg.dtype,

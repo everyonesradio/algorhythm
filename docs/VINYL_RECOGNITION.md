@@ -137,6 +137,112 @@ before tuning further. Known data issue: MusicBrainz fuzzy search matched
 "Fela Kuti – Zombie" to the compilation "Na Poi / Zombie"; seed by `mbid`
 in the list file when a title is ambiguous.
 
+## Alternative covers & pressings (Discogs)
+
+MusicBrainz is weak on vinyl pressings (MM..FOOD: 2 vinyl releases, no art;
+Showbiz!: none). Discogs lists every pressing with photos of the actual
+sleeve: MM..FOOD has 21 vinyl versions, including 2024 reissues with
+entirely different artwork.
+
+`--variants` (seeder, needs `DISCOGS_TOKEN`) finds the album's Discogs
+master, embeds every vinyl pressing's thumbnail (CDN, no API cost), keeps a
+**diverse** set (farthest-first, skipping near-duplicates ≥ 0.95, max 6) and
+stores them from the 600px photo as `variant` vectors. About 8 API calls per
+album, within Discogs' 60 requests/minute.
+
+Measured on MM..FOOD's 2024 alternative-art photos:
+
+| | Auto-matched | Offered as a candidate |
+|---|---|---|
+| Without variants | 0 / 13 | 9 / 13 |
+| With variants (photos not stored as variants) | 6 / 9 | 9 / 9 |
+
+Discogs also fills gaps: albums MusicBrainz doesn't have are built from
+Discogs automatically (Ojerime, Zogo, Jazz in the Classroom), and every
+Discogs-matched album gets its **label** and **styles** ("Boom Bap"). The
+album sheet credits Discogs, as its API terms require. Images are linked,
+never re-hosted.
+
+**Scans add pressings too.** When a scan identifies an album (match,
+"Yes, that's it", or a pick), that album's Discogs pressings are added in
+the background before the artist's catalog ingest (`album-pressings.ts`):
+about 8 Discogs calls, done once per album per 30 days (misses retry after
+7). Tested: scanning Voodoo added 6 pressings plus label Virgin and styles
+Soul, Funk, Neo Soul within 16s. Each variant vector stores its Discogs
+release id, so a match can later say which pressing the user is holding.
+The artist's *other* albums don't get pressings automatically (a 38-album
+catalog would take ~5 minutes at Discogs' rate limit); they gain them the
+first time one of them is scanned.
+
+Discogs search is literal about punctuation: "D’Angelo" (curly, as
+MusicBrainz writes it) finds nothing, so queries are normalised first.
+
+## When the record isn't in the catalog yet
+
+A scan that isn't a confident match never dead-ends:
+
+1. **"Is it one of these?"**: up to 3 near albums (similarity ≥ 0.76).
+2. **"Not sure yet. Is it by…"**: up to 3 *artists* of the nearest covers,
+   plus artist search (MusicBrainz). Artist style carries over between
+   records, but weakly: on unseen covers the right artist was suggested
+   for GNX, untitled unmastered., When I Get Home and Promise, and missed
+   for Endless and SOS. That's why search is always there.
+3. **The artist's records**: shown newest-first instantly, then re-ordered
+   by how much each cover looks like the scan. The browser embeds the
+   thumbnails with the same model (tested: GNX, SOS, Gemini Rights, Lost &
+   Found and Promise all landed #1). Max 3 rows + "See all".
+4. **Picking a record** (`vinyl.pick`) adds it to the catalog with the
+   user's scan as its first vector, so the next scan matches it.
+
+### Scans grow the catalog
+
+Every identified record (a confident match, "Yes, that's it", or a pick)
+starts vectorising **that artist's whole catalog** in the background:
+albums + EPs + mixtapes from MusicBrainz, 6 vectors each (`IngestJob`,
+`src/server/services/catalog/`). It runs inside the same request via
+Vercel `waitUntil`; one job per artist, refreshed after 30 days, retried up
+to 3 times. Picking GNX in a test grew Kendrick Lamar from 2 to 28 albums
+in 165s. `npm run vinyl:worker` finishes anything cut short (e.g. a
+function timeout); it's safe to schedule.
+
+Deploy notes: the server now runs CLIP on CPU. `next.config.mjs` excludes
+onnxruntime's CUDA provider and other platforms (function ~161MB) and
+explicitly includes `libonnxruntime.so.1`, which the file tracer misses.
+Model weights download to `/tmp` on first use. The tRPC route asks for
+`maxDuration: 300`; the effective limit depends on the Vercel plan.
+
+## Distance robustness (close-ups and far shots)
+
+People hold records at every distance, so scans are matched at several
+scales and the catalog stores partial-cover views:
+
+- **Multi-crop scans.** Each camera tick embeds the guide square plus one
+  alternating extra crop (the whole visible width, or a smaller centre).
+  Uploads try 3 crops. The server searches each and keeps the most useful
+  result (`pickBestView`).
+- **Close-up catalog views.** `--augment` also stores the central 75% and
+  55% of each cover (`source: "closeup"`), so a sleeve that overflows the
+  frame matches a partial view instead of the whole cover.
+
+Synthetic eval (29 albums, 58 positives + 15 unknown covers per set):
+
+| Set | Top-1 before | Top-1 after | Wrong auto-matches after |
+|---|---|---|---|
+| Normal framing | 100% | 100% | 0 |
+| Far (sleeve ~40% of frame) | 29% | 83% | 0 (was 1) |
+| Close (~65% of sleeve visible) | 86% | 100% | 1 |
+| Very close (~50% visible) | 66% | 95% | 1 |
+
+`candidate` was raised to 0.76: with more crops, plain or noisy images
+scored ~0.73 against minimalist covers (hubness). The two remaining close-up
+errors both land on the same album, a hub for tight skin-tone crops; the
+next step is hubness correction (penalise albums that score well against
+everything), calibrated on real photos rather than synthetic ones. Re-run:
+
+```bash
+npm run vinyl:eval -- --dir ./eval-close --crops 1,0.88,0.55
+```
+
 ## Model proposals
 
 ### 1. Start with CLIP ViT-B/32 (default, shipped)

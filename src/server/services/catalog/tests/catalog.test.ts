@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { toCatalogAlbum } from "../musicbrainz";
-import { scoreSpotifyCandidate } from "../spotify";
+import { artistMatches, toCatalogAlbum } from "@/server/services/catalog/musicbrainz";
+import { scoreSpotifyCandidate } from "@/server/services/catalog/spotify";
 
 describe("toCatalogAlbum", () => {
   it("flattens a MusicBrainz release group", () => {
@@ -23,6 +23,7 @@ describe("toCatalogAlbum", () => {
       title: "Voodoo",
       artist: "D’Angelo",
       artistMbid: "art-1",
+      artistName: "D’Angelo",
       releaseYear: 2000,
       primaryType: "Album",
       genres: ["neo soul", "r&b"],
@@ -59,5 +60,23 @@ describe("scoreSpotifyCandidate", () => {
       { artist: "Kendrick Lamar", title: "DAMN." }
     );
     expect(score).toBeLessThan(0.4);
+  });
+});
+
+describe("artistMatches", () => {
+  it("ignores a leading 'The' and accents", () => {
+    expect(artistMatches("The Lijadu Sisters", "Lijadu Sisters")).toBe(true);
+    expect(artistMatches("Beyonce", "Beyoncé")).toBe(true);
+  });
+
+  it("matches collaborations credited in a different order", () => {
+    expect(
+      artistMatches("Manu Dibango & Cuarteto Patria", "Cuarteto Patria & Manu Dibango")
+    ).toBe(true);
+    expect(artistMatches("Madlib x MF DOOM", "Madvillain")).toBe(false);
+  });
+
+  it("rejects a different artist with the same title", () => {
+    expect(artistMatches("Elujay", "Strangled")).toBe(false);
   });
 });

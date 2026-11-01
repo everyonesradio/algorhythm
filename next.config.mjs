@@ -19,6 +19,29 @@ const nextConfig = {
   // Load these from node_modules at runtime on the server instead of bundling
   // them (native binaries / large ONNX runtime).
   serverExternalPackages: ["@huggingface/transformers", "sharp", "onnxruntime-node"],
+  // The server runs CLIP on CPU for scan-triggered catalog ingest. Keep the
+  // deployed function small: onnxruntime-node ships every platform plus a
+  // ~340MB CUDA provider we never load.
+  // The tracer follows the .node binding but not the shared library it
+  // dlopens at runtime; without this, server-side embedding crashes on
+  // Vercel with "libonnxruntime.so.1: cannot open shared object file".
+  outputFileTracingIncludes: {
+    "/api/**": [
+      "node_modules/onnxruntime-node/bin/napi-v3/linux/x64/libonnxruntime.so.1",
+      "node_modules/onnxruntime-node/bin/napi-v3/linux/x64/libonnxruntime_providers_shared.so",
+    ],
+  },
+  outputFileTracingExcludes: {
+    "*": [
+      "node_modules/onnxruntime-node/bin/napi-v3/linux/x64/libonnxruntime_providers_cuda.so",
+      "node_modules/onnxruntime-node/bin/napi-v3/linux/x64/libonnxruntime_providers_tensorrt.so",
+      "node_modules/onnxruntime-node/bin/napi-v3/linux/arm64/**",
+      "node_modules/onnxruntime-node/bin/napi-v3/darwin/**",
+      "node_modules/onnxruntime-node/bin/napi-v3/win32/**",
+      "node_modules/@huggingface/transformers/dist/*.web.*",
+      "node_modules/@huggingface/transformers/dist/*.min.*",
+    ],
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "i.scdn.co", pathname: "**" },

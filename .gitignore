@@ -42,3 +42,6 @@ next-env.d.ts
 
 # mcp
 /.cursor/mcp.json
+/eval-far/
+/eval-close/
+/eval-veryclose/

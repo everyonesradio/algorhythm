@@ -20,3 +20,11 @@ export default trpcNext.createNextApiHandler({
         }
       : undefined,
 });
+
+/**
+ * Scans can start a background catalog ingest (`waitUntil`), which embeds
+ * an artist's covers on the server. Give the function room to finish; the
+ * effective limit depends on the Vercel plan. Anything cut short is
+ * finished by `npm run vinyl:worker`.
+ */
+export const config = { maxDuration: 300 };

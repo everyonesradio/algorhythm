@@ -1,0 +1,27 @@
+---
+description: Concise Title Case PR titles with & and w/
+alwaysApply: true
+---
+
+# PR title style
+
+Commit messages stay **lowercase** (see `commit-message-style.mdc`). **PR titles are different.**
+
+When creating or retitling a GitHub PR:
+
+- **Few words.** Name the product intent, not the implementation. Aim for a short headline someone can scan in the PR list — not a sentence that restates the diff.
+- **Title Case.** Capitalize principal words. Keep short prepositions and articles lowercase unless they are the first or last word (`on`, `onto`, `to`, `for`, `of`, `in`, `at`).
+- **`&` not `and`.** **`w/` not `with`.** No Conventional Commits prefix. No trailing period.
+- Put ticket IDs and implementation detail in the **PR body**, not the title.
+
+```
+❌ return setup progress on skinny and onboarding clients
+❌ Return Setup Progress on Skinny & Onboarding Clients
+✅ Expose Client Setup Progress
+
+❌ move client setup onto roster w/ progress rings and verified complete
+❌ Move Client Setup onto Roster w/ Progress Rings & Verified Complete
+✅ Move Client Setup onto Roster
+```
+
+The long Title Case lines above are the casing/punctuation transform of a commit-style sentence. **Do not ship those as titles** — compress further to the theme. The body can list skinny fields, rings, verified marks, etc.

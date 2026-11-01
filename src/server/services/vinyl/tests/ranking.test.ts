@@ -5,6 +5,7 @@ import {
   decideMatch,
   DEFAULT_THRESHOLDS,
   groupHitsByAlbum,
+  pickBestView,
   rankHits,
 } from "@/server/services/vinyl/ranking";
 
@@ -91,3 +92,23 @@ describe("vector helpers", () => {
     expect(cosineSimilarity([0, 0], [1, 1])).toBe(0);
   });
 });
+
+describe("pickBestView", () => {
+  const view = (status: "matched" | "ambiguous" | "none", top?: number) => ({
+    status,
+    candidates: top === undefined ? [] : [{ albumId: "a", similarity: top, support: 1 }],
+  });
+
+  it("prefers a confident match over a higher-scoring ambiguous view", () => {
+    expect(pickBestView([view("ambiguous", 0.85), view("matched", 0.84)])).toBe(1);
+  });
+
+  it("breaks ties within a status by top similarity", () => {
+    expect(pickBestView([view("ambiguous", 0.75), view("ambiguous", 0.8)])).toBe(1);
+  });
+
+  it("keeps the first view when nothing matched anywhere", () => {
+    expect(pickBestView([view("none"), view("none")])).toBe(0);
+  });
+});
+
