@@ -40,7 +40,9 @@ node_major=$(node -p 'process.versions.node.split(".")[0]')
 
 [[ -f .env ]] || { cp .env.example .env; say "Created .env from .env.example. Fill it in."; }
 
-if [[ ! -d node_modules ]]; then
+# Install when node_modules is missing OR stale (package-lock.json changed
+# since the last install, e.g. after pulling a branch that added tsx).
+if [[ ! -f node_modules/.package-lock.json || package-lock.json -nt node_modules/.package-lock.json ]]; then
   say "Installing dependencies…"
   PUPPETEER_SKIP_DOWNLOAD=1 npm install
 fi
