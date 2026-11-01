@@ -13,27 +13,39 @@ const USER_AGENT =
   "algoRhythm/0.1 ( https://github.com/everyonesradio/algorhythm )";
 
 let lastRequest = 0;
-const throttle = async (minGapMs = 1100) => {
+/** MB asks for ≤1 req/s; stay a bit under that, and stretch after a 429. */
+let minGapMs = 1200;
+
+const throttle = async () => {
   const wait = lastRequest + minGapMs - Date.now();
   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
   lastRequest = Date.now();
 };
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const mbGet = async <T>(path: string, params: Record<string, string>) => {
   const url = new URL(`${MB_API}/${path}`);
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   url.searchParams.set("fmt", "json");
 
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 8; attempt++) {
     await throttle();
     const res = await fetch(url, {
       headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
     });
     if (res.status === 503 || res.status === 429) {
-      await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+      const retryAfter = Number.parseInt(res.headers.get("retry-after") ?? "", 10);
+      const backoffMs = Number.isFinite(retryAfter)
+        ? retryAfter * 1000
+        : Math.min(60_000, 3000 * 2 ** attempt);
+      minGapMs = Math.min(3000, minGapMs + 200);
+      await sleep(backoffMs);
       continue;
     }
     if (!res.ok) throw new Error(`MusicBrainz ${res.status} for ${url}`);
+    // Successful reply: ease back toward the default gap.
+    minGapMs = Math.max(1200, minGapMs - 100);
     return (await res.json()) as T;
   }
   throw new Error(`MusicBrainz rate-limited for ${url}`);
