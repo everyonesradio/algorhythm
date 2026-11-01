@@ -137,6 +137,38 @@ before tuning further. Known data issue: MusicBrainz fuzzy search matched
 "Fela Kuti – Zombie" to the compilation "Na Poi / Zombie"; seed by `mbid`
 in the list file when a title is ambiguous.
 
+## Distance robustness (close-ups and far shots)
+
+People hold records at every distance, so scans are matched at several
+scales and the catalog stores partial-cover views:
+
+- **Multi-crop scans.** Each camera tick embeds the guide square plus one
+  alternating extra crop (the whole visible width, or a smaller centre).
+  Uploads try 3 crops. The server searches each and keeps the most useful
+  result (`pickBestView`).
+- **Close-up catalog views.** `--augment` also stores the central 75% and
+  55% of each cover (`source: "closeup"`), so a sleeve that overflows the
+  frame matches a partial view instead of the whole cover.
+
+Synthetic eval (29 albums, 58 positives + 15 unknown covers per set):
+
+| Set | Top-1 before | Top-1 after | Wrong auto-matches after |
+|---|---|---|---|
+| Normal framing | 100% | 100% | 0 |
+| Far (sleeve ~40% of frame) | 29% | 83% | 0 (was 1) |
+| Close (~65% of sleeve visible) | 86% | 100% | 1 |
+| Very close (~50% visible) | 66% | 95% | 1 |
+
+`candidate` was raised to 0.76: with more crops, plain or noisy images
+scored ~0.73 against minimalist covers (hubness). The two remaining close-up
+errors both land on the same album, a hub for tight skin-tone crops; the
+next step is hubness correction (penalise albums that score well against
+everything), calibrated on real photos rather than synthetic ones. Re-run:
+
+```bash
+npm run vinyl:eval -- --dir ./eval-close --crops 1,0.88,0.55
+```
+
 ## Model proposals
 
 ### 1. Start with CLIP ViT-B/32 (default, shipped)

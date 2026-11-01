@@ -23,6 +23,8 @@ export type RankedAlbum = {
   similarity: number;
   /** Number of the album's vectors that showed up in the hit list. */
   support: number;
+  /** Source of the album's best-scoring vector (catalog, closeup, ...). */
+  source?: string;
 };
 
 export type MatchStatus = "matched" | "ambiguous" | "none";
@@ -41,11 +43,18 @@ export type RankingThresholds = {
  * `match` keeps a ~0.11 buffer over the worst wrong hit because wrong scores
  * creep up as the catalog grows (more look-alike covers). Re-calibrate on
  * real phone photos and a larger catalog.
+ *
+ * `candidate` was raised 0.72 -> 0.76 with multi-crop scanning: more crops
+ * give unrelated images more chances to look like a "generic" minimalist
+ * cover (hubness: plain/noise images scored 0.73 against Dark Side of the
+ * Moon). At 0.76 every correct album was still offered on both the normal
+ * and the far-away synthetic sets, and no unknown cover in the normal set
+ * produced a "maybe" list.
  */
 export const DEFAULT_THRESHOLDS: RankingThresholds = {
   match: 0.82,
   margin: 0.03,
-  candidate: 0.72,
+  candidate: 0.76,
 };
 
 export const groupHitsByAlbum = (hits: VectorHit[]): RankedAlbum[] => {
@@ -57,10 +66,14 @@ export const groupHitsByAlbum = (hits: VectorHit[]): RankedAlbum[] => {
         albumId: hit.albumId,
         similarity: hit.similarity,
         support: 1,
+        ...(hit.source ? { source: hit.source } : {}),
       });
     } else {
       prev.support += 1;
-      if (hit.similarity > prev.similarity) prev.similarity = hit.similarity;
+      if (hit.similarity > prev.similarity) {
+        prev.similarity = hit.similarity;
+        if (hit.source) prev.source = hit.source;
+      }
     }
   }
   return [...byAlbum.values()].sort((a, b) => b.similarity - a.similarity);
@@ -91,4 +104,30 @@ export const rankHits = (
     .filter((r) => r.similarity >= thresholds.candidate)
     .slice(0, limit);
   return { status, candidates };
+};
+
+const STATUS_RANK: Record<MatchStatus, number> = {
+  matched: 2,
+  ambiguous: 1,
+  none: 0,
+};
+
+/**
+ * Several crops of the same frame (or photo) are searched; keep the most
+ * useful one. A confident match beats an ambiguous one beats nothing; ties
+ * go to the higher top similarity. Returns the index of the winning view.
+ */
+export const pickBestView = (
+  views: { status: MatchStatus; candidates: RankedAlbum[] }[]
+): number => {
+  let best = 0;
+  for (let i = 1; i < views.length; i++) {
+    const a = views[i];
+    const b = views[best];
+    const byStatus = STATUS_RANK[a.status] - STATUS_RANK[b.status];
+    const bySim =
+      (a.candidates[0]?.similarity ?? -1) - (b.candidates[0]?.similarity ?? -1);
+    if (byStatus > 0 || (byStatus === 0 && bySim > 0)) best = i;
+  }
+  return best;
 };

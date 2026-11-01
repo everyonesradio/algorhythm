@@ -75,7 +75,7 @@ describe("vinyl router", () => {
   });
 
   it("identifies the closest album and logs the scan", async () => {
-    const res = await caller.identify({ model: "clip-vit-b32", vector: vec(0, 0.1) });
+    const res = await caller.identify({ model: "clip-vit-b32", vectors: [vec(0, 0.1)] });
     expect(res.status).toBe("matched");
     expect(res.matches[0].album.title).toBe("Voodoo");
     expect(res.matches).toHaveLength(1); // Baduizm is far below the candidate bar
@@ -84,19 +84,29 @@ describe("vinyl router", () => {
   });
 
   it("returns none (and logs nothing) for an unknown cover", async () => {
-    const res = await caller.identify({ model: "clip-vit-b32", vector: vec(300) });
+    const res = await caller.identify({ model: "clip-vit-b32", vectors: [vec(300)] });
     expect(res).toEqual({ status: "none", scanId: null, matches: [] });
     expect(prisma.scans).toHaveLength(0);
   });
 
+  it("searches every crop and keeps the one that matched", async () => {
+    // First crop sees nothing useful (record held far away), second matches.
+    const res = await caller.identify({
+      model: "clip-vit-b32",
+      vectors: [vec(300), vec(0, 0.1)],
+    });
+    expect(res.status).toBe("matched");
+    expect(res.matches[0].album.title).toBe("Voodoo");
+  });
+
   it("rejects vectors of the wrong size", async () => {
     await expect(
-      caller.identify({ model: "clip-vit-b32", vector: [1, 2, 3] })
+      caller.identify({ model: "clip-vit-b32", vectors: [[1, 2, 3]] })
     ).rejects.toThrow(/Vector size/);
   });
 
   it("stores the confirmed scan as a new user_scan embedding, once", async () => {
-    const { scanId } = await caller.identify({ model: "clip-vit-b32", vector: vec(0, 0.1) });
+    const { scanId } = await caller.identify({ model: "clip-vit-b32", vectors: [vec(0, 0.1)] });
     const first = await caller.confirm({ scanId: scanId!, albumId: oid(1) });
     expect(first.stored).toBe(true);
     expect(prisma.embeddings.filter((e) => e.source === "user_scan")).toHaveLength(1);
@@ -106,7 +116,7 @@ describe("vinyl router", () => {
   });
 
   it("refuses to attach a scan to an album that wasn't a candidate", async () => {
-    const { scanId } = await caller.identify({ model: "clip-vit-b32", vector: vec(0, 0.1) });
+    const { scanId } = await caller.identify({ model: "clip-vit-b32", vectors: [vec(0, 0.1)] });
     await expect(caller.confirm({ scanId: scanId!, albumId: oid(2) })).rejects.toThrow(
       /not a candidate/
     );

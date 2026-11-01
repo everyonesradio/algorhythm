@@ -12,7 +12,7 @@ import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
 import { search } from "@/server/services/search";
 import { findNearestCovers } from "@/server/services/vinyl/index-search";
 import { getAlbumLinks } from "@/server/services/vinyl/links";
-import { rankHits } from "@/server/services/vinyl/ranking";
+import { pickBestView, rankHits } from "@/server/services/vinyl/ranking";
 
 const modelKeys = Object.keys(EMBEDDING_MODELS) as [
   EmbeddingModelKey,
@@ -39,25 +39,35 @@ const albumSelect = {
 
 export const vinylRouter = createTRPCRouter({
   /**
-   * Takes a cover embedding computed on the device and returns the closest
-   * albums. Only the vector crosses the network, never the camera frame.
+   * Takes cover embeddings computed on the device and returns the closest
+   * albums. Only vectors cross the network, never the camera frame.
+   *
+   * `vectors` are 1-3 crops of the same frame at different scales (record
+   * held close / at arm's length). Each is searched and the most useful
+   * result wins, so the user doesn't have to hit an exact distance.
    */
   identify: publicProcedure
     .input(
       z
         .object({
           model: z.enum(modelKeys),
-          vector: z.array(z.number().finite()),
+          vectors: z.array(z.array(z.number().finite())).min(1).max(3),
         })
-        .refine((v) => v.vector.length === EMBEDDING_MODELS[v.model].dims, {
-          message: "Vector size does not match the model",
-          path: ["vector"],
-        })
+        .refine(
+          (v) =>
+            v.vectors.every((x) => x.length === EMBEDDING_MODELS[v.model].dims),
+          { message: "Vector size does not match the model", path: ["vectors"] }
+        )
     )
     .mutation(async ({ ctx, input }) => {
-      const vector = l2Normalize(input.vector);
-      const hits = await findNearestCovers(ctx.prisma, vector, input.model);
-      const { status, candidates } = rankHits(hits);
+      const views = await Promise.all(
+        input.vectors.map(async (raw) => {
+          const vector = l2Normalize(raw);
+          const hits = await findNearestCovers(ctx.prisma, vector, input.model);
+          return { vector, ...rankHits(hits) };
+        })
+      );
+      const { vector, status, candidates } = views[pickBestView(views)];
 
       const albums = await ctx.prisma.album.findMany({
         where: { id: { in: candidates.map((c) => c.albumId) } },

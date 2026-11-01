@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "motion/react";
 // ** Custom Components, Hooks, Utils, etc.
 import CandidateSheet from "@/components/candidate-sheet";
 import DigitalAlbum from "@/components/digital-album";
+import Sheet from "@/components/sheet";
 import { useCamera } from "@/hooks/use-camera";
 import { useCoverEmbedder } from "@/hooks/use-cover-embedder";
 import type { VinylMatch } from "@/types/api";
@@ -22,9 +23,18 @@ import { api } from "@/utils/trpc";
 // ** Icon Imports
 import { IoImageOutline } from "react-icons/io5";
 
-const DEFAULT_HINT = "Line up the cover inside the square";
+const DEFAULT_HINT = "Fill the frame with the cover";
 /** Guide square size, as a fraction of the shorter screen side. */
-const GUIDE_FRACTION = 0.72;
+const GUIDE_FRACTION = 0.88;
+/**
+ * Extra crops tried alongside the guide square, alternating each tick:
+ * the whole visible width (record held very close, spilling past the
+ * guide) and a smaller centre (record held at arm's length). The server
+ * keeps whichever matches best, so distance matters much less.
+ */
+const EXTRA_FRACTIONS = [1, 0.55];
+/** Crops of an uploaded photo: tight framing to sleeve-on-a-table. */
+const UPLOAD_FRACTIONS = [0.95, 0.7, 0.5];
 /** Delay between recognition attempts while scanning. */
 const SCAN_INTERVAL_MS = 450;
 /** Mean pixel change (0-255) above which the frame is "moving". */
@@ -69,8 +79,14 @@ const VinylScan = () => {
   const [candidatesOpen, setCandidatesOpen] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [busyUpload, setBusyUpload] = useState(false);
+  /** Outcome of an upload that didn't produce a match; stays until dismissed. */
+  const [notice, setNotice] = useState<{ title: string; body: string } | null>(
+    null
+  );
+  const [noticeOpen, setNoticeOpen] = useState(false);
+  const extraIndex = useRef(0);
 
-  const paused = !!result || !!candidates || busyUpload;
+  const paused = !!result || !!candidates || !!notice || busyUpload;
   // The scan loop reads this ref, so it sees pause changes without restarting.
   const pausedRef = useRef(paused);
   useEffect(() => {
@@ -101,12 +117,14 @@ const VinylScan = () => {
     []
   );
 
-  /** Embed an ImageData and ask the server who it is. */
+  /** Embed one or more crops and ask the server which album they show. */
   const recognise = useCallback(
-    async (image: ImageData) => {
-      if (!embedder.model) return null;
-      const vector = await embedder.embed(image);
-      return identify.mutateAsync({ model: embedder.model, vector });
+    async (images: ImageData[]) => {
+      if (!embedder.model || images.length === 0) return null;
+      const vectors: number[][] = [];
+      // Sequential: the worker runs one inference at a time anyway.
+      for (const image of images) vectors.push(await embedder.embed(image));
+      return identify.mutateAsync({ model: embedder.model, vectors });
     },
     // identify.mutateAsync is stable across renders
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -125,14 +143,19 @@ const VinylScan = () => {
       const canvas = canvasRef.current;
       try {
         if (!pausedRef.current && video && canvas && video.readyState >= 2) {
-          const crop = computeGuideCrop(
-            video.videoWidth,
-            video.videoHeight,
-            video.clientWidth,
-            video.clientHeight,
-            GUIDE_FRACTION
-          );
-          const frame = cropToImageData(video, crop, canvas);
+          const cropAt = (fraction: number) =>
+            cropToImageData(
+              video,
+              computeGuideCrop(
+                video.videoWidth,
+                video.videoHeight,
+                video.clientWidth,
+                video.clientHeight,
+                fraction
+              ),
+              canvas
+            );
+          const frame = cropAt(GUIDE_FRACTION);
           const moving =
             frame && prevFrame.current
               ? frameDifference(frame, prevFrame.current) > MOTION_THRESHOLD
@@ -142,7 +165,10 @@ const VinylScan = () => {
           if (frame && moving) {
             setHint("Hold steady…");
           } else if (frame) {
-            const res = await recognise(frame);
+            const extraFraction =
+              EXTRA_FRACTIONS[extraIndex.current++ % EXTRA_FRACTIONS.length];
+            const extra = cropAt(extraFraction);
+            const res = await recognise(extra ? [frame, extra] : [frame]);
             if (res && !pausedRef.current && !stopped) handleLive(res);
           }
         }
@@ -174,7 +200,7 @@ const VinylScan = () => {
         streak.current = null;
         ambiguousStreak.current += 1;
         setLocking(false);
-        setHint("Getting closer… fill the square with the cover");
+        setHint("Almost… hold the cover flat and steady");
         if (ambiguousStreak.current >= AMBIGUOUS_FRAMES) {
           ambiguousStreak.current = 0;
           showCandidates(res.scanId, res.matches);
@@ -202,21 +228,43 @@ const VinylScan = () => {
   ]);
 
   // ---- photo upload fallback ---------------------------------------------
+  const showNotice = (title: string, body: string) => {
+    setNotice({ title, body });
+    setNoticeOpen(true);
+  };
+
   const onUpload = async (file: File) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     setBusyUpload(true);
     try {
-      const bitmap = await createImageBitmap(file);
-      const frame = cropToImageData(
-        bitmap,
-        centerSquareCrop(bitmap.width, bitmap.height, 0.95),
-        canvas
-      );
+      let bitmap: ImageBitmap;
+      try {
+        bitmap = await createImageBitmap(file);
+      } catch {
+        // Typically HEIC from an iPhone opened in a non-Safari browser.
+        showNotice(
+          "We couldn't open that photo",
+          "Try a JPG or PNG, or take a screenshot of the photo and upload that."
+        );
+        return;
+      }
+      // Several crops: the sleeve may fill the photo or sit small on a table.
+      const crops = UPLOAD_FRACTIONS.map((f) =>
+        cropToImageData(
+          bitmap,
+          centerSquareCrop(bitmap.width, bitmap.height, f),
+          canvas
+        )
+      ).filter((c): c is ImageData => c !== null);
       bitmap.close();
-      const res = frame ? await recognise(frame) : null;
+
+      const res = await recognise(crops);
       if (!res || res.status === "none" || res.matches.length === 0) {
-        setHint("No match for that photo. Try a straight-on shot of the cover.");
+        showNotice(
+          "No match for this photo yet",
+          "It may not be in our catalog yet, or the cover was hard to see. A straight-on photo with the sleeve filling most of the frame works best."
+        );
       } else if (res.status === "matched") {
         showResult(res.scanId, res.matches);
       } else {
@@ -224,7 +272,10 @@ const VinylScan = () => {
       }
     } catch (err) {
       console.error("[upload]", err);
-      setHint("Couldn't read that image.");
+      showNotice(
+        "Something went wrong",
+        "We couldn't check that photo. Please try again in a moment."
+      );
     } finally {
       setBusyUpload(false);
     }
@@ -245,6 +296,11 @@ const VinylScan = () => {
   };
   const onCandidatesExit = () => {
     if (!candidatesOpen) setCandidates(null);
+  };
+  const onNoticeExit = () => {
+    if (noticeOpen) return;
+    setNotice(null);
+    prevFrame.current = null;
   };
 
   const statusKey =
@@ -288,7 +344,7 @@ const VinylScan = () => {
       </div>
 
       {/* Status */}
-      <div className='absolute left-0 right-0 top-0 flex flex-col items-center gap-1 p-4 pt-6 text-center'>
+      <div className='absolute left-0 right-0 top-0 flex flex-col items-center gap-1 p-4 pt-14 text-center'>
         <span className='font-eightbitdragon text-xl'>algoRhythm</span>
         {cameraState === "denied" && (
           <span className='text-sm text-red-300'>
@@ -365,6 +421,40 @@ const VinylScan = () => {
           onDismiss={() => setCandidatesOpen(false)}
           onExitComplete={onCandidatesExit}
         />
+      )}
+
+      {notice && (
+        <Sheet
+          open={noticeOpen}
+          onClose={() => setNoticeOpen(false)}
+          onExitComplete={onNoticeExit}
+          label={notice.title}
+        >
+          <div className='flex flex-col gap-4 pt-1'>
+            <div>
+              <h2 className='text-lg font-semibold'>{notice.title}</h2>
+              <p className='mt-1 text-sm text-black/70'>{notice.body}</p>
+            </div>
+            <div className='flex flex-col gap-2 sm:flex-row'>
+              <button
+                className='flex h-12 items-center justify-center gap-2 rounded-full bg-black px-5 font-semibold text-white sm:flex-1 transition-transform duration-[120ms] active:scale-[0.97]'
+                onClick={() => {
+                  setNoticeOpen(false);
+                  fileInput.current?.click();
+                }}
+              >
+                <IoImageOutline size={18} />
+                Try another photo
+              </button>
+              <button
+                className='flex h-12 items-center justify-center rounded-full border-2 border-black px-5 font-semibold sm:flex-1 transition-transform duration-[120ms] active:scale-[0.97]'
+                onClick={() => setNoticeOpen(false)}
+              >
+                Keep scanning
+              </button>
+            </div>
+          </div>
+        </Sheet>
       )}
 
       {result && (
