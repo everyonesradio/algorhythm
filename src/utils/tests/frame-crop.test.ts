@@ -33,3 +33,16 @@ describe("centerSquareCrop", () => {
     });
   });
 });
+
+describe("sortBySimilarity", () => {
+  it("puts the closest covers first and unscored ones last, in order", async () => {
+    const { sortBySimilarity } = await import("@/utils/rank-covers");
+    const out = sortBySimilarity([
+      { id: "a", similarity: null },
+      { id: "b", similarity: 0.6 },
+      { id: "c", similarity: 0.9 },
+      { id: "d", similarity: null },
+    ]);
+    expect(out.map((x) => x.id)).toEqual(["c", "b", "a", "d"]);
+  });
+});

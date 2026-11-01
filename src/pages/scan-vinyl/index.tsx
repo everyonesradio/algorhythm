@@ -43,6 +43,15 @@ const MOTION_THRESHOLD = 14;
 const CONFIRM_FRAMES = 2;
 /** Ambiguous frames in a row before we offer the candidate picker. */
 const AMBIGUOUS_FRAMES = 6;
+/**
+ * Steady frames on a cover we don't know (~4-5s) before offering the
+ * "Is it by one of these artists?" picker, and how long to hold off after
+ * the user dismisses it.
+ */
+const UNKNOWN_FRAMES = 10;
+const UNKNOWN_COOLDOWN_MS = 20_000;
+
+type ArtistSuggestion = { name: string; mbid: string };
 
 /** Soft, low-bounce spring used for the guide square lock-on. */
 const LOCK_SPRING = { type: "spring", bounce: 0.2, duration: 0.3 } as const;
@@ -58,11 +67,14 @@ const VinylScan = () => {
   const embedder = useCoverEmbedder();
   const identify = api.vinyl.identify.useMutation();
   const confirm = api.vinyl.confirm.useMutation();
+  const pick = api.vinyl.pick.useMutation();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const prevFrame = useRef<ImageData | null>(null);
   const streak = useRef<{ albumId: string; count: number } | null>(null);
   const ambiguousStreak = useRef(0);
+  const unknownStreak = useRef(0);
+  const pickerDismissedAt = useRef(0);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
   const [hint, setHint] = useState(DEFAULT_HINT);
@@ -75,11 +87,13 @@ const VinylScan = () => {
   const [candidates, setCandidates] = useState<{
     scanId: string | null;
     matches: VinylMatch[];
+    artistSuggestions: ArtistSuggestion[];
+    vector: number[] | null;
   } | null>(null);
   const [candidatesOpen, setCandidatesOpen] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [busyUpload, setBusyUpload] = useState(false);
-  /** Outcome of an upload that didn't produce a match; stays until dismissed. */
+  /** An upload that failed outright (unreadable file, server error). */
   const [notice, setNotice] = useState<{ title: string; body: string } | null>(
     null
   );
@@ -109,9 +123,14 @@ const VinylScan = () => {
   );
 
   const showCandidates = useCallback(
-    (scanId: string | null, matches: VinylMatch[]) => {
+    (
+      scanId: string | null,
+      matches: VinylMatch[],
+      artistSuggestions: ArtistSuggestion[] = [],
+      vector: number[] | null = null
+    ) => {
       setLocking(false);
-      setCandidates({ scanId, matches });
+      setCandidates({ scanId, matches, artistSuggestions, vector });
       setCandidatesOpen(true);
     },
     []
@@ -119,12 +138,14 @@ const VinylScan = () => {
 
   /** Embed one or more crops and ask the server which album they show. */
   const recognise = useCallback(
-    async (images: ImageData[]) => {
+    async (images: ImageData[], log = false) => {
       if (!embedder.model || images.length === 0) return null;
       const vectors: number[][] = [];
       // Sequential: the worker runs one inference at a time anyway.
       for (const image of images) vectors.push(await embedder.embed(image));
-      return identify.mutateAsync({ model: embedder.model, vectors });
+      const res = await identify.mutateAsync({ model: embedder.model, vectors, log });
+      // Keep the scan's own vector: the picker ranks an artist's covers by it.
+      return { ...res, vector: vectors[0] };
     },
     // identify.mutateAsync is stable across renders
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -163,12 +184,15 @@ const VinylScan = () => {
           prevFrame.current = frame;
 
           if (frame && moving) {
+            unknownStreak.current = 0;
             setHint("Hold steady…");
           } else if (frame) {
             const extraFraction =
               EXTRA_FRACTIONS[extraIndex.current++ % EXTRA_FRACTIONS.length];
             const extra = cropAt(extraFraction);
-            const res = await recognise(extra ? [frame, extra] : [frame]);
+            // Keep this frame's scan if it may become a hand-picked record.
+            const log = unknownStreak.current >= UNKNOWN_FRAMES - 1;
+            const res = await recognise(extra ? [frame, extra] : [frame], log);
             if (res && !pausedRef.current && !stopped) handleLive(res);
           }
         }
@@ -182,9 +206,12 @@ const VinylScan = () => {
       status: string;
       scanId: string | null;
       matches: VinylMatch[];
+      artistSuggestions: ArtistSuggestion[];
+      vector: number[];
     }) => {
       if (res.status === "matched" && res.matches[0]) {
         ambiguousStreak.current = 0;
+        unknownStreak.current = 0;
         const id = res.matches[0].album.id;
         streak.current =
           streak.current?.albumId === id
@@ -198,18 +225,32 @@ const VinylScan = () => {
         }
       } else if (res.status === "ambiguous") {
         streak.current = null;
+        unknownStreak.current = 0;
         ambiguousStreak.current += 1;
         setLocking(false);
         setHint("Almost… hold the cover flat and steady");
         if (ambiguousStreak.current >= AMBIGUOUS_FRAMES) {
           ambiguousStreak.current = 0;
-          showCandidates(res.scanId, res.matches);
+          showCandidates(res.scanId, res.matches, res.artistSuggestions, res.vector);
         }
       } else {
         streak.current = null;
         ambiguousStreak.current = 0;
+        unknownStreak.current += 1;
         setLocking(false);
         setHint(DEFAULT_HINT);
+        // Held steady on a cover we don't know: offer to pick it by artist.
+        const coolingDown =
+          Date.now() - pickerDismissedAt.current < UNKNOWN_COOLDOWN_MS;
+        if (
+          res.scanId &&
+          unknownStreak.current >= UNKNOWN_FRAMES &&
+          res.artistSuggestions.length > 0 &&
+          !coolingDown
+        ) {
+          unknownStreak.current = 0;
+          showCandidates(res.scanId, [], res.artistSuggestions, res.vector);
+        }
       }
     };
 
@@ -259,16 +300,15 @@ const VinylScan = () => {
       ).filter((c): c is ImageData => c !== null);
       bitmap.close();
 
-      const res = await recognise(crops);
-      if (!res || res.status === "none" || res.matches.length === 0) {
-        showNotice(
-          "No match for this photo yet",
-          "It may not be in our catalog yet, or the cover was hard to see. A straight-on photo with the sleeve filling most of the frame works best."
-        );
+      // Always keep an upload's scan: if nothing matches, the user can
+      // still pick the record by artist and teach the catalog.
+      const res = await recognise(crops, true);
+      if (!res) {
+        showNotice("Something went wrong", "We couldn't check that photo.");
       } else if (res.status === "matched") {
         showResult(res.scanId, res.matches);
       } else {
-        showCandidates(res.scanId, res.matches);
+        showCandidates(res.scanId, res.matches, res.artistSuggestions, res.vector);
       }
     } catch (err) {
       console.error("[upload]", err);
@@ -279,6 +319,16 @@ const VinylScan = () => {
     } finally {
       setBusyUpload(false);
     }
+  };
+
+  // ---- picked from an artist's discography -------------------------------
+  const pickRecord = async (mbid: string) => {
+    const scanId = candidates?.scanId;
+    if (!scanId) throw new Error("no scan to attach");
+    const { album } = await pick.mutateAsync({ scanId, mbid });
+    showResult(scanId, [{ album, similarity: 1 }]);
+    // Picking the record is the confirmation.
+    setConfirmed(true);
   };
 
   // ---- confirmation (feeds real-world photos back into the index) --------
@@ -413,12 +463,19 @@ const VinylScan = () => {
         <CandidateSheet
           open={candidatesOpen}
           matches={candidates.matches}
-          onPick={(i) => {
+          artistSuggestions={candidates.artistSuggestions}
+          scanVector={candidates.vector}
+          embed={embedder.embed}
+          onPickMatch={(i) => {
             const picked = candidates.matches[i];
             showResult(candidates.scanId, candidates.matches, i);
             confirmAlbum(candidates.scanId, picked.album.id);
           }}
-          onDismiss={() => setCandidatesOpen(false)}
+          onPickRecord={pickRecord}
+          onDismiss={() => {
+            pickerDismissedAt.current = Date.now();
+            setCandidatesOpen(false);
+          }}
           onExitComplete={onCandidatesExit}
         />
       )}
@@ -435,24 +492,12 @@ const VinylScan = () => {
               <h2 className='text-lg font-semibold'>{notice.title}</h2>
               <p className='mt-1 text-sm text-black/70'>{notice.body}</p>
             </div>
-            <div className='flex flex-col gap-2 sm:flex-row'>
-              <button
-                className='flex h-12 items-center justify-center gap-2 rounded-full bg-black px-5 font-semibold text-white sm:flex-1 transition-transform duration-[120ms] active:scale-[0.97]'
-                onClick={() => {
-                  setNoticeOpen(false);
-                  fileInput.current?.click();
-                }}
-              >
-                <IoImageOutline size={18} />
-                Try another photo
-              </button>
-              <button
-                className='flex h-12 items-center justify-center rounded-full border-2 border-black px-5 font-semibold sm:flex-1 transition-transform duration-[120ms] active:scale-[0.97]'
-                onClick={() => setNoticeOpen(false)}
-              >
-                Keep scanning
-              </button>
-            </div>
+            <button
+              className='flex h-12 items-center justify-center rounded-full bg-black px-5 font-semibold text-white transition-transform duration-[120ms] active:scale-[0.97]'
+              onClick={() => setNoticeOpen(false)}
+            >
+              Try again
+            </button>
           </div>
         </Sheet>
       )}
@@ -469,7 +514,7 @@ const VinylScan = () => {
             result.others.length
               ? () => {
                   setResultOpen(false);
-                  showCandidates(result.scanId, result.others);
+                  showCandidates(result.scanId, result.others, []);
                 }
               : undefined
           }
