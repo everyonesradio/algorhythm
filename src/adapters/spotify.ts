@@ -127,7 +127,11 @@ export async function getOrUpdateSpotifyAccessToken() {
     }
   );
 
-  await cacheSpotifyAccessToken(response.access_token, response.expires_in);
+  // cache-manager TTLs are in milliseconds; Spotify returns seconds.
+  await cacheSpotifyAccessToken(
+    response.access_token,
+    (response.expires_in - 60) * 1000
+  );
 
   return response.access_token;
 }

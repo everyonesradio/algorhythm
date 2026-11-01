@@ -148,12 +148,54 @@ export const lookupReleaseGroup = (mbid: string) =>
 export const coverArtUrl = (mbid: string, size: 250 | 500 | 1200 = 500) =>
   `${CAA_API}/release-group/${mbid}/front-${size}`;
 
-export const fetchImage = async (url: string): Promise<Buffer | null> => {
-  const res = await fetch(url, {
-    headers: { "User-Agent": USER_AGENT },
-    redirect: "follow",
-  });
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`Image ${res.status} for ${url}`);
-  return Buffer.from(await res.arrayBuffer());
+/**
+ * Download an image. archive.org (where CAA files live) intermittently
+ * answers 5xx for files that exist, so retry with backoff. 404 = no image.
+ */
+export const fetchImage = async (
+  url: string,
+  attempts = 5
+): Promise<Buffer | null> => {
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, 1000 * 2 ** (attempt - 1)));
+    }
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": USER_AGENT },
+        redirect: "follow",
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (res.status === 404) return null;
+      if (res.ok) return Buffer.from(await res.arrayBuffer());
+      lastError = new Error(`Image ${res.status} for ${url}`);
+      if (res.status < 500 && res.status !== 429) break; // not retryable
+    } catch (err) {
+      lastError = err as Error; // network error / timeout: retry
+    }
+  }
+  throw lastError ?? new Error(`Image fetch failed for ${url}`);
+};
+
+/**
+ * Front cover for a release group, falling back across thumbnail sizes:
+ * each size is a separate file on archive.org, so one may be up while
+ * another errors. Returns the URL that worked alongside the bytes.
+ */
+export const fetchCover = async (
+  mbid: string
+): Promise<{ url: string; image: Buffer } | null> => {
+  let lastError: Error | null = null;
+  for (const size of [500, 1200, 250] as const) {
+    const url = coverArtUrl(mbid, size);
+    try {
+      const image = await fetchImage(url, 3);
+      if (!image) return null; // 404: the release group has no front cover
+      return { url, image };
+    } catch (err) {
+      lastError = err as Error;
+    }
+  }
+  throw lastError ?? new Error(`No cover for ${mbid}`);
 };

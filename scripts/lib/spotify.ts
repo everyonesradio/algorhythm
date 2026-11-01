@@ -4,18 +4,22 @@
  */
 import { compareTwoStrings } from "string-similarity";
 
-const clientId =
-  process.env.SPOTIFY_CLIENT_ID ?? process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID;
-const clientSecret =
-  process.env.SPOTIFY_CLIENT_SECRET ??
-  process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET;
+// Read lazily: scripts load .env after their imports have been evaluated.
+const creds = () => ({
+  clientId: process.env.SPOTIFY_CLIENT_ID,
+  clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
+});
 
 let token: { value: string; expiresAt: number } | null = null;
 
-export const spotifyEnabled = () => Boolean(clientId && clientSecret);
+export const spotifyEnabled = () => {
+  const { clientId, clientSecret } = creds();
+  return Boolean(clientId && clientSecret);
+};
 
 const getToken = async () => {
   if (token && token.expiresAt > Date.now() + 30_000) return token.value;
+  const { clientId, clientSecret } = creds();
   const res = await fetch("https://accounts.spotify.com/api/token", {
     method: "POST",
     headers: {

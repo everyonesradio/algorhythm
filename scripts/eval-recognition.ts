@@ -12,6 +12,8 @@
  * similarity distribution of right vs wrong top hits so you can set
  * DEFAULT_THRESHOLDS in src/server/services/vinyl/ranking.ts with data.
  */
+import "./lib/load-env";
+
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
@@ -25,11 +27,6 @@ import { rankHits } from "@/server/services/vinyl/ranking";
 
 import { centerSquare, toRawImage } from "./lib/images";
 
-try {
-  process.loadEnvFile?.();
-} catch {
-  // no .env
-}
 
 const { values } = parseArgs({
   options: {
@@ -60,7 +57,7 @@ const main = async () => {
   const wrongTop: number[] = [];
 
   for (const file of files) {
-    const expected = file.match(MBID)?.[0]?.toLowerCase() ?? null;
+    const expected = (MBID.exec(file))?.[0]?.toLowerCase() ?? null;
     const img = await centerSquare(readFileSync(join(values.dir!, file)), Number(values.crop));
     const vector = await embedder.embed(await toRawImage(embedder, img));
     const hits = await findNearestCovers(prisma, vector, ACTIVE_EMBEDDING_MODEL, 50);
@@ -115,4 +112,4 @@ main()
     console.error(err);
     process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  .finally(() => void prisma.$disconnect());

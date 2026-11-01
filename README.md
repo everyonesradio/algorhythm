@@ -10,6 +10,16 @@ model notes and scaling plan.
 
 ## Vinyl recognition quick start
 
+One command (checks prerequisites, pushes the schema, builds the vector
+index, seeds the example list):
+
+```bash
+./scripts/seed-local.sh            # uses DATABASE_URL from .env (Atlas)
+./scripts/seed-local.sh --docker   # or: local MongoDB Atlas via Docker
+```
+
+Or step by step:
+
 ```bash
 cp .env.example .env            # set DATABASE_URL (Atlas) + Spotify creds
 npm install
@@ -24,6 +34,12 @@ npm run dev                     # open /scan-vinyl
 | `npm run vinyl:seed -- --artist "X" --tag "Y" --file list.json` | Seed albums and cover vectors |
 | `npm run vinyl:index` | Create/update the Atlas vector index |
 | `npm run vinyl:eval -- --dir ./photos` | Measure accuracy on real photos and calibrate thresholds |
+| `npm run vinyl:synth -- --out ./eval-synthetic` | Generate phone-style test photos of seeded covers (+ negatives) |
+| `npm run lint` / `npm test` | ESLint 9 (flat config) / Vitest, offline; `RUN_LIVE_TESTS=1 npm test` also hits real services |
+
+Spotify credentials are server-only: `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`
+(the old `NEXT_PUBLIC_SPOTIFY_*` names were removed because they exposed the
+secret to the browser).
 
 ## Getting Started
 

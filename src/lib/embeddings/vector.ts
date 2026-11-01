@@ -2,6 +2,8 @@
 
 export const l2Normalize = (vec: ArrayLike<number>): number[] => {
   let sum = 0;
+  // ArrayLike (e.g. Float32Array views) isn't guaranteed iterable.
+  // eslint-disable-next-line @typescript-eslint/prefer-for-of
   for (let i = 0; i < vec.length; i++) sum += vec[i] * vec[i];
   const norm = Math.sqrt(sum) || 1;
   const out = new Array<number>(vec.length);

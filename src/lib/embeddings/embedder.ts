@@ -7,7 +7,7 @@
 import type { RawImage as RawImageType } from "@huggingface/transformers";
 
 import {
-  EmbeddingModelKey,
+  type EmbeddingModelKey,
   getEmbeddingModel,
   ACTIVE_EMBEDDING_MODEL,
 } from "./config";

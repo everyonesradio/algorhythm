@@ -3,12 +3,12 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 // ** Custom Components, Hooks, Utils, etc.
-import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
 import {
   EMBEDDING_MODELS,
-  EmbeddingModelKey,
+  type EmbeddingModelKey,
 } from "@/lib/embeddings/config";
 import { l2Normalize } from "@/lib/embeddings/vector";
+import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
 import { findNearestCovers } from "@/server/services/vinyl/index-search";
 import { rankHits } from "@/server/services/vinyl/ranking";
 

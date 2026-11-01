@@ -54,6 +54,9 @@ export const cropToImageData = (
   if (crop.size <= 0) return null;
   canvas.width = out;
   canvas.height = out;
+  // The union of canvas types widens getContext's return; narrow it back.
+  // (typescript-eslint misreports this assertion as unnecessary.)
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
   const ctx = canvas.getContext("2d", { willReadFrequently: true }) as
     | CanvasRenderingContext2D
     | OffscreenCanvasRenderingContext2D

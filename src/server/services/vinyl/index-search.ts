@@ -2,7 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 
 import {
   COVER_VECTOR_INDEX,
-  EmbeddingModelKey,
+  type EmbeddingModelKey,
 } from "@/lib/embeddings/config";
 import { atlasScoreToCosine, dot } from "@/lib/embeddings/vector";
 

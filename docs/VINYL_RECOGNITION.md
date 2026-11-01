@@ -64,6 +64,15 @@ one indexed query.
 
 ## Running it
 
+**Fastest path:** `./scripts/seed-local.sh` (or `npm run vinyl:seed:local`).
+It checks Node, creates `.env`, pushes the schema, creates the vector index
+and seeds `seeds/albums.example.json`. Add `--docker` to start MongoDB Atlas
+Local (real `$vectorSearch`, no Atlas account) on port 27018. Any other flags
+pass through to the seeder, e.g. `./scripts/seed-local.sh --tag afrobeats
+--limit 100 --augment`.
+
+Step by step:
+
 1. **MongoDB Atlas.** `$vectorSearch` needs Atlas; the free M0 tier is fine.
    Put the connection string in `DATABASE_URL`.
    - No Atlas yet? Set `VECTOR_SEARCH_MODE=local` to brute-force in Node
@@ -97,7 +106,36 @@ one indexed query.
    npm run vinyl:eval -- --dir ./eval-photos
    ```
    Adjust `DEFAULT_THRESHOLDS` in `ranking.ts` so "wrong auto-matches" is 0.
-   The current numbers are educated starting points, not measured values.
+   No photos yet? `npm run vinyl:synth -- --out ./eval-synthetic` renders
+   phone-style shots of every seeded cover plus covers *not* in the index,
+   which `vinyl:eval` can score the same way.
+
+## Measured results (synthetic photos)
+
+First real run, CLIP ViT-B/32, local MongoDB 8.0, brute-force search mode:
+
+- Seeded **29 of 30** example albums from live MusicBrainz + Cover Art
+  Archive, 4 vectors each (catalog + 3 augmentations), 116 vectors total.
+  One album has no front cover on CAA; archive.org returns intermittent
+  HTTP 500s, which the seeder now retries.
+- Eval set: 58 synthetic phone shots of the seeded covers (tilt, table
+  background, glare, colour cast, JPEG 45-70, rendered differently from the
+  seed-time augmentations) and 15 covers that are not in the index.
+
+| | Result |
+|---|---|
+| Top-1 accuracy | 100% (58/58) |
+| Wrong auto-matches | 0 |
+| Correct top-hit similarity | min 0.763, median 0.881 |
+| Best similarity of a wrong album | max 0.707 |
+| Decisions at `match = 0.82` | 50 auto-matched, 8 "is it one of these?", 15 none |
+
+Caveats: the catalog is tiny (more look-alike covers raise wrong-album
+scores), and synthetic shots aren't real photos (no shrink-wrap, sleeve
+wear or real lens distortion). Re-run with real photos and a bigger catalog
+before tuning further. Known data issue: MusicBrainz fuzzy search matched
+"Fela Kuti – Zombie" to the compilation "Na Poi / Zombie"; seed by `mbid`
+in the list file when a title is ambiguous.
 
 ## Model proposals
 

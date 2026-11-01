@@ -8,6 +8,8 @@
  * be created with this command. The index builds asynchronously, so give it a
  * minute after the first run.
  */
+import "./lib/load-env";
+
 import { PrismaClient } from "@prisma/client";
 
 import {
@@ -56,4 +58,4 @@ main()
     console.error(err);
     process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  .finally(() => void prisma.$disconnect());

@@ -2,11 +2,11 @@
 import React from "react";
 
 // ** Third-Party Imports
-import { Loader2 } from "lucide-react";
 import Box from "@mui/material/Box";
 import Drawer from "@mui/material/Drawer";
 import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
+import { Loader2 } from "lucide-react";
 
 // ** Custom Components, Hooks, Utils, etc.
 import SearchCard from "@/components/search-card";
@@ -15,8 +15,8 @@ import type { VinylAlbum } from "@/types/api";
 import { api } from "@/utils/trpc";
 
 // ** Icon Imports
-import { IoClose } from "react-icons/io5";
 import { FaSpotify } from "react-icons/fa6";
+import { IoClose } from "react-icons/io5";
 
 interface Props {
   isOpen: boolean;

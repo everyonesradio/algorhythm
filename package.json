@@ -17,7 +17,9 @@
     "type-check": "tsc --noEmit",
     "vinyl:seed": "tsx scripts/seed-covers.ts",
     "vinyl:index": "tsx scripts/create-vector-index.ts",
-    "vinyl:eval": "tsx scripts/eval-recognition.ts"
+    "vinyl:eval": "tsx scripts/eval-recognition.ts",
+    "vinyl:synth": "tsx scripts/make-synthetic-eval.ts",
+    "vinyl:seed:local": "bash scripts/seed-local.sh"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

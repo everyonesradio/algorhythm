@@ -33,8 +33,17 @@ export type RankingThresholds = {
   candidate: number;
 };
 
+/**
+ * Calibrated with `npm run vinyl:eval` (CLIP ViT-B/32, 29 albums seeded with
+ * --augment, 58 synthetic phone shots + 15 covers not in the index):
+ *   correct top hit   min 0.763, p10 0.796, p50 0.881
+ *   incorrect top hit max 0.707, p90 0.683
+ * `match` keeps a ~0.11 buffer over the worst wrong hit because wrong scores
+ * creep up as the catalog grows (more look-alike covers). Re-calibrate on
+ * real phone photos and a larger catalog.
+ */
 export const DEFAULT_THRESHOLDS: RankingThresholds = {
-  match: 0.86,
+  match: 0.82,
   margin: 0.03,
   candidate: 0.72,
 };

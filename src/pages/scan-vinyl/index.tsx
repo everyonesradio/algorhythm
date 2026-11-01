@@ -5,8 +5,8 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 // ** Custom Components, Hooks, Utils, etc.
-import DigitalAlbum from "@/components/digital-album";
 import CandidateSheet from "@/components/candidate-sheet";
+import DigitalAlbum from "@/components/digital-album";
 import { useCamera } from "@/hooks/use-camera";
 import { useCoverEmbedder } from "@/hooks/use-cover-embedder";
 import type { VinylMatch } from "@/types/api";
@@ -124,7 +124,7 @@ const VinylScan = () => {
       } catch (err) {
         console.error("[scan]", err);
       }
-      timer = setTimeout(tick, SCAN_INTERVAL_MS);
+      timer = setTimeout(() => void tick(), SCAN_INTERVAL_MS);
     };
 
     const handleLive = (res: {
@@ -159,7 +159,7 @@ const VinylScan = () => {
       }
     };
 
-    timer = setTimeout(tick, SCAN_INTERVAL_MS);
+    timer = setTimeout(() => void tick(), SCAN_INTERVAL_MS);
     return () => {
       stopped = true;
       clearTimeout(timer);

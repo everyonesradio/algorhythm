@@ -14,6 +14,8 @@
  * Re-running is safe: albums are upserted by sourceKey and already-embedded
  * albums are skipped unless --force. Confirmed user scans are never deleted.
  */
+import "./lib/load-env";
+
 import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 
@@ -22,29 +24,24 @@ import { PrismaClient } from "@prisma/client";
 import {
   ACTIVE_EMBEDDING_MODEL,
   EMBEDDING_MODELS,
-  EmbeddingModelKey,
+  type EmbeddingModelKey,
 } from "@/lib/embeddings/config";
 import { loadEmbedder } from "@/lib/embeddings/embedder";
 
 import { augmentCover, toRawImage } from "./lib/images";
 import {
-  CatalogAlbum,
-  coverArtUrl,
+  type CatalogAlbum,
+  fetchCover,
   fetchImage,
   findReleaseGroup,
   lookupReleaseGroup,
-  MbReleaseGroup,
+  type MbReleaseGroup,
   releaseGroupsForArtist,
   releaseGroupsForTag,
   toCatalogAlbum,
 } from "./lib/musicbrainz";
 import { findSpotifyAlbum, spotifyEnabled } from "./lib/spotify";
 
-try {
-  process.loadEnvFile?.();
-} catch {
-  // no .env file, rely on the real environment
-}
 
 type SeedEntry = { artist: string; album: string } | { mbid: string };
 
@@ -66,7 +63,7 @@ const modelKey = values.model as EmbeddingModelKey;
 if (!EMBEDDING_MODELS[modelKey]) {
   throw new Error(`Unknown model "${values.model}"`);
 }
-const limit = Number.parseInt(values.limit!, 10);
+const limit = Number.parseInt(values.limit, 10);
 const useSpotify = !values["no-spotify"] && spotifyEnabled();
 
 const prisma = new PrismaClient();
@@ -126,13 +123,13 @@ const main = async () => {
       }
 
       const album: CatalogAlbum = toCatalogAlbum(await lookupReleaseGroup(rg.id));
-      const coverUrl = coverArtUrl(album.mbid);
-      const cover = await fetchImage(coverUrl);
-      if (!cover) {
+      const fetched = await fetchCover(album.mbid);
+      if (!fetched) {
         log(`${prefix} ✗ no cover art: ${album.artist} - ${album.title}`);
         stats.noCover++;
         continue;
       }
+      const { url: coverUrl, image: cover } = fetched;
 
       const spotify = useSpotify
         ? await findSpotifyAlbum(album.artist, album.title)
@@ -213,4 +210,4 @@ main()
     console.error(err);
     process.exitCode = 1;
   })
-  .finally(() => prisma.$disconnect());
+  .finally(() => void prisma.$disconnect());
