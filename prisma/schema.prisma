@@ -63,7 +63,7 @@ model CoverEmbedding {
   album     Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
   model     String   // EmbeddingModelKey, e.g. "clip-vit-b32"
   vector    Float[]
-  // catalog | spotify | augment | user_scan
+  // catalog | spotify | augment | closeup | user_scan
   source    String
   imageUrl  String?
   createdAt DateTime @default(now())

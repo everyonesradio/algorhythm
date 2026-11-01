@@ -9,7 +9,8 @@
  *   MusicBrainz release group  -> metadata (title, artist, year, genres, tags)
  *   Cover Art Archive          -> front cover (catalog vector)
  *   Spotify search             -> spotifyId/url + Spotify artwork (2nd vector)
- *   --augment                  -> 3 photo-like variants (extra vectors)
+ *   --augment                  -> 3 photo-like variants + 2 close-up crops
+ *                                 (extra vectors)
  *
  * Re-running is safe: albums are upserted by sourceKey and already-embedded
  * albums are skipped unless --force. Confirmed user scans are never deleted.
@@ -28,7 +29,7 @@ import {
 } from "@/lib/embeddings/config";
 import { loadEmbedder } from "@/lib/embeddings/embedder";
 
-import { augmentCover, toRawImage } from "./lib/images";
+import { augmentCover, closeUpViews, toRawImage } from "./lib/images";
 import {
   type CatalogAlbum,
   fetchCover,
@@ -146,6 +147,10 @@ const main = async () => {
       if (values.augment) {
         for (const img of await augmentCover(cover)) {
           views.push({ source: "augment", image: img });
+        }
+        // Partial-cover views for scans where the sleeve overflows the frame.
+        for (const img of await closeUpViews(cover)) {
+          views.push({ source: "closeup", image: img });
         }
       }
 

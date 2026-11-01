@@ -114,13 +114,59 @@ export const searchReleaseGroups = async (query: string, limit: number) => {
   return out;
 };
 
+/** Lowercase, strip accents/punctuation and a leading "the". */
+export const normalizeName = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[’'`]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/^the /, "");
+
+/** "A & B", "A and B", "A x B", "A feat. B", "A, B" -> ["a", "b"] */
+export const splitArtists = (s: string) =>
+  s
+    .split(/\s*(?:&|,|\band\b|\bx\b|\bfeat\.?|\bft\.?|\bwith\b)\s*/i)
+    .map(normalizeName)
+    .filter((p) => p.length > 1);
+
+/**
+ * Does a MusicBrainz artist credit match the artist we were asked for?
+ * Tolerates a leading "The", accents, and collaborations credited in a
+ * different order ("Cuarteto Patria & Manu Dibango").
+ */
+export const artistMatches = (wanted: string, credit: string) => {
+  const c = normalizeName(credit);
+  const parts = splitArtists(wanted);
+  if (parts.length === 0) return false;
+  return parts.every((p) => c.includes(p));
+};
+
+const creditOf = (rg: MbReleaseGroup) => artistName(rg["artist-credit"]);
+
 export const findReleaseGroup = async (artist: string, album: string) => {
   const results = await searchReleaseGroups(
     `releasegroup:${q(album)} AND artist:${q(artist)}`,
     5
   );
   // MB returns a relevance score 0-100; anything below ~85 is usually wrong.
-  return results.find((r) => (r.score ?? 0) >= 85) ?? null;
+  const exact = results.find((r) => (r.score ?? 0) >= 85);
+  if (exact) return exact;
+
+  // Fallback: search the title alone and check the credit ourselves. Catches
+  // "The Lijadu Sisters" vs "Lijadu Sisters" and reordered collaborations.
+  const byTitle = await searchReleaseGroups(`releasegroup:${q(album)}`, 15);
+  const wantedTitle = normalizeName(album);
+  return (
+    byTitle.find(
+      (r) =>
+        (r.score ?? 0) >= 85 &&
+        normalizeName(r.title) === wantedTitle &&
+        artistMatches(artist, creditOf(r))
+    ) ?? null
+  );
 };
 
 export const releaseGroupsForArtist = (artist: string, limit: number) =>

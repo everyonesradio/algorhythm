@@ -70,3 +70,25 @@ export const augmentCover = async (input: Buffer): Promise<Buffer[]> => {
   ]);
   return variants;
 };
+
+/**
+ * Close-up views: the centre of the cover, as the camera sees it when the
+ * sleeve is held so close that it overflows the frame. Stored as extra
+ * vectors (source "closeup") so partial-cover scans match a partial-cover
+ * catalog view instead of being compared against the whole cover.
+ */
+export const CLOSEUP_FRACTIONS = [0.75, 0.55];
+
+export const closeUpViews = async (input: Buffer): Promise<Buffer[]> => {
+  const base = await sharp(input).resize(800, 800, { fit: "cover" }).toBuffer();
+  return Promise.all(
+    CLOSEUP_FRACTIONS.map((f) => {
+      const side = Math.round(800 * f);
+      const offset = Math.round((800 - side) / 2);
+      return sharp(base)
+        .extract({ left: offset, top: offset, width: side, height: side })
+        .resize(512, 512)
+        .toBuffer();
+    })
+  );
+};
