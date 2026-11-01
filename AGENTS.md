@@ -70,8 +70,10 @@ model/               # TFLite notes (now: optional cover *localisation*)
 prisma/              # Mongo schema
 ```
 
-**Domain note:** Spotify is the primary identity for `MusicIDX`. Cross-platform
-links live in `platformLinks` JSON. Recognition and routing are separate
+**Domain note:** `Album` is the record identity (MusicBrainz release group,
+with Spotify id/url when matched). Cross-platform links are cached in
+`Album.platformLinks` by `vinyl.links`; `links.search` resolves any pasted
+music URL. (`MusicIDX` was retired; its Mongo collection is left in place.) Recognition and routing are separate
 concerns — a bad match must not look verified.
 
 ## Boundaries

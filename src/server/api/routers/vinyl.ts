@@ -9,7 +9,9 @@ import {
 } from "@/lib/embeddings/config";
 import { l2Normalize } from "@/lib/embeddings/vector";
 import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
+import { search } from "@/server/services/search";
 import { findNearestCovers } from "@/server/services/vinyl/index-search";
+import { getAlbumLinks } from "@/server/services/vinyl/links";
 import { rankHits } from "@/server/services/vinyl/ranking";
 
 const modelKeys = Object.keys(EMBEDDING_MODELS) as [
@@ -155,6 +157,23 @@ export const vinylRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "Album not found" });
       }
       return album;
+    }),
+
+  /**
+   * Streaming links for an album across Spotify, Apple Music, YouTube,
+   * Deezer, SoundCloud and Tidal. Cached on the album (30-day TTL), so a
+   * record that's been scanned before resolves instantly.
+   * `links` is null when the album has no Spotify match to search from.
+   */
+  links: publicProcedure
+    .input(z.object({ albumId: z.string().regex(/^[a-f\d]{24}$/i) }))
+    .query(async ({ ctx, input }) => {
+      const res = await getAlbumLinks(ctx.prisma, input.albumId, search);
+      if (res.status === "not-found") {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Album not found" });
+      }
+      if (res.status === "no-spotify") return { links: null, cached: false };
+      return { links: res.links, cached: res.cached };
     }),
 
   stats: publicProcedure.query(async ({ ctx }) => {

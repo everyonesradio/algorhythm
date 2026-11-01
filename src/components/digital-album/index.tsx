@@ -35,10 +35,15 @@ const DigitalAlbum: React.FC<Props> = ({
   onConfirm,
   onReject,
 }) => {
-  const { data: searchResult, isError } = api.musicIDX.search.useQuery(
-    { albumLink: album.spotifyUrl ?? "" },
+  // Cached on the album server-side; only albums with a Spotify match can be
+  // resolved to the other platforms.
+  const { data: linkData, isError } = api.vinyl.links.useQuery(
+    { albumId: album.id },
     { enabled: !!album.spotifyUrl, retry: 1, staleTime: Infinity }
   );
+  const links = linkData?.links ?? null;
+  const showSpotifyFallback =
+    !album.spotifyUrl || isError || (linkData !== undefined && !links);
 
   const spotifySearchUrl = `https://open.spotify.com/search/${encodeURIComponent(
     `${album.artist} ${album.title}`
@@ -137,7 +142,7 @@ const DigitalAlbum: React.FC<Props> = ({
           )}
 
           <div className='w-full max-w-sm pb-4'>
-            {!album.spotifyUrl || isError ? (
+            {showSpotifyFallback ? (
               <a
                 href={album.spotifyUrl ?? spotifySearchUrl}
                 target='_blank'
@@ -149,12 +154,12 @@ const DigitalAlbum: React.FC<Props> = ({
                   {album.spotifyUrl ? "Listen on Spotify" : "Find on Spotify"}
                 </span>
               </a>
-            ) : !searchResult?.links ? (
+            ) : !links ? (
               <div className='flex items-center justify-center py-6'>
                 <Loader2 className='h-8 w-8 animate-spin text-black' />
               </div>
             ) : (
-              <SearchCard searchResult={searchResult.links} />
+              <SearchCard searchResult={links} />
             )}
           </div>
         </div>

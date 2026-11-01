@@ -10,8 +10,11 @@
 | Term | Meaning |
 |------|---------|
 | **Cover / vinyl** | Physical album art the camera sees |
-| **Recognition** | ML detection + album identity resolution |
-| **MusicIDX** | Spotify-primary indexed release (`spotifyId` unique) |
+| **Recognition** | Cover image → nearest catalog cover by vector search → album |
+| **Album** | A record (MusicBrainz release group): metadata, Spotify id/url, cached `platformLinks` |
+| **Cover embedding** | A vector of one view of an album's cover (catalog, Spotify, augment, user scan) |
+| **Scan** | One identify attempt; confirmed scans add a `user_scan` embedding |
+| **Links** | The same release on other platforms (`links.search` for any URL, `vinyl.links` cached per album) |
 | **Adapter** | Builds a platform URL from metadata/query |
 | **Parser** | Extracts metadata from a platform URL |
 | **Verified link** | Match confidence high enough to mark `isVerified` |

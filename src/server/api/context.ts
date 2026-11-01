@@ -1,8 +1,8 @@
 // ** Custom Components, Hooks, Utils, etc.
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 
+import { linksRouter } from "./routers/links";
 import { waitlistRouter } from "./routers/waitlist";
-import { musicIDXRouter } from "./routers/music-idx";
 import { vinylRouter } from "./routers/vinyl";
 
 /**
@@ -12,8 +12,8 @@ import { vinylRouter } from "./routers/vinyl";
  */
 export const appRouter = createTRPCRouter({
   waitlist: waitlistRouter,
-  musicIDX: musicIDXRouter,
   vinyl: vinylRouter,
+  links: linksRouter,
 });
 
 // export type definition of API
