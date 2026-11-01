@@ -28,6 +28,10 @@ for arg in "$@"; do
 done
 if [[ ${#seed_args[@]} -eq 0 ]]; then
   seed_args=(--file seeds/albums.example.json --augment)
+  # Alternative covers from Discogs vinyl pressings when a token is set.
+  if grep -qE '^DISCOGS_TOKEN=.+' .env 2>/dev/null || [[ -n "${DISCOGS_TOKEN:-}" ]]; then
+    seed_args+=(--variants)
+  fi
 fi
 
 say() { printf '\033[1;35m[seed-local]\033[0m %s\n' "$*"; }

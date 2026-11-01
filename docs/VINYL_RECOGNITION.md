@@ -137,6 +137,36 @@ before tuning further. Known data issue: MusicBrainz fuzzy search matched
 "Fela Kuti – Zombie" to the compilation "Na Poi / Zombie"; seed by `mbid`
 in the list file when a title is ambiguous.
 
+## Alternative covers & pressings (Discogs)
+
+MusicBrainz is weak on vinyl pressings (MM..FOOD: 2 vinyl releases, no art;
+Showbiz!: none). Discogs lists every pressing with photos of the actual
+sleeve: MM..FOOD has 21 vinyl versions, including 2024 reissues with
+entirely different artwork.
+
+`--variants` (seeder, needs `DISCOGS_TOKEN`) finds the album's Discogs
+master, embeds every vinyl pressing's thumbnail (CDN, no API cost), keeps a
+**diverse** set (farthest-first, skipping near-duplicates ≥ 0.95, max 6) and
+stores them from the 600px photo as `variant` vectors. About 8 API calls per
+album, within Discogs' 60 requests/minute.
+
+Measured on MM..FOOD's 2024 alternative-art photos:
+
+| | Auto-matched | Offered as a candidate |
+|---|---|---|
+| Without variants | 0 / 13 | 9 / 13 |
+| With variants (photos not stored as variants) | 6 / 9 | 9 / 9 |
+
+Discogs also fills gaps: albums MusicBrainz doesn't have are built from
+Discogs automatically (Ojerime, Zogo, Jazz in the Classroom), and every
+Discogs-matched album gets its **label** and **styles** ("Boom Bap"). The
+album sheet credits Discogs, as its API terms require. Images are linked,
+never re-hosted.
+
+Scan-triggered artist ingest doesn't fetch variants yet (a 38-album
+catalog would take ~5 minutes at Discogs' rate limit); seed with
+`--variants` for records where pressings matter.
+
 ## When the record isn't in the catalog yet
 
 A scan that isn't a confident match never dead-ends:

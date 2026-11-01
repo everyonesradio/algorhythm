@@ -67,6 +67,9 @@ const albumSelect = {
   mbid: true,
   artistMbid: true,
   artistName: true,
+  styles: true,
+  discogsMasterId: true,
+  discogsReleaseId: true,
 } as const;
 
 export const vinylRouter = createTRPCRouter({

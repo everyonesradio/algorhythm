@@ -43,10 +43,14 @@ model Album {
   primaryType   String?          // Album, EP, Single...
   genres        String[]
   tags          String[]
+  styles        String[]         // Discogs styles, e.g. "Boom Bap", "Jazzy Hip-Hop"
   labels        String[]
   coverUrl      String
   spotifyId     String?
   spotifyUrl    String?
+  discogsMasterId  Int?
+  discogsReleaseId Int?
+  discogsArtistId  Int?
   platformLinks Json?            // cached cross-platform links (search service)
   extra         Json?            // room for credits, tracklist, notes...
   embeddings    CoverEmbedding[]
@@ -64,7 +68,7 @@ model CoverEmbedding {
   album     Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
   model     String   // EmbeddingModelKey, e.g. "clip-vit-b32"
   vector    Float[]
-  // catalog | spotify | augment | closeup | user_scan
+  // catalog | spotify | augment | closeup | variant | user_scan
   source    String
   imageUrl  String?
   createdAt DateTime @default(now())
