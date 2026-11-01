@@ -1,0 +1,22 @@
+---
+description: Lowercase one-sentence git commit messages
+alwaysApply: true
+---
+
+# Commit message style
+
+When creating a git commit in this repo, the message is one short sentence:
+
+- **all lowercase** (including the first word)
+- **no Conventional Commits prefix** (`feat:`, `fix:`, `chore:`, scopes in parens, etc.)
+- **no special characters** except `&` for 'and', `w/` for with
+- **why**, not a file list — keep it to one line
+- **PR titles are not commit messages** — Title Case, few words, intent not implementation (see `pr-title-style.mdc`)
+
+```
+❌ Fix(releases): Block URL bypass for non-artist workspaces
+❌ block releases URLs when the workspace has no artist identity
+✅ block releases urls when the workspace has no artist identity
+✅ skip all clients picker when roster has one client
+✅ remove hide releases flag & show releases only for artist workspaces
+```
