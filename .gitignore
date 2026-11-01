@@ -35,3 +35,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# recognition eval photos
+/eval-synthetic/
+/eval-photos/
+
+# mcp
+/.cursor/mcp.json

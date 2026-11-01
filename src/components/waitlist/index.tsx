@@ -1,119 +1,134 @@
 // ** React/Next.js Imports
-import { useRouter } from "next/navigation";
-import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import React, { useState } from "react";
 
 // ** Third-Party Imports
-import { ToastContainer, toast } from "react-toastify";
+import { ArrowRight, Check, Loader2 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 
 // ** Custom Components, Hooks, Utils, etc.
 import { api } from "@/utils/trpc";
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+const swap = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -6 },
+  transition: { type: "spring", bounce: 0.12, duration: 0.35 },
+} as const;
+
+/**
+ * Early-access signup. Errors and success render inline (no toasts) so the
+ * result stays where the user is looking, and success hands them straight to
+ * the demo instead of auto-redirecting.
+ */
 const Waitlist = () => {
-  const router = useRouter();
-  const [email, setEmail] = useState<string>("");
-  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const join = api.waitlist.add.useMutation();
 
-  const { mutateAsync: waitlistEntry } = api.waitlist.add.useMutation();
-
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    // Validation checks
-    const emailRegex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
-
-    if (!email || !emailRegex.test(email)) {
-      setErrorMessage("Please enter a valid email address!");
+    const value = email.trim();
+    if (!EMAIL_RE.test(value)) {
+      setError("That email doesn't look quite right.");
       return;
     }
-
-    if (email) {
-      try {
-        const res = await waitlistEntry({
-          email: email,
-        });
-
-        // Reset states
-        setEmail("");
-        setErrorMessage("");
-
-        toast.success(res.message, {
-          position: "bottom-right",
-          autoClose: 2000,
-          hideProgressBar: true,
-          closeOnClick: true,
-          pauseOnHover: true,
-          draggable: false,
-          progress: undefined,
-          theme: "colored",
-        });
-
-        setTimeout(() => {
-          router.push("/scan-vinyl");
-        }, 600);
-      } catch (error) {
-        console.error("Server error:", error);
+    setError(null);
+    join.mutate(
+      { email: value },
+      {
+        onError: () =>
+          setError("We couldn't save your spot. Give it another try."),
       }
-    }
+    );
   };
 
-  useEffect(() => {
-    // Error handling with react-toastify
-    if (errorMessage) {
-      toast.error(errorMessage, {
-        position: "bottom-right",
-        autoClose: 2000,
-        hideProgressBar: true,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "colored",
-      });
-    }
-
-    // Reset error message
-    setErrorMessage("");
-  }, [errorMessage]);
-
   return (
-    <div className='container mx-auto max-w-sm'>
-      <form onSubmit={handleSubmit} method='POST' className='w-full pt-8'>
-        <div className='flex flex-col gap-2 sm:flex-row'>
-          <label className='sr-only' htmlFor='email-address'>
-            Email address
-          </label>
-          <input
-            className='text-accent-500 block h-10 w-full px-4 py-2 border-2 border-black appearance-none placeholder-zinc-400 duration-200 focus:outline-none focus:border-zinc-300 sm:text-sm'
-            id='email-address'
-            name='email'
-            placeholder='Enter your email address'
-            value={email}
-            onChange={handleEmailChange}
-          />
-          <button
-            className='flex h-10 shrink-0 items-center justify-center gap-2 text-white bg-black px-4 py-2 text-sm font-semibold transition-all'
-            type='submit'
+    <div className='w-full max-w-md'>
+      <AnimatePresence mode='wait' initial={false}>
+        {join.isSuccess ? (
+          <motion.div
+            key='done'
+            {...swap}
+            className='flex flex-col gap-4 rounded-2xl border-2 border-black bg-white p-5 text-left'
+            role='status'
           >
-            <span>Submit</span>
-          </button>
-        </div>
-      </form>
-      <ToastContainer
-        position='bottom-right'
-        autoClose={1800}
-        hideProgressBar
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable={false}
-        pauseOnHover
-        theme='colored'
-      />
+            <div className='flex items-center gap-3'>
+              <span className='flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-black text-white'>
+                <Check className='h-4 w-4' strokeWidth={3} />
+              </span>
+              <p className='font-semibold'>
+                You&apos;re on the list. We&apos;ll be in touch.
+              </p>
+            </div>
+            <p className='text-sm text-black/70'>
+              While you wait, the demo is open. Grab a record off the shelf.
+            </p>
+            <Link
+              href='/scan-vinyl'
+              className='flex h-12 items-center justify-center gap-2 rounded-full bg-black px-5 font-semibold text-white transition-transform duration-[120ms] active:scale-[0.97]'
+            >
+              Scan your first record
+              <ArrowRight className='h-4 w-4' />
+            </Link>
+          </motion.div>
+        ) : (
+          <motion.form
+            key='form'
+            {...swap}
+            onSubmit={onSubmit}
+            noValidate
+            className='flex flex-col gap-2'
+          >
+            <div className='flex flex-col gap-2 sm:flex-row'>
+              <label className='sr-only' htmlFor='waitlist-email'>
+                Email address
+              </label>
+              <input
+                id='waitlist-email'
+                name='email'
+                type='email'
+                inputMode='email'
+                autoComplete='email'
+                placeholder='you@example.com'
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (error) setError(null);
+                }}
+                aria-invalid={!!error}
+                aria-describedby='waitlist-msg'
+                disabled={join.isPending}
+                // 16px text on mobile stops iOS zooming in on focus.
+                className='h-12 w-full rounded-full border-2 border-black bg-white px-5 text-base placeholder:text-black/40 focus:outline-none focus-visible:ring-4 focus-visible:ring-black/15 disabled:opacity-60 aria-[invalid=true]:border-red-600'
+              />
+              <button
+                type='submit'
+                disabled={join.isPending}
+                className='flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-black px-6 font-semibold text-white transition-transform duration-[120ms] active:scale-[0.97] disabled:opacity-80'
+              >
+                {join.isPending ? (
+                  <>
+                    <Loader2 className='h-4 w-4 animate-spin' />
+                    Saving your spot…
+                  </>
+                ) : (
+                  "Get early access"
+                )}
+              </button>
+            </div>
+            <p
+              id='waitlist-msg'
+              aria-live='polite'
+              className={`min-h-5 px-5 text-sm ${error ? "text-red-700" : "text-black/60"}`}
+            >
+              {error ?? "Free while we're in early access. No spam, ever."}
+            </p>
+          </motion.form>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

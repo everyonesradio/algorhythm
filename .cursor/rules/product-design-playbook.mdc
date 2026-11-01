@@ -1,0 +1,27 @@
+---
+description: Bartek Marzec product design playbook — use before UI/copy/flows
+alwaysApply: true
+---
+
+# Product Design Playbook (Algorhythm)
+
+Bartek Marzec's playbook lives under `.cursor/skills/playbook-*`. Use it whenever
+work touches something a real user will see, read, or tap — even if the user
+never says "design".
+
+Before committing to UI, copy, flows, or product strategy:
+
+1. **Read the matching skill** (full `SKILL.md`, then `references/` when you need
+   specifics):
+   - **Create / build** — `playbook-build` → `references/plays.md`, `strategies.md`
+   - **Goal / metric / roadmap** — `playbook-plan` → same references
+   - **Review / critique / "would you ship this?"** — `playbook-review` →
+     `references/plays.md`, `moments.md`
+
+2. **Follow the skill loop** — name the moment, name the job (JTBD), pick 2–4
+   reinforcing plays, pull pairs from the cards, apply the bar, deliver the work.
+
+3. **Close with a short "Plays used" note** when you built or redesigned something
+   user-facing.
+
+Overview: `docs/agents/PLAYBOOK-START-HERE.md`

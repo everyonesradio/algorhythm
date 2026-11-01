@@ -2,6 +2,45 @@
 
 This project was project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
+Point your phone at a vinyl record and get the album on Spotify and other
+streaming services. Recognition is **image retrieval**: covers are embedded
+with CLIP and matched with MongoDB Atlas Vector Search. See
+[docs/VINYL_RECOGNITION.md](docs/VINYL_RECOGNITION.md) for the architecture,
+model notes and scaling plan.
+
+## Vinyl recognition quick start
+
+One command (checks prerequisites, pushes the schema, builds the vector
+index, seeds the example list):
+
+```bash
+./scripts/seed-local.sh            # uses DATABASE_URL from .env (Atlas)
+./scripts/seed-local.sh --docker   # or: local MongoDB Atlas via Docker
+```
+
+Or step by step:
+
+```bash
+cp .env.example .env            # set DATABASE_URL (Atlas) + Spotify creds
+npm install
+npx prisma db push
+npm run vinyl:index             # create the Atlas vector index
+npm run vinyl:seed -- --file seeds/albums.example.json --augment
+npm run dev                     # open /scan-vinyl
+```
+
+| Script | What it does |
+|---|---|
+| `npm run vinyl:seed -- --artist "X" --tag "Y" --file list.json` | Seed albums and cover vectors |
+| `npm run vinyl:index` | Create/update the Atlas vector index |
+| `npm run vinyl:eval -- --dir ./photos` | Measure accuracy on real photos and calibrate thresholds |
+| `npm run vinyl:synth -- --out ./eval-synthetic` | Generate phone-style test photos of seeded covers (+ negatives) |
+| `npm run lint` / `npm test` | ESLint 9 (flat config) / Vitest, offline; `RUN_LIVE_TESTS=1 npm test` also hits real services |
+
+Spotify credentials are server-only: `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`
+(the old `NEXT_PUBLIC_SPOTIFY_*` names were removed because they exposed the
+secret to the browser).
+
 ## Getting Started
 
 First, run the development server:

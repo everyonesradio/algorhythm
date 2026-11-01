@@ -13,7 +13,12 @@ export const env = createEnv({
       .enum(["development", "test", "production"])
       .default("development"),
 
-    SPOTIFY_AUTH_URL: z.string().url(),
+    SPOTIFY_CLIENT_ID: z.string(),
+    SPOTIFY_CLIENT_SECRET: z.string(),
+    SPOTIFY_AUTH_URL: z
+      .string()
+      .url()
+      .default("https://accounts.spotify.com/api/token"),
     SPOTIFY_API_URL: z
       .string()
       .url()
@@ -40,10 +45,7 @@ export const env = createEnv({
    * isn't built with invalid env vars. To expose them to the client, prefix them with
    * `NEXT_PUBLIC_`.
    */
-  client: {
-    NEXT_PUBLIC_SPOTIFY_CLIENT_ID: z.string(),
-    NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET: z.string(),
-  },
+  client: {},
 
   /**
    * You can't destruct `process.env` as a regular object in the Next.js edge runtimes (e.g.
@@ -53,9 +55,8 @@ export const env = createEnv({
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
-    NEXT_PUBLIC_SPOTIFY_CLIENT_ID: process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_ID,
-    NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET:
-      process.env.NEXT_PUBLIC_SPOTIFY_CLIENT_SECRET,
+    SPOTIFY_CLIENT_ID: process.env.SPOTIFY_CLIENT_ID,
+    SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET,
     SPOTIFY_AUTH_URL: process.env.SPOTIFY_AUTH_URL,
     SPOTIFY_API_URL: process.env.SPOTIFY_API_URL,
     SPOTIFY_CLIENT_VERSION: process.env.SPOTIFY_CLIENT_VERSION,
