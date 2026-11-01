@@ -8,7 +8,7 @@ import type {
   EmbedWorkerResponse,
 } from "@/workers/embed.worker";
 
-type Status = "idle" | "loading" | "ready" | "error";
+type Status = "loading" | "ready" | "error";
 
 /** Owns the embedding Web Worker and exposes a promise-based `embed`. */
 export const useCoverEmbedder = () => {
@@ -18,7 +18,8 @@ export const useCoverEmbedder = () => {
   );
   const nextId = useRef(0);
 
-  const [status, setStatus] = useState<Status>("idle");
+  // The worker starts on mount, so the hook begins in "loading".
+  const [status, setStatus] = useState<Status>("loading");
   const [progress, setProgress] = useState(0);
   const [model, setModel] = useState<EmbeddingModelKey | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +66,6 @@ export const useCoverEmbedder = () => {
       }
     };
 
-    setStatus("loading");
     worker.postMessage({ type: "load" } satisfies EmbedWorkerRequest);
 
     return () => {

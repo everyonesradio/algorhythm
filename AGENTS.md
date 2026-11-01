@@ -5,8 +5,8 @@ cover, detect it, and open the same release across Spotify, Apple Music, YouTube
 Deezer, SoundCloud, and Tidal.
 
 **Tech stack:** Next.js 14 (pages), TypeScript, tRPC, TanStack React Query, Prisma
-(MongoDB), Zod, Tailwind + MUI + styled-components, TensorFlow.js / COCO-SSD
-(custom TFLite vinyl model planned), Vitest, Vercel.
+(MongoDB), Zod, Tailwind + MUI + styled-components, transformers.js (CLIP cover
+embeddings) + MongoDB Atlas Vector Search, Vitest, Vercel.
 
 ## Agent skills
 
@@ -46,7 +46,9 @@ stubs).
 | `npm run type-check` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
 | `npm test` | Vitest |
-| `npx prisma studio` | Inspect Mongo models (`Waitlist`, `MusicIDX`) |
+| `npx prisma studio` | Inspect Mongo models |
+| `./scripts/seed-local.sh` | Schema + vector index + seed covers (see `docs/VINYL_RECOGNITION.md`) |
+| `npm run vinyl:seed` / `vinyl:index` / `vinyl:eval` / `vinyl:synth` | Recognition catalog + accuracy tooling |
 
 ## Architecture sketch
 
@@ -59,8 +61,12 @@ src/
 ├── server/          # tRPC + search/cache/metadata services
 ├── utils/           # http client, scraper, retry, encoding
 └── hooks/
-lib/                 # prisma + spotify SDK helpers
-model/               # TFLite Model Maker notes for vinyl detector
+├── lib/embeddings/   # shared CLIP embedder (browser worker + Node seeder)
+├── server/services/vinyl/  # vector search + match ranking
+└── workers/         # embedding Web Worker
+lib/                 # prisma helper
+scripts/             # catalog seeding, vector index, accuracy eval
+model/               # TFLite notes (now: optional cover *localisation*)
 prisma/              # Mongo schema
 ```
 

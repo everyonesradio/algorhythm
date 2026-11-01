@@ -60,8 +60,11 @@ const VinylScan = () => {
   const [busyUpload, setBusyUpload] = useState(false);
 
   const paused = !!result || !!candidates || busyUpload;
+  // The scan loop reads this ref, so it sees pause changes without restarting.
   const pausedRef = useRef(paused);
-  pausedRef.current = paused;
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
 
   const showResult = useCallback(
     (scanId: string | null, matches: VinylMatch[], pick = 0) => {

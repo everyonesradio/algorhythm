@@ -21,6 +21,8 @@ continuations, meta, or explicit **skip deepen** / **just do it**.
 
 - Next.js **pages** router (not App Router)
 - API surface is **tRPC** (`src/server/api/`)
-- Data: **Prisma + MongoDB** (`Waitlist`, `MusicIDX`)
-- Recognition: TensorFlow.js today; custom TFLite vinyl model is the scale path
-  (`model/model_overview.py`, `ml-best-practices`)
+- Data: **Prisma + MongoDB** (`Waitlist`, `MusicIDX`, `Album`,
+  `CoverEmbedding`, `ScanEvent`)
+- Recognition: **image retrieval**, not classification. CLIP embeds the cover
+  in the browser (transformers.js Web Worker); MongoDB Atlas `$vectorSearch`
+  finds the nearest catalog cover. See `docs/VINYL_RECOGNITION.md`.

@@ -1,4 +1,3 @@
-const path = require("path");
 
 /**
  * transformers.js ships Node-only backends (sharp, onnxruntime-node). The
@@ -11,7 +10,7 @@ const nextConfig = {
   reactStrictMode: true,
   // Keep Turbopack rooted on this app when a parent-directory lockfile exists.
   turbopack: {
-    root: path.join(__dirname),
+    root: import.meta.dirname,
     resolveAlias: {
       sharp: nodeOnlyStub,
       "onnxruntime-node": nodeOnlyStub,
@@ -29,4 +28,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;
