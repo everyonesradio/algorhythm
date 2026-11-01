@@ -1,0 +1,19 @@
+---
+description: Algorhythm product flow for agents
+alwaysApply: true
+---
+
+# Algorhythm product flow (agents)
+
+Non-trivial product work: run **`deepen-task`** first (rewrite the ask + external
+proof), then follow **`.cursor/skills/algorhythm-product-flow/SKILL.md`**.
+
+- **User-facing UI:** `playbook-build` + `design-engineering`; before merge on
+  UX-heavy PRs, `playbook-review`.
+- **Metrics / roadmap:** `playbook-plan` → spec/tickets.
+- **Vinyl / recognition ML:** `ml-best-practices` (+ `managing-python-dependencies`
+  for training) before polishing the camera UI.
+- **Lost in the skill map:** `/ask-matt`.
+
+Skip deepen only for continuations, pure meta, or explicit **skip deepen** /
+**just do it**.
