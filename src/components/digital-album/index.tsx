@@ -58,8 +58,16 @@ const DigitalAlbum: React.FC<Props> = ({
   const spotifySearchUrl = `https://open.spotify.com/search/${encodeURIComponent(
     `${album.artist} ${album.title}`
   )}`;
-  const chips = [...album.genres, ...album.tags]
-    .filter((v, i, arr) => arr.indexOf(v) === i)
+  // Discogs styles are the most specific ("Boom Bap"), then MB genres/tags.
+  const seen = new Set<string>();
+  const chips = [...(album.styles ?? []), ...album.genres, ...album.tags]
+    .filter((v) => {
+      // "Boom Bap" (Discogs) and "boom bap" (MusicBrainz) are one chip.
+      const key = v.toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
     .slice(0, 5);
 
   return (
@@ -86,6 +94,9 @@ const DigitalAlbum: React.FC<Props> = ({
             {album.artist}
             {album.releaseYear ? ` · ${album.releaseYear}` : ""}
           </span>
+          {album.labels[0] && (
+            <span className='text-sm text-gray-500'>{album.labels[0]}</span>
+          )}
           {chips.length > 0 && (
             <div className='mt-2 flex flex-wrap justify-center gap-1'>
               {chips.map((g) => (
@@ -165,6 +176,22 @@ const DigitalAlbum: React.FC<Props> = ({
             <SearchCard searchResult={links} />
           )}
         </div>
+
+        {/* Discogs API terms ask for attribution where their data is shown. */}
+        {(album.discogsMasterId || album.discogsReleaseId) && (
+          <a
+            href={
+              album.discogsMasterId
+                ? `https://www.discogs.com/master/${album.discogsMasterId}`
+                : `https://www.discogs.com/release/${album.discogsReleaseId}`
+            }
+            target='_blank'
+            rel='noreferrer'
+            className='mt-4 text-xs text-gray-500 underline-offset-4 hover:underline'
+          >
+            Pressings &amp; label data from Discogs
+          </a>
+        )}
       </div>
     </Sheet>
   );
