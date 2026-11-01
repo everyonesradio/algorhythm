@@ -5,6 +5,8 @@ import { ACTIVE_EMBEDDING_MODEL } from "@/lib/embeddings/config";
 import { loadEmbedder } from "@/lib/embeddings/embedder";
 import { logger } from "@/utils/logger";
 
+import { addPressingsToAlbum } from "./album-pressings";
+import { discogsEnabled } from "./discogs";
 import { ingestReleaseGroup } from "./ingest";
 import { discographyForArtist } from "./musicbrainz";
 import {
@@ -14,6 +16,7 @@ import {
   type RunnerDeps,
   type Trigger,
 } from "./queue";
+import { discogsAlbum } from "./variants";
 
 export const serverRunnerDeps = (prisma: PrismaClient): RunnerDeps => ({
   discography: discographyForArtist,
@@ -24,26 +27,48 @@ export const serverRunnerDeps = (prisma: PrismaClient): RunnerDeps => ({
 });
 
 /**
- * A scan identified an album: start vectorising the artist's catalog now.
+ * A scan identified an album (confident match, "Yes, that's it", or a pick).
+ * In the background:
+ *   1. that album's Discogs pressings become extra "variant" vectors (once
+ *      per 30 days per album), so other pressings of it match too;
+ *   2. the artist's whole catalog is vectorised (one job per artist).
  *
  * Returns immediately. On Vercel, `waitUntil` keeps the function alive
  * after the response is sent; elsewhere the promise simply runs in the
- * long-lived server process. If the work is cut short, the job stays in
- * Mongo and `npm run vinyl:worker` (or the next scan) picks it up.
+ * long-lived server process. If the catalog work is cut short, the job stays
+ * in Mongo and `npm run vinyl:worker` (or the next scan) picks it up.
  */
-export const startArtistIngest = (
+export const startScanIngest = (
   prisma: PrismaClient,
-  artist: { mbid: string | null; name: string },
+  scanned: {
+    albumId: string;
+    artist: { mbid: string | null; name: string };
+  },
   trigger: Trigger
 ) => {
-  const { mbid, name } = artist;
-  if (!mbid) return;
+  const { albumId, artist } = scanned;
   const task = (async () => {
-    const jobId = await requestArtistCatalog(prisma, { mbid, name }, trigger);
+    if (discogsEnabled()) {
+      try {
+        const embedder = await loadEmbedder(ACTIVE_EMBEDDING_MODEL, { device: "cpu" });
+        const res = await addPressingsToAlbum(prisma, embedder, albumId, { discogsAlbum });
+        if (res.status === "added") {
+          logger.info(`[pressings] ${artist.name}: ${res.variants} variant covers`);
+        }
+      } catch (err) {
+        logger.error(`[pressings] ${artist.name}: ${(err as Error).message}`);
+      }
+    }
+    if (!artist.mbid) return;
+    const jobId = await requestArtistCatalog(
+      prisma,
+      { mbid: artist.mbid, name: artist.name },
+      trigger
+    );
     if (!jobId || !(await claimJob(prisma, jobId))) return;
     await runArtistJob(prisma, jobId, serverRunnerDeps(prisma));
   })().catch((err) =>
-    logger.error(`[ingest] ${name}: ${(err as Error).message}`)
+    logger.error(`[ingest] ${artist.name}: ${(err as Error).message}`)
   );
   waitUntil(task);
 };

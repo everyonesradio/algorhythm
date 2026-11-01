@@ -9,7 +9,7 @@ import {
 } from "@/lib/embeddings/config";
 import { l2Normalize } from "@/lib/embeddings/vector";
 import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
-import { startArtistIngest } from "@/server/services/catalog/background";
+import { startScanIngest } from "@/server/services/catalog/background";
 import {
   coverArtUrl,
   coverExists,
@@ -140,9 +140,12 @@ export const vinylRouter = createTRPCRouter({
         // A confident scan is itself the signal: vectorise this artist's
         // whole catalog in the background (no-op if already done).
         const top = matches[0].album;
-        startArtistIngest(
+        startScanIngest(
           ctx.prisma,
-          { mbid: top.artistMbid, name: top.artistName ?? top.artist },
+          {
+            albumId: top.id,
+            artist: { mbid: top.artistMbid, name: top.artistName ?? top.artist },
+          },
           "scan_match"
         );
       }
@@ -230,9 +233,15 @@ export const vinylRouter = createTRPCRouter({
         select: { artist: true, artistMbid: true, artistName: true },
       });
       if (confirmed) {
-        startArtistIngest(
+        startScanIngest(
           ctx.prisma,
-          { mbid: confirmed.artistMbid, name: confirmed.artistName ?? confirmed.artist },
+          {
+            albumId: input.albumId,
+            artist: {
+              mbid: confirmed.artistMbid,
+              name: confirmed.artistName ?? confirmed.artist,
+            },
+          },
           "scan_confirm"
         );
       }
@@ -364,9 +373,12 @@ export const vinylRouter = createTRPCRouter({
         data: { confirmedAlbumId: album.id, confirmedAt: new Date() },
       });
 
-      startArtistIngest(
+      startScanIngest(
         ctx.prisma,
-        { mbid: album.artistMbid, name: album.artistName ?? album.artist },
+        {
+          albumId: album.id,
+          artist: { mbid: album.artistMbid, name: album.artistName ?? album.artist },
+        },
         "scan_pick"
       );
       return { album };

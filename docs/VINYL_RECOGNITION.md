@@ -163,9 +163,19 @@ Discogs-matched album gets its **label** and **styles** ("Boom Bap"). The
 album sheet credits Discogs, as its API terms require. Images are linked,
 never re-hosted.
 
-Scan-triggered artist ingest doesn't fetch variants yet (a 38-album
-catalog would take ~5 minutes at Discogs' rate limit); seed with
-`--variants` for records where pressings matter.
+**Scans add pressings too.** When a scan identifies an album (match,
+"Yes, that's it", or a pick), that album's Discogs pressings are added in
+the background before the artist's catalog ingest (`album-pressings.ts`):
+about 8 Discogs calls, done once per album per 30 days (misses retry after
+7). Tested: scanning Voodoo added 6 pressings plus label Virgin and styles
+Soul, Funk, Neo Soul within 16s. Each variant vector stores its Discogs
+release id, so a match can later say which pressing the user is holding.
+The artist's *other* albums don't get pressings automatically (a 38-album
+catalog would take ~5 minutes at Discogs' rate limit); they gain them the
+first time one of them is scanned.
+
+Discogs search is literal about punctuation: "D’Angelo" (curly, as
+MusicBrainz writes it) finds nothing, so queries are normalised first.
 
 ## When the record isn't in the catalog yet
 

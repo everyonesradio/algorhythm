@@ -46,15 +46,32 @@ export type IngestOutcome =
       spotifyId: string | null;
     };
 
-type View = { source: string; image?: Buffer; vector?: number[]; imageUrl?: string };
+type View = {
+  source: string;
+  image?: Buffer;
+  vector?: number[];
+  imageUrl?: string;
+  discogsReleaseId?: number;
+};
+type EmbeddedView = {
+  source: string;
+  imageUrl?: string;
+  discogsReleaseId?: number;
+  vector: number[];
+};
 
 /** Embed every view of a cover (variants arrive already embedded). */
 const embedViews = async (embedder: Embedder, views: View[]) => {
-  const out: { source: string; imageUrl?: string; vector: number[] }[] = [];
+  const out: EmbeddedView[] = [];
   for (const view of views) {
     const vector =
       view.vector ?? (await embedder.embed(await toRawImage(embedder, view.image!)));
-    out.push({ source: view.source, imageUrl: view.imageUrl, vector });
+    out.push({
+      source: view.source,
+      imageUrl: view.imageUrl,
+      discogsReleaseId: view.discogsReleaseId,
+      vector,
+    });
   }
   return out;
 };
@@ -71,7 +88,12 @@ const coverViews = async (cover: Buffer, coverUrl: string, augment: boolean) => 
 };
 
 const variantViews = (variants: VariantView[]): View[] =>
-  variants.map((v) => ({ source: v.source, vector: v.vector, imageUrl: v.imageUrl }));
+  variants.map((v) => ({
+    source: v.source,
+    vector: v.vector,
+    imageUrl: v.imageUrl,
+    discogsReleaseId: v.releaseId,
+  }));
 
 /** Upsert the album and replace its generated vectors (user scans stay). */
 const storeAlbum = async (
@@ -79,7 +101,7 @@ const storeAlbum = async (
   model: string,
   sourceKey: string,
   data: Parameters<PrismaClient["album"]["create"]>[0]["data"],
-  vectors: { source: string; imageUrl?: string; vector: number[] }[]
+  vectors: EmbeddedView[]
 ) => {
   const { sourceKey: _ignored, ...update } = data;
   const saved = await prisma.album.upsert({
@@ -98,12 +120,13 @@ const storeAlbum = async (
       vector: v.vector,
       source: v.source,
       imageUrl: v.imageUrl ?? null,
+      discogsReleaseId: v.discogsReleaseId ?? null,
     })),
   });
   return saved;
 };
 
-const discogsFields = (d: DiscogsAlbumInfo | null) =>
+export const discogsFields = (d: DiscogsAlbumInfo | null) =>
   d
     ? {
         styles: d.styles,
@@ -111,6 +134,7 @@ const discogsFields = (d: DiscogsAlbumInfo | null) =>
         discogsMasterId: d.masterId,
         discogsReleaseId: d.releaseId,
         discogsArtistId: d.artistId,
+        discogsCheckedAt: new Date(),
       }
     : {};
 

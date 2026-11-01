@@ -98,6 +98,18 @@ export type DgMaster = {
 export const cleanArtistName = (name: string) =>
   name.replace(/\s*\(\d+\)$/, "").replace(/\*$/, "").trim();
 
+/**
+ * Discogs search is literal about punctuation: "D’Angelo" (curly, as
+ * MusicBrainz writes it) finds nothing, "D'Angelo" finds Voodoo.
+ */
+export const searchText = (s: string) =>
+  s
+    .replace(/[‘’`´]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[‐‑‒–—]/g, "-")
+    .replace(/…/g, "...")
+    .trim();
+
 /** Pick the search result whose "Artist - Title" fits what we asked for. */
 export const bestSearchMatch = (
   results: DgSearchResult[],
@@ -121,15 +133,21 @@ export const bestSearchMatch = (
  * falling back to a single release when no master exists.
  */
 export const findDiscogsAlbum = async (artist: string, title: string) => {
-  for (const type of ["master", "release"] as const) {
+  const a = searchText(artist);
+  const t = searchText(title);
+  // Precise field search first, then a keyword search as a fallback.
+  const attempts: Record<string, string>[] = [
+    { type: "master", artist: a, release_title: t },
+    { type: "release", artist: a, release_title: t },
+    { type: "master", q: `${a} ${t}` },
+  ];
+  for (const params of attempts) {
     const res = await dgGet<{ results: DgSearchResult[] }>("/database/search", {
-      type,
-      artist,
-      release_title: title,
+      ...params,
       per_page: "10",
     });
     const hit = res ? bestSearchMatch(res.results, artist, title) : null;
-    if (hit) return { type, id: hit.id };
+    if (hit) return { type: params.type as "master" | "release", id: hit.id };
   }
   return null;
 };

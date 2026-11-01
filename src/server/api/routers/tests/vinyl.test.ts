@@ -11,7 +11,7 @@ import { l2Normalize } from "@/lib/embeddings/vector";
 process.env.VECTOR_SEARCH_MODE = "local";
 
 vi.mock("@/server/services/catalog/background", () => ({
-  startArtistIngest: vi.fn(),
+  startScanIngest: vi.fn(),
 }));
 vi.mock("@/server/services/catalog/musicbrainz", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/server/services/catalog/musicbrainz")>()),
@@ -31,7 +31,7 @@ vi.mock("@/server/services/catalog/musicbrainz", async (importOriginal) => ({
   coverExists: vi.fn(async () => true),
 }));
 
-const { startArtistIngest } = await import("@/server/services/catalog/background");
+const { startScanIngest } = await import("@/server/services/catalog/background");
 const { vinylRouter } = await import("@/server/api/routers/vinyl");
 const { createCallerFactory } = await import("@/server/api/trpc");
 
@@ -123,7 +123,7 @@ describe("vinyl router", () => {
   let caller: ReturnType<typeof createCaller>;
 
   beforeEach(() => {
-    vi.mocked(startArtistIngest).mockClear();
+    vi.mocked(startScanIngest).mockClear();
     prisma = makeFakePrisma();
     caller = createCaller({ prisma } as never);
   });
@@ -136,9 +136,9 @@ describe("vinyl router", () => {
     expect(res.artistSuggestions).toEqual([]);
     expect(res.scanId).toBeTruthy();
     expect(prisma.scans).toHaveLength(1);
-    expect(startArtistIngest).toHaveBeenCalledWith(
+    expect(startScanIngest).toHaveBeenCalledWith(
       expect.anything(),
-      { mbid: "dangelo", name: "D'Angelo" },
+      { albumId: oid(1), artist: { mbid: "dangelo", name: "D'Angelo" } },
       "scan_match"
     );
   });
@@ -147,7 +147,7 @@ describe("vinyl router", () => {
     const res = await caller.identify({ model: "clip-vit-b32", vectors: [vec(300)] });
     expect(res).toEqual({ status: "none", scanId: null, matches: [], artistSuggestions: [] });
     expect(prisma.scans).toHaveLength(0);
-    expect(startArtistIngest).not.toHaveBeenCalled();
+    expect(startScanIngest).not.toHaveBeenCalled();
   });
 
   it("keeps an unmatched scan when asked, so the record can be picked by hand", async () => {
@@ -174,13 +174,13 @@ describe("vinyl router", () => {
 
   it("stores the confirmed scan as a new user_scan embedding, once, and requests the catalog", async () => {
     const { scanId } = await caller.identify({ model: "clip-vit-b32", vectors: [vec(0, 0.1)] });
-    vi.mocked(startArtistIngest).mockClear();
+    vi.mocked(startScanIngest).mockClear();
     const first = await caller.confirm({ scanId: scanId!, albumId: oid(1) });
     expect(first.stored).toBe(true);
     expect(prisma.embeddings.filter((e) => e.source === "user_scan")).toHaveLength(1);
-    expect(startArtistIngest).toHaveBeenCalledWith(
+    expect(startScanIngest).toHaveBeenCalledWith(
       expect.anything(),
-      { mbid: "dangelo", name: "D'Angelo" },
+      { albumId: oid(1), artist: { mbid: "dangelo", name: "D'Angelo" } },
       "scan_confirm"
     );
 
@@ -205,7 +205,7 @@ describe("vinyl router", () => {
       expect(res.artistSuggestions).toContainEqual({ name: "Kendrick Lamar", mbid: KDOT });
       expect(res.scanId).toBeTruthy();
       expect(prisma.scans[0].artistSuggestionMbids).toContain(KDOT);
-      expect(startArtistIngest).not.toHaveBeenCalled();
+      expect(startScanIngest).not.toHaveBeenCalled();
     });
 
     it("picking the record adds it w/ the scan as its first vector and starts the catalog ingest", async () => {
@@ -219,9 +219,9 @@ describe("vinyl router", () => {
       expect(vectors).toHaveLength(1);
       expect(vectors[0].source).toBe("user_scan");
       expect(prisma.scans[0].confirmedAlbumId).toBe(added.id);
-      expect(startArtistIngest).toHaveBeenCalledWith(
+      expect(startScanIngest).toHaveBeenCalledWith(
         expect.anything(),
-        { mbid: KDOT, name: "Kendrick Lamar" },
+        { albumId: added.id, artist: { mbid: KDOT, name: "Kendrick Lamar" } },
         "scan_pick"
       );
 

@@ -64,6 +64,8 @@ export type VariantView = {
   source: "variant";
   vector: number[];
   imageUrl: string;
+  /** Discogs release (pressing) the photo belongs to. */
+  releaseId: number;
   /** e.g. "2024 · US · LP, Album, Limited Edition" */
   note: string;
 };
@@ -172,7 +174,13 @@ export const discogsAlbum = async (
         // keep the thumbnail vector
       }
     }
-    variants.push({ source: "variant", vector, imageUrl: uri ?? "", note: pick.note });
+    variants.push({
+      source: "variant",
+      vector,
+      imageUrl: uri ?? "",
+      releaseId: pick.id,
+      note: pick.note,
+    });
   }
   return { info, variants };
 };

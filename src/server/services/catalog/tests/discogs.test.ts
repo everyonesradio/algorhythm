@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { l2Normalize } from "@/lib/embeddings/vector";
-import { bestSearchMatch, cleanArtistName } from "@/server/services/catalog/discogs";
+import { bestSearchMatch, cleanArtistName, searchText } from "@/server/services/catalog/discogs";
 import { pickDiverse } from "@/server/services/catalog/variants";
 
 const v = (...xs: number[]) => l2Normalize([...xs, ...new Array(8 - xs.length).fill(0)]);
@@ -40,5 +40,13 @@ describe("Discogs names", () => {
     ];
     expect(bestSearchMatch(results, "MF DOOM", "MM..FOOD")?.id).toBe(8478);
     expect(bestSearchMatch(results, "Madvillain", "MM..FOOD")).toBeNull();
+  });
+});
+
+describe("searchText", () => {
+  it("straightens typographic punctuation Discogs search won't match", () => {
+    expect(searchText("D’Angelo")).toBe("D'Angelo");
+    expect(searchText("“Awaken, My Love!”")).toBe('"Awaken, My Love!"');
+    expect(searchText("Tu‐P‐A‐C")).toBe("Tu-P-A-C");
   });
 });
