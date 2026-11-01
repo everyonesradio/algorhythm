@@ -4,6 +4,7 @@ import React from "react";
 
 // ** Third-Party Imports
 import { Analytics } from "@vercel/analytics/react";
+import { MotionConfig } from "motion/react";
 
 // ** Custom Components, Hooks, Utils, etc.
 import Banner from "@/components/banner";
@@ -16,7 +17,7 @@ import "react-toastify/dist/ReactToastify.css";
 
 function App({ Component, pageProps }: AppProps) {
   return (
-    <>
+    <MotionConfig reducedMotion='user'>
       <Meta />
       <Analytics />
       <div className='overflow-x-hidden'>
@@ -25,7 +26,7 @@ function App({ Component, pageProps }: AppProps) {
         </div>
         <Component {...pageProps} />
       </div>
-    </>
+    </MotionConfig>
   );
 }
 
