@@ -12,15 +12,15 @@ const USER_AGENT =
   process.env.MUSICBRAINZ_USER_AGENT ??
   "algoRhythm/0.1 ( https://github.com/everyonesradio/algorhythm )";
 
-let lastRequest = 0;
-/** MB asks for ≤1 req/s; stay a bit under that, and stretch after a 429. */
-let minGapMs = 1200;
+import { createLanes } from "./rate-lanes";
 
-const throttle = async () => {
-  const wait = lastRequest + minGapMs - Date.now();
-  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-  lastRequest = Date.now();
-};
+/**
+ * MB asks for ≤1 req/s; stay a bit under that, and stretch after a 429.
+ * Requests from someone waiting on screen go ahead of background ingest
+ * (see rate-lanes.ts).
+ */
+const MIN_GAP_MS = 1200;
+const lanes = createLanes(MIN_GAP_MS);
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -30,7 +30,7 @@ const mbGet = async <T>(path: string, params: Record<string, string>) => {
   url.searchParams.set("fmt", "json");
 
   for (let attempt = 0; attempt < 8; attempt++) {
-    await throttle();
+    await lanes.acquire();
     const res = await fetch(url, {
       headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
     });
@@ -39,13 +39,13 @@ const mbGet = async <T>(path: string, params: Record<string, string>) => {
       const backoffMs = Number.isFinite(retryAfter)
         ? retryAfter * 1000
         : Math.min(60_000, 3000 * 2 ** attempt);
-      minGapMs = Math.min(3000, minGapMs + 200);
+      lanes.setGap(Math.min(3000, lanes.gap() + 200));
       await sleep(backoffMs);
       continue;
     }
     if (!res.ok) throw new Error(`MusicBrainz ${res.status} for ${url}`);
     // Successful reply: ease back toward the default gap.
-    minGapMs = Math.max(1200, minGapMs - 100);
+    lanes.setGap(Math.max(MIN_GAP_MS, lanes.gap() - 100));
     return (await res.json()) as T;
   }
   throw new Error(`MusicBrainz rate-limited for ${url}`);

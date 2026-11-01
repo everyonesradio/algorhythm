@@ -101,7 +101,6 @@ src/
 └── workers/         # embedding Web Worker
 lib/                 # prisma helper
 scripts/             # catalog seeding, vector index, accuracy eval
-model/               # TFLite notes (now: optional cover *localisation*)
 prisma/              # Mongo schema
 ```
 

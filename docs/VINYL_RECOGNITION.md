@@ -286,8 +286,8 @@ shrink-wrap, angle, sleeve wear). In order of effort:
 Train a tiny one-class detector ("record sleeve") or use a document-corner
 detector to find the four corners, then perspective-warp to a flat square
 before embedding. This lifts accuracy at angles and removes the need to aim.
-The old `model/model_overview.py` (EfficientDet-Lite0, single
-`vinyl_cover` class) is the right tool for *this* job, not for naming albums.
+A one-class detector (e.g. EfficientDet-Lite0, `vinyl_cover`) suits *this*
+job, not naming albums.
 
 ### 5. OCR / VLM fallback for long-tail records
 When the result is `none` or stays `ambiguous`, OCR the crop (Tesseract.js
