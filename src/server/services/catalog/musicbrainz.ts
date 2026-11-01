@@ -64,6 +64,8 @@ export type CatalogAlbum = {
   title: string;
   artist: string;
   artistMbid: string | null;
+  /** Canonical name of the primary artist ("Kendrick Lamar", not "K-Dot"). */
+  artistName: string | null;
   releaseYear: number | null;
   primaryType: string | null;
   genres: string[];
@@ -87,6 +89,7 @@ export const toCatalogAlbum = (rg: MbReleaseGroup): CatalogAlbum => {
     title: rg.title,
     artist: artistName(rg["artist-credit"]),
     artistMbid: rg["artist-credit"]?.[0]?.artist.id ?? null,
+    artistName: rg["artist-credit"]?.[0]?.artist.name ?? null,
     releaseYear: Number.isFinite(year) ? year : null,
     primaryType: rg["primary-type"] ?? null,
     genres: topNames(rg.genres),
@@ -244,4 +247,87 @@ export const fetchCover = async (
     }
   }
   throw lastError ?? new Error(`No cover for ${mbid}`);
+};
+
+/** Secondary types that are rarely their own record in a crate. */
+const SKIP_SECONDARY = new Set([
+  "Live",
+  "Compilation",
+  "Remix",
+  "DJ-mix",
+  "Demo",
+  "Interview",
+  "Audiobook",
+  "Spokenword",
+  "Audio drama",
+]);
+
+/**
+ * An artist's discography (albums + EPs, mixtapes included) by MusicBrainz
+ * artist id, newest first. Uses the browse endpoint, which pages reliably.
+ */
+export const discographyForArtist = async (artistMbid: string, limit = 60) => {
+  const out: MbReleaseGroup[] = [];
+  let offset = 0;
+  while (out.length < limit) {
+    const res = await mbGet<{
+      "release-group-count": number;
+      "release-groups": MbReleaseGroup[];
+    }>("release-group", {
+      artist: artistMbid,
+      type: "album|ep",
+      limit: "100",
+      offset: String(offset),
+    });
+    out.push(...res["release-groups"]);
+    offset += res["release-groups"].length;
+    if (offset >= res["release-group-count"] || res["release-groups"].length === 0) {
+      break;
+    }
+  }
+  return out
+    .filter(
+      (rg) => !(rg["secondary-types"] ?? []).some((t) => SKIP_SECONDARY.has(t))
+    )
+    .sort((a, b) =>
+      (b["first-release-date"] ?? "").localeCompare(a["first-release-date"] ?? "")
+    )
+    .slice(0, limit);
+};
+
+type MbArtist = {
+  id: string;
+  name: string;
+  disambiguation?: string;
+  country?: string;
+  score?: number;
+};
+
+/** Artist search for the "search artist" fallback, best matches first. */
+export const searchArtists = async (query: string, limit = 6) => {
+  const res = await mbGet<{ artists: MbArtist[] }>("artist", {
+    query: `artist:${q(query)} OR alias:${q(query)}`,
+    limit: String(limit),
+  });
+  return res.artists
+    .filter((a) => (a.score ?? 0) >= 60)
+    .map((a) => ({
+      mbid: a.id,
+      name: a.name,
+      detail: a.disambiguation || a.country || null,
+    }));
+};
+
+/**
+ * Does the release group have a front cover? Asks Cover Art Archive for the
+ * redirect only (~0.2s) instead of downloading the image (~2s).
+ */
+export const coverExists = async (mbid: string, size: 250 | 500 | 1200 = 500) => {
+  const res = await fetch(coverArtUrl(mbid, size), {
+    method: "HEAD",
+    redirect: "manual",
+    headers: { "User-Agent": USER_AGENT },
+    signal: AbortSignal.timeout(10_000),
+  });
+  return res.status >= 300 && res.status < 400;
 };

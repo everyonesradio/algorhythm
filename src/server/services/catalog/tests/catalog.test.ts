@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { artistMatches, toCatalogAlbum } from "../musicbrainz";
-import { scoreSpotifyCandidate } from "../spotify";
+import { artistMatches, toCatalogAlbum } from "@/server/services/catalog/musicbrainz";
+import { scoreSpotifyCandidate } from "@/server/services/catalog/spotify";
 
 describe("toCatalogAlbum", () => {
   it("flattens a MusicBrainz release group", () => {
@@ -23,6 +23,7 @@ describe("toCatalogAlbum", () => {
       title: "Voodoo",
       artist: "D’Angelo",
       artistMbid: "art-1",
+      artistName: "D’Angelo",
       releaseYear: 2000,
       primaryType: "Album",
       genres: ["neo soul", "r&b"],

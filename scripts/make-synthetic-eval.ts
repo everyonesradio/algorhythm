@@ -29,7 +29,7 @@ import {
   coverArtUrl,
   fetchImage,
   releaseGroupsForTag,
-} from "./lib/musicbrainz";
+} from "@/server/services/catalog/musicbrainz";
 
 const { values } = parseArgs({
   options: {

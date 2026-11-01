@@ -29,20 +29,14 @@ import {
 } from "@/lib/embeddings/config";
 import { loadEmbedder } from "@/lib/embeddings/embedder";
 
-import { augmentCover, closeUpViews, toRawImage } from "./lib/images";
+import { ingestReleaseGroup } from "@/server/services/catalog/ingest";
 import {
-  type CatalogAlbum,
-  fetchCover,
-  fetchImage,
   findReleaseGroup,
-  lookupReleaseGroup,
   type MbReleaseGroup,
   releaseGroupsForArtist,
   releaseGroupsForTag,
-  toCatalogAlbum,
-} from "./lib/musicbrainz";
-import { findSpotifyAlbum, spotifyEnabled } from "./lib/spotify";
-
+} from "@/server/services/catalog/musicbrainz";
+import { spotifyEnabled } from "@/server/services/catalog/spotify";
 
 type SeedEntry = { artist: string; album: string } | { mbid: string };
 
@@ -113,94 +107,25 @@ const main = async () => {
   for (const [i, rg] of groups.entries()) {
     const prefix = `[${i + 1}/${groups.length}]`;
     try {
-      const sourceKey = `mb:${rg.id}`;
-      const existing = await prisma.album.findUnique({
-        where: { sourceKey },
-        select: { id: true, _count: { select: { embeddings: { where: { model: modelKey } } } } },
+      const res = await ingestReleaseGroup(prisma, embedder, rg.id, {
+        augment: values.augment,
+        force: values.force,
+        spotify: useSpotify,
+        dryRun: values["dry-run"],
       });
-      if (existing && existing._count.embeddings > 0 && !values.force) {
+      if (res.status === "skipped") {
         stats.skipped++;
-        continue;
-      }
-
-      const album: CatalogAlbum = toCatalogAlbum(await lookupReleaseGroup(rg.id));
-      const fetched = await fetchCover(album.mbid);
-      if (!fetched) {
-        log(`${prefix} ✗ no cover art: ${album.artist} - ${album.title}`);
+      } else if (res.status === "no-cover") {
+        log(`${prefix} ✗ no cover art: ${res.title}`);
         stats.noCover++;
-        continue;
+      } else {
+        log(
+          `${prefix} ✓ ${res.album.artist} - ${res.album.title}` +
+            ` (${res.album.releaseYear ?? "?"}) vectors=${res.vectors}` +
+            (res.spotifyId ? ` spotify=${res.spotifyId}` : "")
+        );
+        if (res.status === "added") stats.added++;
       }
-      const { url: coverUrl, image: cover } = fetched;
-
-      const spotify = useSpotify
-        ? await findSpotifyAlbum(album.artist, album.title)
-        : null;
-
-      // Build every view of this cover we want in the index.
-      const views: { source: string; image: Buffer; imageUrl?: string }[] = [
-        { source: "catalog", image: cover, imageUrl: coverUrl },
-      ];
-      if (spotify?.imageUrl) {
-        const img = await fetchImage(spotify.imageUrl);
-        if (img) views.push({ source: "spotify", image: img, imageUrl: spotify.imageUrl });
-      }
-      if (values.augment) {
-        for (const img of await augmentCover(cover)) {
-          views.push({ source: "augment", image: img });
-        }
-        // Partial-cover views for scans where the sleeve overflows the frame.
-        for (const img of await closeUpViews(cover)) {
-          views.push({ source: "closeup", image: img });
-        }
-      }
-
-      const vectors = [];
-      for (const view of views) {
-        const vector = await embedder.embed(await toRawImage(embedder, view.image));
-        vectors.push({ ...view, vector });
-      }
-
-      log(
-        `${prefix} ✓ ${album.artist} - ${album.title}` +
-          ` (${album.releaseYear ?? "?"}) vectors=${vectors.length}` +
-          (spotify ? ` spotify=${spotify.id}` : "")
-      );
-      if (values["dry-run"]) continue;
-
-      const data = {
-        mbid: album.mbid,
-        title: album.title,
-        artist: album.artist,
-        artistMbid: album.artistMbid,
-        releaseYear: album.releaseYear,
-        primaryType: album.primaryType,
-        genres: album.genres,
-        tags: album.tags,
-        coverUrl: spotify?.imageUrl ?? coverUrl,
-        spotifyId: spotify?.id ?? null,
-        spotifyUrl: spotify?.url ?? null,
-      };
-      const saved = await prisma.album.upsert({
-        where: { sourceKey },
-        create: { sourceKey, labels: [], ...data },
-        update: data,
-        select: { id: true },
-      });
-
-      // Replace generated vectors; keep confirmed user scans.
-      await prisma.coverEmbedding.deleteMany({
-        where: { albumId: saved.id, model: modelKey, source: { not: "user_scan" } },
-      });
-      await prisma.coverEmbedding.createMany({
-        data: vectors.map((v) => ({
-          albumId: saved.id,
-          model: modelKey,
-          vector: v.vector,
-          source: v.source,
-          imageUrl: v.imageUrl ?? null,
-        })),
-      });
-      stats.added++;
     } catch (err) {
       stats.failed++;
       log(`${prefix} ✗ ${rg.id}: ${(err as Error).message}`);

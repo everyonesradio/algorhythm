@@ -38,6 +38,7 @@ model Album {
   title         String
   artist        String
   artistMbid    String?
+  artistName    String?          // canonical primary artist ("Kendrick Lamar", not "K-Dot")
   releaseYear   Int?
   primaryType   String?          // Album, EP, Single...
   genres        String[]
@@ -80,8 +81,35 @@ model ScanEvent {
   status           String
   topAlbumIds      String[] @db.ObjectId
   topScores        Float[]
+  // Artists offered when no album was certain ("Is it by one of these?").
+  artistSuggestionMbids String[]
   confirmedAlbumId String?  @db.ObjectId
   confirmedAt      DateTime?
 
   @@index([createdAt])
+}
+
+// Background catalog ingest. One row per artist: a scan that matches or
+// picks an album requests that artist's whole discography be vectorised.
+// (kind, key) is unique, so repeat scans of the same artist are a no-op
+// until the job is due for a refresh.
+model IngestJob {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  kind       String    // "artist"
+  key        String    // MusicBrainz artist id
+  label      String    // human-readable, e.g. "Kendrick Lamar"
+  // pending | running | done | failed
+  status     String
+  attempts   Int       @default(0)
+  // what requested it: scan_match | scan_confirm | scan_pick | cli
+  trigger    String?
+  stats      Json?
+  error      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  @@unique([kind, key])
+  @@index([status, updatedAt])
 }

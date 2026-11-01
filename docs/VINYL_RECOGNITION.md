@@ -137,6 +137,40 @@ before tuning further. Known data issue: MusicBrainz fuzzy search matched
 "Fela Kuti – Zombie" to the compilation "Na Poi / Zombie"; seed by `mbid`
 in the list file when a title is ambiguous.
 
+## When the record isn't in the catalog yet
+
+A scan that isn't a confident match never dead-ends:
+
+1. **"Is it one of these?"**: up to 3 near albums (similarity ≥ 0.76).
+2. **"Not sure yet. Is it by…"**: up to 3 *artists* of the nearest covers,
+   plus artist search (MusicBrainz). Artist style carries over between
+   records, but weakly: on unseen covers the right artist was suggested
+   for GNX, untitled unmastered., When I Get Home and Promise, and missed
+   for Endless and SOS. That's why search is always there.
+3. **The artist's records**: shown newest-first instantly, then re-ordered
+   by how much each cover looks like the scan. The browser embeds the
+   thumbnails with the same model (tested: GNX, SOS, Gemini Rights, Lost &
+   Found and Promise all landed #1). Max 3 rows + "See all".
+4. **Picking a record** (`vinyl.pick`) adds it to the catalog with the
+   user's scan as its first vector, so the next scan matches it.
+
+### Scans grow the catalog
+
+Every identified record (a confident match, "Yes, that's it", or a pick)
+starts vectorising **that artist's whole catalog** in the background:
+albums + EPs + mixtapes from MusicBrainz, 6 vectors each (`IngestJob`,
+`src/server/services/catalog/`). It runs inside the same request via
+Vercel `waitUntil`; one job per artist, refreshed after 30 days, retried up
+to 3 times. Picking GNX in a test grew Kendrick Lamar from 2 to 28 albums
+in 165s. `npm run vinyl:worker` finishes anything cut short (e.g. a
+function timeout); it's safe to schedule.
+
+Deploy notes: the server now runs CLIP on CPU. `next.config.mjs` excludes
+onnxruntime's CUDA provider and other platforms (function ~161MB) and
+explicitly includes `libonnxruntime.so.1`, which the file tracer misses.
+Model weights download to `/tmp` on first use. The tRPC route asks for
+`maxDuration: 300`; the effective limit depends on the Vercel plan.
+
 ## Distance robustness (close-ups and far shots)
 
 People hold records at every distance, so scans are matched at several

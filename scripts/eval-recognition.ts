@@ -33,7 +33,7 @@ import {
   rankHits,
 } from "@/server/services/vinyl/ranking";
 
-import { centerSquare, toRawImage } from "./lib/images";
+import { centerSquare, toRawImage } from "@/server/services/catalog/images";
 
 
 const { values } = parseArgs({
