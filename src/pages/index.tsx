@@ -37,10 +37,10 @@ const STEPS = [
 const PLATFORMS = [
   { icon: FaSpotify, label: "Spotify" },
   { icon: SiApplemusic, label: "Apple Music" },
-  { icon: SiYoutubemusic, label: "YouTube Music" },
-  { icon: FaDeezer, label: "Deezer" },
-  { icon: FaSoundcloud, label: "SoundCloud" },
   { icon: SiTidal, label: "Tidal" },
+  { icon: FaSoundcloud, label: "SoundCloud" },
+  { icon: FaDeezer, label: "Deezer" },
+  { icon: SiYoutubemusic, label: "YouTube Music" },
 ];
 
 /**
@@ -147,7 +147,7 @@ const Home = () => (
 
       <div className='mt-10 flex flex-col items-center gap-3'>
         <p className='text-xs uppercase tracking-[0.2em] text-black/50'>
-          Opens in
+          Works with
         </p>
         <ul className='flex flex-wrap items-center justify-center gap-x-6 gap-y-3 text-black/70'>
           {PLATFORMS.map(({ icon: Icon, label }) => (
@@ -161,7 +161,7 @@ const Home = () => (
     </section>
 
     <footer className='pb-10 text-center text-xs text-black/45'>
-      An Everyone&apos;s Radio project
+      For everyone
     </footer>
   </main>
 );
