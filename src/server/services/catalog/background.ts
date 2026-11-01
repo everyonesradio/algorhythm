@@ -7,6 +7,7 @@ import { logger } from "@/utils/logger";
 
 import { addPressingsToAlbum } from "./album-pressings";
 import { discogsEnabled } from "./discogs";
+import { runInBackground } from "./rate-lanes";
 import { ingestReleaseGroup } from "./ingest";
 import { discographyForArtist } from "./musicbrainz";
 import {
@@ -47,7 +48,8 @@ export const startScanIngest = (
   trigger: Trigger
 ) => {
   const { albumId, artist } = scanned;
-  const task = (async () => {
+  // Background lane: this work yields external-API slots to people waiting.
+  const task = runInBackground(async () => {
     if (discogsEnabled()) {
       try {
         const embedder = await loadEmbedder(ACTIVE_EMBEDDING_MODEL, { device: "cpu" });
@@ -67,7 +69,7 @@ export const startScanIngest = (
     );
     if (!jobId || !(await claimJob(prisma, jobId))) return;
     await runArtistJob(prisma, jobId, serverRunnerDeps(prisma));
-  })().catch((err) =>
+  }).catch((err) =>
     logger.error(`[ingest] ${artist.name}: ${(err as Error).message}`)
   );
   waitUntil(task);
