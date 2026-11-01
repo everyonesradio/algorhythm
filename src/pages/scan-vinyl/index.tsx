@@ -1,174 +1,319 @@
 // ** React/Next.js Imports
-import React, { useRef, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 // ** Third-Party Imports
-import MobileDetect from "mobile-detect";
-import { Camera, type CameraType } from "react-camera-pro";
+import { Loader2 } from "lucide-react";
 
 // ** Custom Components, Hooks, Utils, etc.
 import DigitalAlbum from "@/components/digital-album";
-import { useBoolean } from "@/hooks/use-boolean";
-import SpotifyAPI from "@lib/spotify";
+import CandidateSheet from "@/components/candidate-sheet";
+import { useCamera } from "@/hooks/use-camera";
+import { useCoverEmbedder } from "@/hooks/use-cover-embedder";
+import type { VinylMatch } from "@/types/api";
+import {
+  centerSquareCrop,
+  computeGuideCrop,
+  cropToImageData,
+  frameDifference,
+} from "@/utils/frame-crop";
+import { api } from "@/utils/trpc";
+
+// ** Icon Imports
+import { IoImageOutline } from "react-icons/io5";
+
+/** Guide square size, as a fraction of the shorter screen side. */
+const GUIDE_FRACTION = 0.72;
+/** Delay between recognition attempts while scanning. */
+const SCAN_INTERVAL_MS = 450;
+/** Mean pixel change (0-255) above which the frame is "moving". */
+const MOTION_THRESHOLD = 14;
+/** Consecutive "matched" frames on the same album before we show it. */
+const CONFIRM_FRAMES = 2;
+/** Ambiguous frames in a row before we offer the candidate picker. */
+const AMBIGUOUS_FRAMES = 6;
+
+type Result = {
+  scanId: string | null;
+  match: VinylMatch;
+  others: VinylMatch[];
+};
 
 const VinylScan = () => {
-  const albumModal = useBoolean();
-  const cameraRef = useRef<CameraType | null>(null);
+  const { videoRef, state: cameraState } = useCamera();
+  const embedder = useCoverEmbedder();
+  const identify = api.vinyl.identify.useMutation();
+  const confirm = api.vinyl.confirm.useMutation();
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const _processedVinyls = useRef<Set<string>>(new Set());
-  const [spotifyResult, setSpotifyResult] = useState<any>(null);
-  const [_lastDetectedVinyl, setLastDetectedVinyl] = useState<string | null>(
-    null
+  const prevFrame = useRef<ImageData | null>(null);
+  const streak = useRef<{ albumId: string; count: number } | null>(null);
+  const ambiguousStreak = useRef(0);
+  const fileInput = useRef<HTMLInputElement | null>(null);
+
+  const [hint, setHint] = useState("Line up the cover inside the square");
+  const [result, setResult] = useState<Result | null>(null);
+  const [candidates, setCandidates] = useState<{
+    scanId: string | null;
+    matches: VinylMatch[];
+  } | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
+  const [busyUpload, setBusyUpload] = useState(false);
+
+  const paused = !!result || !!candidates || busyUpload;
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
+
+  const showResult = useCallback(
+    (scanId: string | null, matches: VinylMatch[], pick = 0) => {
+      setConfirmed(false);
+      setCandidates(null);
+      setResult({
+        scanId,
+        match: matches[pick],
+        others: matches.filter((_, i) => i !== pick),
+      });
+    },
+    []
   );
 
-  /**  TODO: Train custom vinyl recognition model
-    Notes:
-    - Vinyl covers can be detected by mainly two methods: 
-      a) cover art has to be labelled by artist and album metadata
-      b) 2D cover art could be rendered in a 3D env to train the vinyl detection model
-      
-    - Need a labelled dataset of vinyl cover art
+  /** Embed an ImageData and ask the server who it is. */
+  const recognise = useCallback(
+    async (image: ImageData) => {
+      if (!embedder.model) return null;
+      const vector = await embedder.embed(image);
+      return identify.mutateAsync({ model: embedder.model, vector });
+    },
+    // identify.mutateAsync is stable across renders
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [embedder.embed, embedder.model]
+  );
 
-  // Object detection function
-  const runCocoModel = async () => {
-    try {
-      tf.backend();
-      const net = await cocossd.load(); // Use custom vinyl model here === tf.loadLayersModel('/model/custom_model.json')
-
-      const detectFrame = async () => {
-        await detect(net);
-        requestAnimationFrame(detectFrame);
-      };
-
-      requestAnimationFrame(detectFrame);
-    } catch (error) {
-      console.error("Error loading COCO-SSD model:", error);
-    }
-  };
-
-  const detect = async (net: cocossd.ObjectDetection) => {
-    // Check if data is available
-    if (
-      typeof cameraRef.current !== "undefined" &&
-      cameraRef.current !== null &&
-      cameraRef.current.video !== null &&
-      cameraRef.current.video.readyState === 4 &&
-      canvasRef.current !== null
-    ) {
-      // Get video properties
-      const video = cameraRef.current.video;
-      const videoWidth = cameraRef.current.video.videoWidth;
-      const videoHeight = cameraRef.current.video.videoHeight;
-
-      // Set video width
-      cameraRef.current.video.width = videoWidth;
-      cameraRef.current.video.height = videoHeight;
-
-      // Set canvas height and width
-      canvasRef.current.width = videoWidth;
-      canvasRef.current.height = videoHeight;
-
-      // Make Detections
-      const obj = await net.detect(video);
-
-      // Draw mesh
-      const ctx = canvasRef.current.getContext("2d");
-      drawRect(obj, ctx!);
-
-      // After successful detection
-      const detectedVinyl = "amaarae_the angel you dont know"; // Adjust based on your model's output === obj[0]?.class
-
-      // TODO: Fix this logic so that it doesn't store instances of the vinyls
-      //       Instead, it should handle one vinyl at a time
-
-
-      if (detectedVinyl && !_processedVinyls.current.has(detectedVinyl)) {
-        _processedVinyls.current.add(detectedVinyl);
-        setLastDetectedVinyl(detectedVinyl);
-        const response = await searchSpotify(detectedVinyl);
-
-        if (response) {
-          setSpotifyResults(response);
-          albumModal.setTrue();
-        }
-      }
-    }
-  };
-  **/
-
-  // Searches Spotify API for album using artist and album name
-  const searchSpotify = async (detectedVinyl: string): Promise<any> => {
-    try {
-      // Split the detected string into artist and album
-      const [artist, album] = detectedVinyl.split("_");
-
-      // Create a search query that combines artist and album
-      const searchQuery = `artist:${artist} album:${album}`;
-
-      const response = await SpotifyAPI.search(
-        searchQuery,
-        ["album"],
-        undefined, // market
-        50, // limit
-        0 // offset
-      );
-
-      // Early validation of album existence
-      const foundAlbum = response?.albums?.items?.[0];
-      if (!foundAlbum) {
-        console.log("Album not found");
-        return null;
-      }
-
-      // Validate artist match
-      const foundArtist = foundAlbum.artists?.[0];
-      if (foundArtist.name.toLowerCase() !== artist.toLowerCase()) {
-        console.log("Artist mismatch");
-        return null;
-      }
-
-      // Only set results if we have valid data
-      setSpotifyResult(foundAlbum);
-    } catch (error) {
-      console.error("Failed to fetch album:", error);
-      return null;
-    }
-  };
-
-  // Simulate vinyl detection
+  // ---- live scanning loop -------------------------------------------------
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const detectedVinyl = "Cautious Clay_Tokyo Lift (5am)";
-      setLastDetectedVinyl(detectedVinyl);
-      searchSpotify(detectedVinyl).then(() => {
-        albumModal.setTrue();
-      });
-    }, 4000);
+    if (embedder.status !== "ready" || cameraState !== "live") return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
 
-    return () => clearTimeout(timer);
-  }, []);
+    const tick = async () => {
+      if (stopped) return;
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      try {
+        if (!pausedRef.current && video && canvas && video.readyState >= 2) {
+          const crop = computeGuideCrop(
+            video.videoWidth,
+            video.videoHeight,
+            video.clientWidth,
+            video.clientHeight,
+            GUIDE_FRACTION
+          );
+          const frame = cropToImageData(video, crop, canvas);
+          const moving =
+            frame && prevFrame.current
+              ? frameDifference(frame, prevFrame.current) > MOTION_THRESHOLD
+              : false;
+          prevFrame.current = frame;
 
-  // Determines the camera facing mode based on device type
-  const getCameraMode = () => {
-    if (typeof window === "undefined") return "user";
+          if (frame && moving) {
+            setHint("Hold steady…");
+          } else if (frame) {
+            const res = await recognise(frame);
+            if (res && !pausedRef.current && !stopped) handleLive(res);
+          }
+        }
+      } catch (err) {
+        console.error("[scan]", err);
+      }
+      timer = setTimeout(tick, SCAN_INTERVAL_MS);
+    };
 
-    const md = new MobileDetect(window.navigator.userAgent);
-    const isMobile = md.mobile();
+    const handleLive = (res: {
+      status: string;
+      scanId: string | null;
+      matches: VinylMatch[];
+    }) => {
+      if (res.status === "matched" && res.matches[0]) {
+        ambiguousStreak.current = 0;
+        const id = res.matches[0].album.id;
+        streak.current =
+          streak.current?.albumId === id
+            ? { albumId: id, count: streak.current.count + 1 }
+            : { albumId: id, count: 1 };
+        setHint(`Found ${res.matches[0].album.title}…`);
+        if (streak.current.count >= CONFIRM_FRAMES) {
+          streak.current = null;
+          showResult(res.scanId, res.matches);
+        }
+      } else if (res.status === "ambiguous") {
+        streak.current = null;
+        ambiguousStreak.current += 1;
+        setHint("Getting closer… fill the square with the cover");
+        if (ambiguousStreak.current >= AMBIGUOUS_FRAMES) {
+          ambiguousStreak.current = 0;
+          setCandidates({ scanId: res.scanId, matches: res.matches });
+        }
+      } else {
+        streak.current = null;
+        ambiguousStreak.current = 0;
+        setHint("Line up the cover inside the square");
+      }
+    };
 
-    return isMobile ? "environment" : "user";
+    timer = setTimeout(tick, SCAN_INTERVAL_MS);
+    return () => {
+      stopped = true;
+      clearTimeout(timer);
+    };
+  }, [embedder.status, cameraState, recognise, showResult, videoRef]);
+
+  // ---- photo upload fallback ---------------------------------------------
+  const onUpload = async (file: File) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    setBusyUpload(true);
+    try {
+      const bitmap = await createImageBitmap(file);
+      const frame = cropToImageData(
+        bitmap,
+        centerSquareCrop(bitmap.width, bitmap.height, 0.95),
+        canvas
+      );
+      bitmap.close();
+      const res = frame ? await recognise(frame) : null;
+      if (!res || res.status === "none" || res.matches.length === 0) {
+        setHint("No match for that photo. Try a straight-on shot of the cover.");
+      } else if (res.status === "matched") {
+        showResult(res.scanId, res.matches);
+      } else {
+        setCandidates({ scanId: res.scanId, matches: res.matches });
+      }
+    } catch (err) {
+      console.error("[upload]", err);
+      setHint("Couldn't read that image.");
+    } finally {
+      setBusyUpload(false);
+    }
   };
+
+  // ---- confirmation (feeds real-world photos back into the index) --------
+  const confirmAlbum = (scanId: string | null, albumId: string) => {
+    setConfirmed(true);
+    if (scanId) confirm.mutate({ scanId, albumId });
+  };
+
+  const closeResult = () => {
+    setResult(null);
+    prevFrame.current = null;
+    setHint("Line up the cover inside the square");
+  };
+
+  const loadingModel = embedder.status === "loading";
 
   return (
-    <div className='flex min-h-screen w-full items-center justify-center p-4'>
-      <Camera ref={cameraRef} facingMode={getCameraMode()} errorMessages={{}} />
-      <canvas
-        ref={canvasRef}
-        className='absolute left-0 right-0 mx-auto text-center z-10 w-[360px] sm:w-[640px] h-[480px]'
+    <div className='relative h-[100dvh] w-full overflow-hidden bg-black text-white'>
+      <video
+        ref={videoRef}
+        playsInline
+        muted
+        autoPlay
+        className='absolute inset-0 h-full w-full object-cover'
       />
-      {spotifyResult && albumModal.value && (
+      <canvas ref={canvasRef} className='hidden' />
+
+      {/* Guide square with dimmed surroundings */}
+      <div className='pointer-events-none absolute inset-0 flex items-center justify-center'>
+        <div
+          className='rounded-xl border-2 border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]'
+          style={{
+            width: `${GUIDE_FRACTION * 100}vmin`,
+            height: `${GUIDE_FRACTION * 100}vmin`,
+          }}
+        />
+      </div>
+
+      {/* Status */}
+      <div className='absolute left-0 right-0 top-0 flex flex-col items-center gap-1 p-4 pt-6 text-center'>
+        <span className='font-eightbitdragon text-xl'>algoRhythm</span>
+        {cameraState === "denied" && (
+          <span className='text-sm text-red-300'>
+            Camera access was blocked. Allow it in your browser settings, or
+            upload a photo below.
+          </span>
+        )}
+        {cameraState === "unavailable" && (
+          <span className='text-sm text-red-300'>
+            No camera found. Upload a photo of the cover instead.
+          </span>
+        )}
+      </div>
+
+      <div className='absolute bottom-0 left-0 right-0 flex flex-col items-center gap-3 p-6 pb-10'>
+        {loadingModel ? (
+          <div className='flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-sm'>
+            <Loader2 className='h-4 w-4 animate-spin' />
+            Loading recognition model {Math.round(embedder.progress)}%
+          </div>
+        ) : embedder.status === "error" ? (
+          <div className='rounded-full bg-red-900/80 px-4 py-2 text-sm'>
+            Couldn&apos;t load the model: {embedder.error}
+          </div>
+        ) : (
+          <div className='rounded-full bg-black/60 px-4 py-2 text-sm'>
+            {busyUpload ? "Checking your photo…" : hint}
+          </div>
+        )}
+
+        <button
+          className='flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-50'
+          disabled={embedder.status !== "ready" || busyUpload}
+          onClick={() => fileInput.current?.click()}
+        >
+          <IoImageOutline size={18} />
+          Upload a photo
+        </button>
+        <input
+          ref={fileInput}
+          type='file'
+          accept='image/*'
+          className='hidden'
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) void onUpload(file);
+          }}
+        />
+      </div>
+
+      {candidates && (
+        <CandidateSheet
+          matches={candidates.matches}
+          onPick={(i) => {
+            const picked = candidates.matches[i];
+            showResult(candidates.scanId, candidates.matches, i);
+            confirmAlbum(candidates.scanId, picked.album.id);
+          }}
+          onDismiss={() => setCandidates(null)}
+        />
+      )}
+
+      {result && (
         <DigitalAlbum
-          isOpen={albumModal.value}
-          handleClose={albumModal.setFalse}
-          album={spotifyResult}
+          isOpen={!!result}
+          handleClose={closeResult}
+          album={result.match.album}
+          confirmed={confirmed}
+          onConfirm={() => confirmAlbum(result.scanId, result.match.album.id)}
+          onReject={
+            result.others.length
+              ? () => {
+                  setResult(null);
+                  setCandidates({
+                    scanId: result.scanId,
+                    matches: result.others,
+                  });
+                }
+              : undefined
+          }
         />
       )}
     </div>

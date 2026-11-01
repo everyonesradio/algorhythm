@@ -2,6 +2,29 @@
 
 This project was project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
+Point your phone at a vinyl record and get the album on Spotify and other
+streaming services. Recognition is **image retrieval**: covers are embedded
+with CLIP and matched with MongoDB Atlas Vector Search. See
+[docs/VINYL_RECOGNITION.md](docs/VINYL_RECOGNITION.md) for the architecture,
+model notes and scaling plan.
+
+## Vinyl recognition quick start
+
+```bash
+cp .env.example .env            # set DATABASE_URL (Atlas) + Spotify creds
+npm install
+npx prisma db push
+npm run vinyl:index             # create the Atlas vector index
+npm run vinyl:seed -- --file seeds/albums.example.json --augment
+npm run dev                     # open /scan-vinyl
+```
+
+| Script | What it does |
+|---|---|
+| `npm run vinyl:seed -- --artist "X" --tag "Y" --file list.json` | Seed albums and cover vectors |
+| `npm run vinyl:index` | Create/update the Atlas vector index |
+| `npm run vinyl:eval -- --dir ./photos` | Measure accuracy on real photos and calibrate thresholds |
+
 ## Getting Started
 
 First, run the development server:
