@@ -2,43 +2,68 @@
 import React from "react";
 
 // ** Third-Party Imports
-import Drawer from "@mui/material/Drawer";
+import { motion } from "motion/react";
 
 // ** Custom Components, Hooks, Utils, etc.
+import Sheet from "@/components/sheet";
 import type { VinylMatch } from "@/types/api";
 
 interface Props {
+  open: boolean;
   matches: VinylMatch[];
   onPick: (index: number) => void;
   onDismiss: () => void;
+  /** Fires once the close animation finishes; clear the matches here. */
+  onExitComplete?: () => void;
 }
 
+const list = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.04, delayChildren: 0.08 } },
+};
+const item = {
+  hidden: { opacity: 0, y: 8 },
+  show: {
+    opacity: 1,
+    y: 0,
+    transition: { type: "spring", bounce: 0.15, duration: 0.3 },
+  },
+} as const;
+
 /** "Is it one of these?" picker, shown when the match isn't certain. */
-const CandidateSheet: React.FC<Props> = ({ matches, onPick, onDismiss }) => (
-  <Drawer
-    anchor='bottom'
-    open
+const CandidateSheet: React.FC<Props> = ({
+  open,
+  matches,
+  onPick,
+  onDismiss,
+  onExitComplete,
+}) => (
+  <Sheet
+    open={open}
     onClose={onDismiss}
-    sx={{
-      "& .MuiDrawer-paper": {
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
-        maxHeight: "70dvh",
-      },
-    }}
+    onExitComplete={onExitComplete}
+    label='Possible matches'
   >
-    <div className='flex flex-col gap-3 p-5 text-black'>
+    <div className='flex flex-col gap-3'>
       <div className='flex items-center justify-between'>
-        <span className='font-semibold'>Is it one of these?</span>
-        <button className='text-sm text-gray-500' onClick={onDismiss}>
+        <h2 className='font-semibold'>Is it one of these?</h2>
+        <button
+          className='text-sm text-gray-500 transition-transform duration-[120ms] active:scale-[0.97]'
+          onClick={onDismiss}
+        >
           Keep scanning
         </button>
       </div>
-      <ul className='flex flex-col gap-2'>
+      <motion.ul
+        className='flex flex-col gap-2'
+        variants={list}
+        initial='hidden'
+        animate='show'
+      >
         {matches.map((m, i) => (
-          <li key={m.album.id}>
+          <motion.li key={m.album.id} variants={item}>
             <button
-              className='flex w-full items-center gap-3 rounded-lg p-2 text-left hover:bg-gray-100'
+              className='flex w-full items-center gap-3 rounded-lg p-2 text-left transition-[transform,background-color] duration-[120ms] hover:bg-gray-100 active:scale-[0.98]'
               onClick={() => onPick(i)}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -56,11 +81,11 @@ const CandidateSheet: React.FC<Props> = ({ matches, onPick, onDismiss }) => (
                 </span>
               </span>
             </button>
-          </li>
+          </motion.li>
         ))}
-      </ul>
+      </motion.ul>
     </div>
-  </Drawer>
+  </Sheet>
 );
 
 export default CandidateSheet;

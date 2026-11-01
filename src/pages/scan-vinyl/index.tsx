@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 
 // ** Third-Party Imports
 import { Loader2 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 
 // ** Custom Components, Hooks, Utils, etc.
 import CandidateSheet from "@/components/candidate-sheet";
@@ -21,6 +22,7 @@ import { api } from "@/utils/trpc";
 // ** Icon Imports
 import { IoImageOutline } from "react-icons/io5";
 
+const DEFAULT_HINT = "Line up the cover inside the square";
 /** Guide square size, as a fraction of the shorter screen side. */
 const GUIDE_FRACTION = 0.72;
 /** Delay between recognition attempts while scanning. */
@@ -31,6 +33,9 @@ const MOTION_THRESHOLD = 14;
 const CONFIRM_FRAMES = 2;
 /** Ambiguous frames in a row before we offer the candidate picker. */
 const AMBIGUOUS_FRAMES = 6;
+
+/** Soft, low-bounce spring used for the guide square lock-on. */
+const LOCK_SPRING = { type: "spring", bounce: 0.2, duration: 0.3 } as const;
 
 type Result = {
   scanId: string | null;
@@ -50,12 +55,18 @@ const VinylScan = () => {
   const ambiguousStreak = useRef(0);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
-  const [hint, setHint] = useState("Line up the cover inside the square");
+  const [hint, setHint] = useState(DEFAULT_HINT);
+  /** A match is being confirmed across frames: the guide square "locks on". */
+  const [locking, setLocking] = useState(false);
+  // Sheet data stays mounted until its exit animation finishes, so each
+  // sheet has a separate open flag. Scanning resumes once the data clears.
   const [result, setResult] = useState<Result | null>(null);
+  const [resultOpen, setResultOpen] = useState(false);
   const [candidates, setCandidates] = useState<{
     scanId: string | null;
     matches: VinylMatch[];
   } | null>(null);
+  const [candidatesOpen, setCandidatesOpen] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
   const [busyUpload, setBusyUpload] = useState(false);
 
@@ -69,12 +80,23 @@ const VinylScan = () => {
   const showResult = useCallback(
     (scanId: string | null, matches: VinylMatch[], pick = 0) => {
       setConfirmed(false);
-      setCandidates(null);
+      setLocking(false);
+      setCandidatesOpen(false);
       setResult({
         scanId,
         match: matches[pick],
         others: matches.filter((_, i) => i !== pick),
       });
+      setResultOpen(true);
+    },
+    []
+  );
+
+  const showCandidates = useCallback(
+    (scanId: string | null, matches: VinylMatch[]) => {
+      setLocking(false);
+      setCandidates({ scanId, matches });
+      setCandidatesOpen(true);
     },
     []
   );
@@ -142,6 +164,7 @@ const VinylScan = () => {
           streak.current?.albumId === id
             ? { albumId: id, count: streak.current.count + 1 }
             : { albumId: id, count: 1 };
+        setLocking(true);
         setHint(`Found ${res.matches[0].album.title}…`);
         if (streak.current.count >= CONFIRM_FRAMES) {
           streak.current = null;
@@ -150,15 +173,17 @@ const VinylScan = () => {
       } else if (res.status === "ambiguous") {
         streak.current = null;
         ambiguousStreak.current += 1;
+        setLocking(false);
         setHint("Getting closer… fill the square with the cover");
         if (ambiguousStreak.current >= AMBIGUOUS_FRAMES) {
           ambiguousStreak.current = 0;
-          setCandidates({ scanId: res.scanId, matches: res.matches });
+          showCandidates(res.scanId, res.matches);
         }
       } else {
         streak.current = null;
         ambiguousStreak.current = 0;
-        setHint("Line up the cover inside the square");
+        setLocking(false);
+        setHint(DEFAULT_HINT);
       }
     };
 
@@ -167,7 +192,14 @@ const VinylScan = () => {
       stopped = true;
       clearTimeout(timer);
     };
-  }, [embedder.status, cameraState, recognise, showResult, videoRef]);
+  }, [
+    embedder.status,
+    cameraState,
+    recognise,
+    showResult,
+    showCandidates,
+    videoRef,
+  ]);
 
   // ---- photo upload fallback ---------------------------------------------
   const onUpload = async (file: File) => {
@@ -188,7 +220,7 @@ const VinylScan = () => {
       } else if (res.status === "matched") {
         showResult(res.scanId, res.matches);
       } else {
-        setCandidates({ scanId: res.scanId, matches: res.matches });
+        showCandidates(res.scanId, res.matches);
       }
     } catch (err) {
       console.error("[upload]", err);
@@ -204,13 +236,25 @@ const VinylScan = () => {
     if (scanId) confirm.mutate({ scanId, albumId });
   };
 
-  const closeResult = () => {
+  // Clear sheet data only after the close animation (unless it reopened).
+  const onResultExit = () => {
+    if (resultOpen) return;
     setResult(null);
     prevFrame.current = null;
-    setHint("Line up the cover inside the square");
+    setHint(DEFAULT_HINT);
+  };
+  const onCandidatesExit = () => {
+    if (!candidatesOpen) setCandidates(null);
   };
 
-  const loadingModel = embedder.status === "loading";
+  const statusKey =
+    embedder.status === "loading"
+      ? "loading"
+      : embedder.status === "error"
+        ? "error"
+        : busyUpload
+          ? "busy"
+          : hint;
 
   return (
     <div className='relative h-[100dvh] w-full overflow-hidden bg-black text-white'>
@@ -223,14 +267,23 @@ const VinylScan = () => {
       />
       <canvas ref={canvasRef} className='hidden' />
 
-      {/* Guide square with dimmed surroundings */}
+      {/* Guide square with dimmed surroundings. Locks on while a match is
+          being confirmed across frames. */}
       <div className='pointer-events-none absolute inset-0 flex items-center justify-center'>
-        <div
-          className='rounded-xl border-2 border-white/90 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]'
+        <motion.div
+          className='rounded-xl border-2 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]'
           style={{
             width: `${GUIDE_FRACTION * 100}vmin`,
             height: `${GUIDE_FRACTION * 100}vmin`,
           }}
+          initial={false}
+          animate={{
+            scale: locking ? 1.03 : 1,
+            borderColor: locking
+              ? "rgba(110, 231, 183, 1)"
+              : "rgba(255, 255, 255, 0.9)",
+          }}
+          transition={LOCK_SPRING}
         />
       </div>
 
@@ -251,23 +304,36 @@ const VinylScan = () => {
       </div>
 
       <div className='absolute bottom-0 left-0 right-0 flex flex-col items-center gap-3 p-6 pb-10'>
-        {loadingModel ? (
-          <div className='flex items-center gap-2 rounded-full bg-black/60 px-4 py-2 text-sm'>
-            <Loader2 className='h-4 w-4 animate-spin' />
-            Loading recognition model {Math.round(embedder.progress)}%
-          </div>
-        ) : embedder.status === "error" ? (
-          <div className='rounded-full bg-red-900/80 px-4 py-2 text-sm'>
-            Couldn&apos;t load the model: {embedder.error}
-          </div>
-        ) : (
-          <div className='rounded-full bg-black/60 px-4 py-2 text-sm'>
-            {busyUpload ? "Checking your photo…" : hint}
-          </div>
-        )}
+        <div className='flex h-9 items-center' aria-live='polite'>
+          <AnimatePresence mode='wait' initial={false}>
+            <motion.div
+              key={statusKey}
+              className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm ${
+                statusKey === "error" ? "bg-red-900/80" : "bg-black/60"
+              }`}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.16 }}
+            >
+              {statusKey === "loading" ? (
+                <>
+                  <Loader2 className='h-4 w-4 animate-spin' />
+                  Loading recognition model {Math.round(embedder.progress)}%
+                </>
+              ) : statusKey === "error" ? (
+                <>Couldn&apos;t load the model: {embedder.error}</>
+              ) : statusKey === "busy" ? (
+                "Checking your photo…"
+              ) : (
+                hint
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
 
         <button
-          className='flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-black disabled:opacity-50'
+          className='flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-black transition-[transform,opacity] duration-[120ms] active:scale-[0.97] disabled:opacity-50'
           disabled={embedder.status !== "ready" || busyUpload}
           onClick={() => fileInput.current?.click()}
         >
@@ -289,31 +355,31 @@ const VinylScan = () => {
 
       {candidates && (
         <CandidateSheet
+          open={candidatesOpen}
           matches={candidates.matches}
           onPick={(i) => {
             const picked = candidates.matches[i];
             showResult(candidates.scanId, candidates.matches, i);
             confirmAlbum(candidates.scanId, picked.album.id);
           }}
-          onDismiss={() => setCandidates(null)}
+          onDismiss={() => setCandidatesOpen(false)}
+          onExitComplete={onCandidatesExit}
         />
       )}
 
       {result && (
         <DigitalAlbum
-          isOpen={!!result}
-          handleClose={closeResult}
+          open={resultOpen}
+          onClose={() => setResultOpen(false)}
+          onExitComplete={onResultExit}
           album={result.match.album}
           confirmed={confirmed}
           onConfirm={() => confirmAlbum(result.scanId, result.match.album.id)}
           onReject={
             result.others.length
               ? () => {
-                  setResult(null);
-                  setCandidates({
-                    scanId: result.scanId,
-                    matches: result.others,
-                  });
+                  setResultOpen(false);
+                  showCandidates(result.scanId, result.others);
                 }
               : undefined
           }

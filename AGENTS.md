@@ -4,8 +4,8 @@
 cover, detect it, and open the same release across Spotify, Apple Music, YouTube,
 Deezer, SoundCloud, and Tidal.
 
-**Tech stack:** Next.js 14 (pages), TypeScript, tRPC, TanStack React Query, Prisma
-(MongoDB), Zod, Tailwind + MUI + styled-components, transformers.js (CLIP cover
+**Tech stack:** Next.js 16 (pages, Turbopack), React 19, TypeScript, tRPC, TanStack React Query, Prisma
+(MongoDB), Zod, Tailwind + Motion (`motion/react`), transformers.js (CLIP cover
 embeddings) + MongoDB Atlas Vector Search, Vitest, Vercel.
 
 ## Agent skills

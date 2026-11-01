@@ -13,7 +13,6 @@ import { api } from "@/utils/trpc";
 
 // ** Styles
 import "@/styles/globals.css";
-import "react-toastify/dist/ReactToastify.css";
 
 function App({ Component, pageProps }: AppProps) {
   return (

@@ -34,9 +34,9 @@ say() { printf '\033[1;35m[seed-local]\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31m[seed-local]\033[0m %s\n' "$*" >&2; exit 1; }
 
 # --- prerequisites -----------------------------------------------------------
-command -v node >/dev/null || die "Node.js 20.6+ is required (https://nodejs.org)."
+command -v node >/dev/null || die "Node.js 24+ is required (https://nodejs.org)."
 node_major=$(node -p 'process.versions.node.split(".")[0]')
-(( node_major >= 20 )) || die "Node.js 20.6+ is required, found $(node -v)."
+(( node_major >= 24 )) || die "Node.js 24+ is required (see .nvmrc), found $(node -v)."
 
 [[ -f .env ]] || { cp .env.example .env; say "Created .env from .env.example. Fill it in."; }
 
