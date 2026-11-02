@@ -32,6 +32,9 @@ npm run dev                     # open /scan-vinyl
 | Script | What it does |
 |---|---|
 | `npm run vinyl:seed -- --artist "X" --tag "Y" --file list.json` | Seed albums and cover vectors |
+| `npm run vinyl:status [-- --prune [--yes]]` | Record which albums were pressed on vinyl; prune the rest (dry run without `--yes`) |
+| `npm run vinyl:remove -- --mbid <id> [--yes]` | Remove one album and its vectors |
+| `npm run vinyl:links [-- --refresh]` | Resolve + store streaming links for catalog albums ahead of time |
 | `npm run vinyl:index` | Create/update the Atlas vector index |
 | `npm run vinyl:eval -- --dir ./photos` | Measure accuracy on real photos and calibrate thresholds |
 | `npm run vinyl:synth -- --out ./eval-synthetic` | Generate phone-style test photos of seeded covers (+ negatives) |

@@ -54,6 +54,12 @@ model Album {
   // Last time we looked this album up on Discogs (found or not); pressings
   // are fetched at most once per 30 days per album.
   discogsCheckedAt DateTime?
+  // Pressed on vinyl? "yes" | "no" | "unknown" (see catalog/vinyl-status.ts).
+  // Only "yes" albums get vectors from catalog ingest.
+  vinylStatus    String?
+  vinylReleases  Int?             // official vinyl releases found
+  vinylSource    String?          // "musicbrainz" | "discogs"
+  vinylCheckedAt DateTime?
   platformLinks Json?            // cached cross-platform links (search service)
   extra         Json?            // room for credits, tracklist, notes...
   embeddings    CoverEmbedding[]
@@ -63,6 +69,7 @@ model Album {
   @@index([artist])
   @@index([spotifyId])
   @@index([mbid])
+  @@index([vinylStatus])
 }
 
 model CoverEmbedding {
@@ -122,4 +129,21 @@ model IngestJob {
 
   @@unique([kind, key])
   @@index([status, updatedAt])
+}
+
+// Resolved streaming links, keyed by every platform URL of the album
+// (Spotify, Apple Music, Deezer, Tidal...). Pasting any of them is one
+// indexed read instead of MusicBrainz + platform API calls
+// (services/links/). Refreshed in the background after 30 days.
+model LinkIndex {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  url       String   @unique   // canonical album URL on one platform
+  mbid      String?             // MusicBrainz release group, when known
+  title     String?
+  artist    String?
+  imageUrl  String?
+  links     Json                // AlbumLink[], card order
+  fetchedAt DateTime
+
+  @@index([mbid])
 }

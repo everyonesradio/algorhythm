@@ -1,8 +1,7 @@
 // ** Third-Party Imports
 import { TRPCError } from "@trpc/server";
+import { waitUntil } from "@vercel/functions";
 import { z } from "zod";
-
-import { Adapter } from "@/config/enum";
 
 // ** Custom Components, Hooks, Utils, etc.
 import {
@@ -17,23 +16,20 @@ import {
   coverExists,
   discographyForArtist,
   lookupReleaseGroup,
-  releasesWithUrls,
   searchArtists,
   toCatalogAlbum,
 } from "@/server/services/catalog/musicbrainz";
-import { search } from "@/server/services/search";
 import {
   ARTIST_SUGGEST,
   suggestArtists,
 } from "@/server/services/vinyl/artist-guess";
 import { findNearestCovers } from "@/server/services/vinyl/index-search";
-import { getAlbumLinks, type LinkDeps } from "@/server/services/vinyl/links";
 import {
-  appleByBarcode,
-  appleBySearch,
-  deezerByBarcode,
-  deezerBySearch,
-} from "@/server/services/vinyl/platform-links";
+  maybeSweepScanLog,
+  scanIsActionable,
+} from "@/server/services/vinyl/scan-log";
+import { getAlbumLinks } from "@/server/services/vinyl/links";
+import { albumLinkDeps, indexAlbumLinks } from "@/server/services/links/server";
 import {
   groupHitsByAlbum,
   pickBestView,
@@ -53,9 +49,6 @@ const mbid = z.string().regex(/^[0-9a-f-]{36}$/i);
 
 /** Vector hits per crop (an album has ~6 vectors, so ~10+ albums). */
 const SEARCH_DEPTH = 60;
-
-/** A scan can be turned into a picked album only this soon after. */
-const PICK_WINDOW_MS = 30 * 60 * 1000;
 
 /** Discographies change rarely; cache per server instance for an hour. */
 const DISCOGRAPHY_TTL_MS = 60 * 60 * 1000;
@@ -83,19 +76,6 @@ const albumSelect = {
   discogsMasterId: true,
   discogsReleaseId: true,
 } as const;
-
-const linkDeps: LinkDeps = {
-  releases: releasesWithUrls,
-  byBarcode: {
-    [Adapter.AppleMusic]: appleByBarcode,
-    [Adapter.Deezer]: deezerByBarcode,
-  },
-  bySearch: {
-    [Adapter.AppleMusic]: appleBySearch,
-    [Adapter.Deezer]: deezerBySearch,
-  },
-  search,
-};
 
 export const vinylRouter = createTRPCRouter({
   /**
@@ -241,6 +221,9 @@ export const vinylRouter = createTRPCRouter({
             },
             select: { id: true },
           });
+      // Now and then, drop vectors of scans too old to confirm (~6.8 KB each).
+      const sweep = scan ? maybeSweepScanLog(ctx.prisma) : null;
+      if (sweep) waitUntil(sweep);
 
       return {
         status,
@@ -317,6 +300,11 @@ export const vinylRouter = createTRPCRouter({
       if (existing >= MAX_USER_SCANS_PER_ALBUM) {
         return { stored: false, reason: "album-has-enough-scans" as const };
       }
+      // Too old: its vector may be gone (scan-log.ts). The confirmation
+      // above still counts.
+      if (!scanIsActionable(scan)) {
+        return { stored: false, reason: "scan-expired" as const };
+      }
 
       await ctx.prisma.coverEmbedding.create({
         data: {
@@ -386,7 +374,7 @@ export const vinylRouter = createTRPCRouter({
       }
       // A scan is single-use and short-lived: every picked album carries a
       // real camera vector taken moments ago, not an arbitrary write.
-      if (Date.now() - scan.createdAt.getTime() > PICK_WINDOW_MS) {
+      if (!scanIsActionable(scan)) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "This scan has expired, please scan again",
@@ -477,7 +465,18 @@ export const vinylRouter = createTRPCRouter({
   links: publicProcedure
     .input(z.object({ albumId: objectId }))
     .query(async ({ ctx, input }) => {
-      const res = await getAlbumLinks(ctx.prisma, input.albumId, linkDeps);
+      const res = await getAlbumLinks(
+        ctx.prisma,
+        input.albumId,
+        albumLinkDeps,
+        Date.now(),
+        {
+          background: (task) => waitUntil(task),
+          // Pasting any of these links later is then a single read.
+          onResolved: (album, links) =>
+            indexAlbumLinks(ctx.prisma, album, links),
+        }
+      );
       if (res.status === "not-found") {
         throw new TRPCError({ code: "NOT_FOUND", message: "Album not found" });
       }

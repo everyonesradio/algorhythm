@@ -19,7 +19,9 @@ import {
  * album on Apple Music.
  */
 
-export type LinkSource = "musicbrainz" | "barcode" | "search" | "spotify";
+/** "source": the link the user pasted (links router). */
+export type LinkSource =
+  "musicbrainz" | "barcode" | "search" | "spotify" | "source";
 export type AlbumLink = { type: Adapter; url: string; via: LinkSource };
 
 /** Platform + canonical URL for a streaming link, or null. */
@@ -224,4 +226,60 @@ export const deezerBySearch = async (
         via: "search",
       }
     : null;
+};
+
+export type PlatformAlbum = {
+  title: string;
+  artist: string;
+  /** Barcode, when the platform exposes it (Spotify, Deezer). */
+  upc: string | null;
+  /** The album's own link on that platform. */
+  url: string;
+  imageUrl: string | null;
+};
+
+/** Apple's official lookup by album or song id (a song resolves to its album). */
+export const appleAlbumById = async (
+  id: string
+): Promise<PlatformAlbum | null> => {
+  const res = await getJson<{
+    results: (ItunesAlbum & { wrapperType?: string; artworkUrl100?: string })[];
+  }>(
+    `https://itunes.apple.com/lookup?id=${encodeURIComponent(id)}&entity=album`
+  );
+  const hit = res?.results.find((r) => r.collectionId && r.collectionName);
+  if (!hit) return null;
+  return {
+    title: hit.collectionName,
+    artist: hit.artistName,
+    upc: null,
+    url: `https://music.apple.com/album/${hit.collectionId}`,
+    imageUrl: hit.artworkUrl100?.replace("100x100", "600x600") ?? null,
+  };
+};
+
+/** Deezer's official API: album by id (a track resolves to its album). */
+export const deezerAlbumById = async (
+  id: string,
+  kind: "album" | "track" = "album"
+): Promise<PlatformAlbum | null> => {
+  let albumId = id;
+  if (kind === "track") {
+    const t = await getJson<{ album?: { id: number } }>(
+      `https://api.deezer.com/track/${id}`
+    );
+    if (!t?.album?.id) return null;
+    albumId = String(t.album.id);
+  }
+  const a = await getJson<DeezerAlbum & { upc?: string; cover_xl?: string }>(
+    `https://api.deezer.com/album/${albumId}`
+  );
+  if (!a?.id || a.error) return null;
+  return {
+    title: a.title,
+    artist: a.artist?.name ?? "",
+    upc: a.upc ?? null,
+    url: `https://www.deezer.com/album/${a.id}`,
+    imageUrl: a.cover_xl ?? null,
+  };
 };

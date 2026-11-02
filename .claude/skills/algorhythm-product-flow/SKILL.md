@@ -24,7 +24,7 @@ This skill **routes**. It does not replace the skills it points at.
 |-------|------------------|-----------------|
 | **Recognition** | Camera + COCO-SSD (placeholder) → custom vinyl TFLite model | Labelled cover dataset, EfficientDetLite, on-device inference |
 | **Identity** | Spotify as primary MusicIDX source (Prisma/Mongo) | Durable cross-platform IDs, cache hits, verified links |
-| **Routing** | Parsers + adapters → universal search result | Reliability, retries, platform coverage, match confidence |
+| **Routing** | MusicBrainz links + barcodes + official APIs → exact album links (no scraping) | Platform coverage, link accuracy |
 | **Surface** | Waitlist home + scan-vinyl + digital album / 3D vinyl | First-run magic, permission flow, empty/error craft |
 | **Stack** | Next.js 14, tRPC, React Query, Prisma, Zod, Vitest | Deep modules, test seams, typed boundaries |
 

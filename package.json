@@ -21,7 +21,9 @@
     "vinyl:synth": "tsx scripts/make-synthetic-eval.ts",
     "vinyl:seed:local": "bash scripts/seed-local.sh",
     "vinyl:worker": "tsx scripts/ingest-worker.ts",
-    "vinyl:remove": "tsx scripts/remove-album.ts"
+    "vinyl:remove": "tsx scripts/remove-album.ts",
+    "vinyl:status": "tsx scripts/vinyl-status.ts",
+    "vinyl:links": "tsx scripts/prefetch-links.ts"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
@@ -36,11 +38,7 @@
     "@trpc/react-query": "^11.22.1",
     "@trpc/server": "^11.22.1",
     "@vercel/analytics": "^2.0.1",
-    "@vercel/functions": "^3.10.1",
-    "axios": "^1.21.0",
-    "axios-retry": "^4.5.0",
-    "cache-manager": "^7.2.9",
-    "cheerio": "^1.2.0",
+    "@vercel/functions": "^3.10.5",
     "lucide-react": "^1.66.0",
     "mobile-detect": "^1.4.5",
     "motion": "^14.9.0",

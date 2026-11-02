@@ -84,6 +84,7 @@ PR titles are **not** commit messages. They are a short Title Case headline for 
 | `npx prisma studio` | Inspect Mongo models |
 | `./scripts/seed-local.sh` | Schema + vector index + seed covers (see `docs/VINYL_RECOGNITION.md`) |
 | `npm run vinyl:seed` / `vinyl:index` / `vinyl:eval` / `vinyl:synth` | Recognition catalog + accuracy tooling |
+| `npm run vinyl:status` / `vinyl:remove` / `vinyl:worker` / `vinyl:links` | Catalog upkeep: vinyl status + pruning, remove one album, finish ingest jobs, prefetch streaming links |
 
 ## Architecture sketch
 
@@ -91,13 +92,12 @@ PR titles are **not** commit messages. They are a short Title Case headline for 
 src/
 ├── pages/           # Next routes (home waitlist, scan-vinyl, API)
 ├── components/      # UI (waitlist, vinyl-cover, digital-album, search-card)
-├── adapters/        # Platform link builders (Spotify, Apple, YT, …)
-├── parsers/         # URL → metadata extractors
-├── server/          # tRPC + search/cache/metadata services
-├── utils/           # http client, scraper, retry, encoding
+├── server/          # tRPC routers + services (catalog, vinyl, links)
+├── utils/           # frame crops, trpc client, logger
 └── hooks/
 ├── lib/embeddings/   # shared CLIP embedder (browser worker + Node seeder)
-├── server/services/vinyl/  # vector search + match ranking
+├── server/services/vinyl/  # vector search, match ranking, album links
+├── server/services/links/  # pasted music link → album links everywhere
 └── workers/         # embedding Web Worker
 lib/                 # prisma helper
 scripts/             # catalog seeding, vector index, accuracy eval
@@ -107,12 +107,16 @@ prisma/              # Mongo schema
 **Domain note:** `Album` is the record identity (MusicBrainz release group,
 with Spotify id/url when matched). Cross-platform links are cached in
 `Album.platformLinks` by `vinyl.links`; `links.search` resolves any pasted
-music URL. (`MusicIDX` was retired; its Mongo collection is left in place.) Recognition and routing are separate
+music URL. Links come only from exact sources: MusicBrainz URL
+relationships and barcodes, official APIs (Spotify Web API, Apple's
+iTunes lookup, Deezer), strict artist + title matches. No page scraping.
+Resolved links are stored in `LinkIndex` under every platform URL of the
+album (and on `Album.platformLinks`), so a known link is one indexed read. (`MusicIDX` was retired; its Mongo collection is left in place.) Recognition and routing are separate
 concerns — a bad match must not look verified.
 
 ## Boundaries
 
 - Never commit `.env` / secrets
-- Prefer existing adapters/parsers over new platform one-offs without a plan
+- Streaming links: exact sources only (MusicBrainz, barcodes, official APIs); never scrape platform pages or take a best-guess search result
 - Camera + ML paths need fail-safe UX (retry / paste link) when detection misses
 - Do not invent API shapes the Spotify/Apple/etc. SDKs don't support — `/research` first

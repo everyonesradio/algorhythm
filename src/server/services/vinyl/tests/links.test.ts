@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { Adapter, MetadataType } from "@/config/enum";
+import { Adapter } from "@/config/enum";
 import type { MbRelease } from "@/server/services/catalog/musicbrainz";
 import {
   type CachedPlatformLinks,
@@ -90,27 +90,6 @@ const deps = (over: Partial<LinkDeps> = {}): LinkDeps => ({
     ),
   },
   bySearch: {},
-  search: vi.fn(async () => ({
-    id: "x",
-    type: MetadataType.Album,
-    title: "Showbiz!",
-    description: "",
-    image: "",
-    source: "https://open.spotify.com/album/3M1PhSsHmAlh79bAz9jBZs",
-    universalLink: "u",
-    links: [
-      {
-        type: Adapter.YouTube,
-        url: "https://music.youtube.com/playlist?list=OK",
-        isVerified: true,
-      },
-      {
-        type: Adapter.SoundCloud,
-        url: "https://soundcloud.com/someone-else/sets/x",
-        isVerified: false,
-      },
-    ],
-  })),
   ...over,
 });
 
@@ -129,11 +108,6 @@ describe("resolveAlbumLinks", () => {
         via: "musicbrainz",
       },
       {
-        type: Adapter.YouTube,
-        url: "https://music.youtube.com/playlist?list=OK",
-        via: "search",
-      },
-      {
         type: Adapter.Tidal,
         url: "https://tidal.com/album/409315982",
         via: "musicbrainz",
@@ -146,8 +120,9 @@ describe("resolveAlbumLinks", () => {
     ]);
   });
 
-  it("never shows a link the text search couldn't verify", async () => {
+  it("adds no YouTube or SoundCloud link MusicBrainz doesn't have (no scraping)", async () => {
     const links = await resolveAlbumLinks(showbiz, deps());
+    expect(links.map((l) => l.type)).not.toContain(Adapter.YouTube);
     expect(links.map((l) => l.type)).not.toContain(Adapter.SoundCloud);
   });
 
@@ -184,10 +159,7 @@ describe("resolveAlbumLinks", () => {
     const boom = vi.fn(async () => {
       throw new Error("down");
     });
-    const links = await resolveAlbumLinks(
-      showbiz,
-      deps({ releases: boom, search: boom })
-    );
+    const links = await resolveAlbumLinks(showbiz, deps({ releases: boom }));
     expect(links).toEqual([]);
   });
 });
@@ -211,12 +183,12 @@ describe("getAlbumLinks cache", () => {
     expect(update).toHaveBeenCalledOnce();
     expect(
       (album.platformLinks as unknown as CachedPlatformLinks).links
-    ).toHaveLength(5);
+    ).toHaveLength(4);
   });
 
   it("serves fresh cache without touching any source", async () => {
     const cached: CachedPlatformLinks = {
-      version: 2,
+      version: 3,
       fetchedAt: new Date(NOW - 1000).toISOString(),
       links: [],
     };
@@ -233,7 +205,7 @@ describe("getAlbumLinks cache", () => {
 
   it("re-resolves stale and old-format (text search only) entries", async () => {
     const stale: CachedPlatformLinks = {
-      version: 2,
+      version: 3,
       fetchedAt: new Date(NOW - LINKS_TTL_MS - 1).toISOString(),
       links: [],
     };

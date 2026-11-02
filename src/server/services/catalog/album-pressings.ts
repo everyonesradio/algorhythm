@@ -44,7 +44,7 @@ export const claimAlbumForDiscogs = async (
 };
 
 export type PressingsOutcome =
-  | { status: "skipped" | "not-found" | "missing" }
+  | { status: "skipped" | "not-found" | "missing" | "not-vinyl" }
   | { status: "added"; variants: number };
 
 export const addPressingsToAlbum = async (
@@ -54,16 +54,21 @@ export const addPressingsToAlbum = async (
   deps: { discogsAlbum: typeof DiscogsAlbumFn },
   now = Date.now()
 ): Promise<PressingsOutcome> => {
-  if (!(await claimAlbumForDiscogs(prisma, albumId, now))) return { status: "skipped" };
+  if (!(await claimAlbumForDiscogs(prisma, albumId, now)))
+    return { status: "skipped" };
   const album = await prisma.album.findUnique({
     where: { id: albumId },
-    select: { title: true, artist: true, artistName: true },
+    select: { title: true, artist: true, artistName: true, vinylStatus: true },
   });
   if (!album) return { status: "missing" };
+  // No vinyl pressings to fetch for an album that was never pressed.
+  if (album.vinylStatus === "no") return { status: "not-vinyl" };
 
+  // Full credit — Discogs may list a collab under a different lead than
+  // MusicBrainz's artistName (first credit).
   const found = await deps.discogsAlbum(
     embedder,
-    album.artistName ?? album.artist,
+    album.artist,
     album.title,
     { variants: true }
   );
@@ -72,7 +77,9 @@ export const addPressingsToAlbum = async (
     await prisma.album.update({
       where: { id: albumId },
       data: {
-        discogsCheckedAt: new Date(now - DISCOGS_RECHECK_MS + NOT_FOUND_RECHECK_MS),
+        discogsCheckedAt: new Date(
+          now - DISCOGS_RECHECK_MS + NOT_FOUND_RECHECK_MS
+        ),
       },
     });
     return { status: "not-found" };

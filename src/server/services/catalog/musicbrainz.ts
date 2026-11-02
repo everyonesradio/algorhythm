@@ -33,6 +33,9 @@ const mbGet = async <T>(path: string, params: Record<string, string>) => {
     await lanes.acquire();
     const res = await fetch(url, {
       headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+      // Without a deadline a stalled TCP socket can hang vinyl:status forever
+      // (observed on Various Artists / Nigeria 70 during catalog backfill).
+      signal: AbortSignal.timeout(30_000),
     });
     if (res.status === 503 || res.status === 429) {
       const retryAfter = Number.parseInt(
@@ -141,10 +144,45 @@ export const normalizeName = (s: string) =>
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
+    // Discogs titles sometimes embed zero-width spaces (Sideshow's 2MM…).
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
     .replace(/[’'`]/g, "")
     .replace(/[^a-z0-9]+/g, " ")
     .trim()
     .replace(/^the /, "");
+
+/**
+ * Loose title equality for Discogs vinyl checks: exact match, or one string
+ * contains the other when both are long enough (Discogs often appends a
+ * subtitle: "Nigeria 70 (Lagos Jump: Original Heavyweight…)").
+ */
+export const titlesMatchLoose = (wanted: string, candidate: string) => {
+  const a = normalizeName(wanted);
+  const b = normalizeName(candidate);
+  if (!a || !b) return false;
+  if (a === b) return true;
+  const shorter = a.length <= b.length ? a : b;
+  const longer = a.length <= b.length ? b : a;
+  return shorter.length >= 10 && longer.includes(shorter);
+};
+
+/**
+ * True when any named collaborator overlaps the credit. Discogs often lists
+ * only the lead ("Boldy James") for "Nicholas Craven & Boldy James".
+ */
+export const artistsOverlap = (wanted: string, credit: string) => {
+  const c = normalizeName(credit);
+  const w = normalizeName(wanted);
+  if (!c || !w) return false;
+  if (c === w || w.includes(c) || c.includes(w)) return true;
+  const wantedParts = splitArtists(wanted);
+  const creditParts = splitArtists(credit);
+  return wantedParts.some(
+    (p) =>
+      c.includes(p) ||
+      creditParts.some((cp) => cp === p || cp.includes(p) || p.includes(cp))
+  );
+};
 
 /** "A & B", "A and B", "A x B", "A feat. B", "A, B" -> ["a", "b"] */
 export const splitArtists = (s: string) =>
@@ -387,3 +425,92 @@ export const releasesWithUrls = async (releaseGroupMbid: string) =>
       limit: "100",
     })
   ).releases;
+
+export type MbMediaRelease = {
+  id: string;
+  title: string;
+  status?: string;
+  "release-group"?: { id: string; title: string };
+  media?: { format?: string | null }[];
+};
+
+/**
+ * Official releases with their media formats, by artist or by release
+ * group, all pages. One artist's whole catalog is a few requests (SZA: 1,
+ * Kendrick Lamar: 3), instead of one per album.
+ */
+export const officialReleasesWithMedia = async (
+  by: { artist: string } | { releaseGroup: string }
+) => {
+  const out: MbMediaRelease[] = [];
+  for (let offset = 0; ;) {
+    const res = await mbGet<{
+      "release-count": number;
+      releases: MbMediaRelease[];
+    }>("release", {
+      ...("artist" in by
+        ? { artist: by.artist }
+        : { "release-group": by.releaseGroup }),
+      status: "official",
+      inc: "media+release-groups",
+      limit: "100",
+      offset: String(offset),
+    });
+    out.push(...res.releases);
+    offset += res.releases.length;
+    if (offset >= res["release-count"] || res.releases.length === 0) return out;
+  }
+};
+
+/** An artist's canonical name by MusicBrainz id. */
+export const artistNameById = async (artistMbid: string) =>
+  (await mbGet<{ name: string }>(`artist/${artistMbid}`, {})).name;
+
+export type MbReleaseDetail = MbRelease & {
+  "release-group"?: { id: string; title: string };
+  "artist-credit"?: MbArtistCredit[];
+};
+
+/**
+ * The release a streaming URL belongs to, when MusicBrainz editors linked
+ * that URL to it. Exact, no text matching.
+ */
+export const releaseIdForUrl = async (url: string): Promise<string | null> => {
+  const res = await mbGet<{ relations?: { release?: { id: string } }[] }>("url", {
+    resource: url,
+    inc: "release-rels",
+  }).catch((err: Error) => {
+    if (/MusicBrainz 404/.test(err.message)) return null;
+    throw err;
+  });
+  return res?.relations?.find((r) => r.release)?.release?.id ?? null;
+};
+
+/** The release a barcode (UPC/EAN) was printed on, if MusicBrainz has it. */
+export const releaseIdForBarcode = async (barcode: string): Promise<string | null> => {
+  if (!/^\d{8,14}$/.test(barcode)) return null;
+  const res = await mbGet<{ releases: { id: string; score?: number }[] }>("release", {
+    query: `barcode:${barcode}`,
+    limit: "5",
+  });
+  return res.releases.find((r) => (r.score ?? 0) >= 90)?.id ?? null;
+};
+
+/**
+ * One release with its album, credits, barcode and streaming links: a
+ * single request that's enough to answer "this link, everywhere".
+ */
+export const releaseDetail = async (releaseId: string) => {
+  const r = await mbGet<MbReleaseDetail>(`release/${releaseId}`, {
+    inc: "release-groups+url-rels+artist-credits",
+  });
+  const rg = r["release-group"];
+  if (!rg) return null;
+  return {
+    mbid: rg.id,
+    title: rg.title,
+    artist: artistName(r["artist-credit"]),
+    artistName: r["artist-credit"]?.[0]?.artist.name ?? null,
+    release: r as MbRelease,
+  };
+};

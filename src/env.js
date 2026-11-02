@@ -13,31 +13,11 @@ export const env = createEnv({
       .enum(["development", "test", "production"])
       .default("development"),
 
-    SPOTIFY_CLIENT_ID: z.string(),
-    SPOTIFY_CLIENT_SECRET: z.string(),
-    SPOTIFY_AUTH_URL: z
-      .string()
-      .url()
-      .default("https://accounts.spotify.com/api/token"),
-    SPOTIFY_API_URL: z
-      .string()
-      .url()
-      .default("https://api.spotify.com/v1/search"),
-    SPOTIFY_CLIENT_VERSION: z.string(),
-    YOUTUBE_MUSIC_URL: z
-      .string()
-      .url()
-      .default("https://music.youtube.com/search"),
-    YOUTUBE_COOKIES: z.string(),
-    APPLE_MUSIC_API_URL: z.string().url().default("https://music.apple.com/us"),
-    SOUNDCLOUD_BASE_URL: z.string().url().default("https://soundcloud.com"),
-    TIDAL_BASE_URL: z.string().url().default("https://listen.tidal.com"),
-    DEEZER_API_URL: z.string().url().default("https://api.deezer.com/search"),
-    URL_SHORTENER_API_URL: z
-      .string()
-      .url()
-      .default("http://localhost:4000/api/links"),
-    URL_SHORTENER_API_KEY: z.string(),
+    // Optional: official Spotify Web API (client credentials) for album
+    // art, Spotify links and barcodes. Everything works without it.
+    DISCOGS_TOKEN: z.string().optional(),
+    SPOTIFY_CLIENT_ID: z.string().optional(),
+    SPOTIFY_CLIENT_SECRET: z.string().optional(),
   },
 
   /**
@@ -55,19 +35,9 @@ export const env = createEnv({
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
+    DISCOGS_TOKEN: process.env.DISCOGS_TOKEN,
     SPOTIFY_CLIENT_ID: process.env.SPOTIFY_CLIENT_ID,
     SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET,
-    SPOTIFY_AUTH_URL: process.env.SPOTIFY_AUTH_URL,
-    SPOTIFY_API_URL: process.env.SPOTIFY_API_URL,
-    SPOTIFY_CLIENT_VERSION: process.env.SPOTIFY_CLIENT_VERSION,
-    YOUTUBE_MUSIC_URL: process.env.YOUTUBE_MUSIC_URL,
-    YOUTUBE_COOKIES: process.env.YOUTUBE_COOKIES,
-    APPLE_MUSIC_API_URL: process.env.APPLE_MUSIC_API_URL,
-    SOUNDCLOUD_BASE_URL: process.env.SOUNDCLOUD_BASE_URL,
-    TIDAL_BASE_URL: process.env.TIDAL_BASE_URL,
-    DEEZER_API_URL: process.env.DEEZER_API_URL,
-    URL_SHORTENER_API_URL: process.env.URL_SHORTENER_API_URL,
-    URL_SHORTENER_API_KEY: process.env.URL_SHORTENER_API_KEY,
   },
 
   /**

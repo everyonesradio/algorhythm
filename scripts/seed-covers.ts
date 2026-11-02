@@ -4,6 +4,9 @@
  *   npm run vinyl:seed -- --file seeds/albums.json
  *   npm run vinyl:seed -- --artist "Amaarae" --artist "Little Simz" --limit 20
  *   npm run vinyl:seed -- --artist-mbid <musicbrainz artist id>   # exact artist
+ *
+ * --artist / --artist-mbid seed only albums pressed on vinyl (MusicBrainz,
+ * then Discogs; see catalog/vinyl-status.ts). --all-formats seeds them all.
  *   npm run vinyl:seed -- --tag afrobeats --tag "neo soul" --limit 200 --augment
  *
  * Pipeline per album:
@@ -35,19 +38,31 @@ import {
 } from "@/lib/embeddings/config";
 import { loadEmbedder } from "@/lib/embeddings/embedder";
 
-import { discogsEnabled } from "@/server/services/catalog/discogs";
+import {
+  discogsEnabled,
+  discogsOfficialVinyl,
+} from "@/server/services/catalog/discogs";
 import {
   ingestDiscogsAlbum,
   ingestReleaseGroup,
 } from "@/server/services/catalog/ingest";
 import {
+  artistNameById,
   discographyForArtist,
   findReleaseGroup,
   type MbReleaseGroup,
+  officialReleasesWithMedia,
   pickArtist,
   releaseGroupsForTag,
   searchArtists,
 } from "@/server/services/catalog/musicbrainz";
+import { DISCOGRAPHY_LIMIT } from "@/server/services/catalog/queue";
+import {
+  decideVinyl,
+  vinylFields,
+  vinylReleasesByGroup,
+  type VinylStatus,
+} from "@/server/services/catalog/vinyl-status";
 import { spotifyEnabled } from "@/server/services/catalog/spotify";
 
 type SeedEntry = { artist: string; album: string } | { mbid: string };
@@ -56,6 +71,8 @@ const { values } = parseArgs({
   options: {
     file: { type: "string" },
     artist: { type: "string", multiple: true },
+    // Seed an artist's albums whether or not they were pressed on vinyl.
+    "all-formats": { type: "boolean", default: false },
     "artist-mbid": { type: "string", multiple: true },
     tag: { type: "string", multiple: true },
     limit: { type: "string", default: "25" },
@@ -80,6 +97,8 @@ const prisma = new PrismaClient();
 const log = (...args: unknown[]) => console.log("[seed]", ...args);
 
 /** Collect release groups from every requested source, de-duplicated. */
+/** Vinyl status of each release group checked (artist seeding). */
+const vinylOf = new Map<string, VinylStatus>();
 /** File entries MusicBrainz didn't find; tried on Discogs instead. */
 const mbMisses: { artist: string; album: string }[] = [];
 
@@ -107,6 +126,7 @@ const collectReleaseGroups = async (): Promise<MbReleaseGroup[]> => {
   // By MusicBrainz artist id, the same discography the scan-triggered
   // ingest uses (albums + EPs, no live/compilation/remix). A name search
   // pulled in other artists ("Sza/Za") and fan uploads.
+  const artists: { mbid: string; name: string }[] = [];
   for (const name of values.artist ?? []) {
     const artist = pickArtist(name, await searchArtists(name, 10));
     if (!artist) {
@@ -115,10 +135,40 @@ const collectReleaseGroups = async (): Promise<MbReleaseGroup[]> => {
     }
     const detail = artist.detail ? ` (${artist.detail})` : "";
     log(`  artist: ${artist.name}${detail} mbid=${artist.mbid}`);
-    (await discographyForArtist(artist.mbid, limit)).forEach(add);
+    artists.push(artist);
   }
   for (const mbid of values["artist-mbid"] ?? []) {
-    (await discographyForArtist(mbid, limit)).forEach(add);
+    artists.push({ mbid, name: await artistNameById(mbid) });
+  }
+  for (const artist of artists) {
+    const discography = await discographyForArtist(
+      artist.mbid,
+      DISCOGRAPHY_LIMIT
+    );
+    if (values["all-formats"]) {
+      discography.slice(0, limit).forEach(add);
+      continue;
+    }
+    // Vinyl first, like the scan-triggered ingest: only albums that were
+    // pressed get vectors.
+    const mbVinyl = vinylReleasesByGroup(
+      await officialReleasesWithMedia({ artist: artist.mbid })
+    );
+    let kept = 0;
+    for (const rg of discography) {
+      const vinyl = await decideVinyl(mbVinyl.get(rg.id) ?? 0, () =>
+        discogsOfficialVinyl(artist.name, rg.title)
+      );
+      vinylOf.set(rg.id, vinyl);
+      if (vinyl.status === "yes" && kept < limit) {
+        add(rg);
+        kept++;
+      } else if (vinyl.status !== "yes") {
+        log(
+          `  – ${vinyl.status === "no" ? "not on vinyl" : "vinyl unknown"}: ${rg.title}`
+        );
+      }
+    }
   }
   for (const tag of values.tag ?? []) {
     (await releaseGroupsForTag(tag, limit)).forEach(add);
@@ -170,6 +220,13 @@ const main = async () => {
             (res.spotifyId ? ` spotify=${res.spotifyId}` : "")
         );
         if (res.status === "added") stats.added++;
+      }
+      const vinyl = vinylOf.get(rg.id);
+      if (vinyl && !values["dry-run"]) {
+        await prisma.album.updateMany({
+          where: { sourceKey: `mb:${rg.id}` },
+          data: vinylFields(vinyl),
+        });
       }
     } catch (err) {
       stats.failed++;

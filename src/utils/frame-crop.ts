@@ -56,9 +56,7 @@ export const cropToImageData = (
   canvas.height = out;
   // The union of canvas types widens getContext's return; narrow it back.
   const ctx = canvas.getContext("2d", { willReadFrequently: true }) as
-    | CanvasRenderingContext2D
-    | OffscreenCanvasRenderingContext2D
-    | null;
+    CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
   if (!ctx) return null;
   ctx.drawImage(source, crop.sx, crop.sy, crop.size, crop.size, 0, 0, out, out);
   return ctx.getImageData(0, 0, out, out);
@@ -80,3 +78,29 @@ export const frameDifference = (a: ImageData, b: ImageData, step = 16) => {
   }
   return n ? sum / n : 255;
 };
+
+/**
+ * Mean grey-level change (0-255) below which two frames show the same
+ * scene: sensor noise on a still camera is ~1-3, a sleeve coming into view
+ * is 20+.
+ */
+export const SAME_SCENE_DIFF = 4;
+/** Re-ask anyway after this many skipped frames (catalog may have grown). */
+export const MAX_SAME_SCENE_SKIPS = 12;
+
+/**
+ * Skip the search for this frame? Only when the last search found nothing
+ * and the camera still sees the same thing: same answer, no point asking.
+ * Saves the server search and the on-device embedding (battery).
+ */
+export const skipSameScene = (opts: {
+  lastStatus: string | null;
+  diff: number;
+  skips: number;
+  /** The next search must run (it may open the artist picker). */
+  mustAsk: boolean;
+}) =>
+  !opts.mustAsk &&
+  opts.lastStatus === "none" &&
+  opts.diff < SAME_SCENE_DIFF &&
+  opts.skips < MAX_SAME_SCENE_SKIPS;

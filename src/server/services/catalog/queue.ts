@@ -4,6 +4,7 @@ import type { Embedder } from "@/lib/embeddings/embedder";
 
 import type { IngestOptions, IngestOutcome } from "./ingest";
 import type { MbReleaseGroup } from "./musicbrainz";
+import { decideVinyl, type VinylStatus } from "./vinyl-status";
 
 /**
  * Scan-triggered catalog ingest.
@@ -29,8 +30,10 @@ export const MAX_ATTEMPTS = 3;
  * catalog for good.
  */
 export const FAILED_RETRY_MS = 24 * 60 * 60 * 1000;
-/** Newest releases first; cap per artist to bound the work per scan. */
+/** Vinyl albums vectorised per artist, newest first, to bound the work. */
 export const CATALOG_LIMIT = 40;
+/** Discography entries considered (most aren't on vinyl: mixtapes, EPs). */
+export const DISCOGRAPHY_LIMIT = 100;
 
 export type Trigger = "scan_match" | "scan_confirm" | "scan_pick" | "cli";
 
@@ -125,6 +128,14 @@ export const claimJob = async (prisma: PrismaClient, id: string) => {
 
 export type RunnerDeps = {
   discography: (artistMbid: string, limit: number) => Promise<MbReleaseGroup[]>;
+  /** Official vinyl releases per release group, from MusicBrainz. */
+  vinylReleases: (artistMbid: string) => Promise<Map<string, number>>;
+  /** Official vinyl releases on Discogs; null when it can't answer. */
+  discogsVinyl: (artist: string, title: string) => Promise<number | null>;
+  /** Resolve and store an album's streaming links ahead of its first drawer. */
+  prefetchLinks?: (releaseGroupMbid: string) => Promise<void>;
+  /** Record the status on the album, if it's in the catalog. */
+  saveVinyl: (releaseGroupMbid: string, vinyl: VinylStatus) => Promise<void>;
   ingest: (
     embedder: Embedder,
     mbid: string,
@@ -144,19 +155,59 @@ export const runArtistJob = async (
     where: { id: jobId },
   });
   const log = deps.log ?? (() => undefined);
-  const stats = { releases: 0, added: 0, skipped: 0, noCover: 0, failed: 0 };
+  const vinylOf = new Map<string, VinylStatus>();
+  const stats = {
+    releases: 0,
+    vinyl: 0,
+    notVinyl: 0,
+    unknown: 0,
+    added: 0,
+    skipped: 0,
+    noCover: 0,
+    failed: 0,
+  };
   try {
-    const embedder = await deps.embedder();
-    const groups = await deps.discography(job.key, CATALOG_LIMIT);
+    const groups = await deps.discography(job.key, DISCOGRAPHY_LIMIT);
+    const mbVinyl = await deps.vinylReleases(job.key);
     stats.releases = groups.length;
-    log(`[ingest] ${job.label}: ${groups.length} releases`);
 
+    // Vinyl first: only albums that were pressed get vectors. Vectors are
+    // what the search index (memory) scales with, and a mixtape nobody
+    // can hold never gets scanned.
+    const toIngest: MbReleaseGroup[] = [];
     for (const rg of groups) {
+      const vinyl = await decideVinyl(mbVinyl.get(rg.id) ?? 0, () =>
+        deps.discogsVinyl(job.label, rg.title)
+      );
+      await deps.saveVinyl(rg.id, vinyl).catch(() => undefined);
+      if (vinyl.status === "yes") stats.vinyl++;
+      else if (vinyl.status === "no") stats.notVinyl++;
+      else stats.unknown++;
+      if (vinyl.status === "yes" && toIngest.length < CATALOG_LIMIT) {
+        toIngest.push(rg);
+        // Store the status on albums this run creates, too.
+        vinylOf.set(rg.id, vinyl);
+      }
+    }
+    log(
+      `[ingest] ${job.label}: ${groups.length} releases, ${stats.vinyl} on vinyl` +
+        ` (${stats.notVinyl} not, ${stats.unknown} unknown)`
+    );
+
+    // Loading the model is the expensive part; skip it when nothing's due.
+    const embedder = toIngest.length ? await deps.embedder() : null;
+    for (const rg of toIngest) {
+      if (!embedder) break;
       try {
         const res = await deps.ingest(embedder, rg.id, { augment: true });
+        await deps.saveVinyl(rg.id, vinylOf.get(rg.id)!).catch(() => undefined);
         if (res.status === "added") stats.added++;
         else if (res.status === "skipped") stats.skipped++;
         else if (res.status === "no-cover") stats.noCover++;
+        // Resolve its streaming links now, so the drawer never waits on them.
+        if (res.status === "added" || res.status === "skipped") {
+          await deps.prefetchLinks?.(rg.id).catch(() => undefined);
+        }
       } catch (err) {
         stats.failed++;
         log(

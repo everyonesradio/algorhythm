@@ -10,7 +10,12 @@
  * Image files (i.discogs.com) are a CDN and don't count against the limit.
  * Data from Discogs needs attribution in the UI ("Data provided by Discogs").
  */
-import { artistMatches, normalizeName } from "./musicbrainz";
+import {
+  artistMatches,
+  artistsOverlap,
+  normalizeName,
+  titlesMatchLoose,
+} from "./musicbrainz";
 
 const API = "https://api.discogs.com";
 const userAgent = () =>
@@ -69,7 +74,12 @@ export type DgVersion = {
   thumb?: string;
 };
 
-type DgImage = { type: "primary" | "secondary"; uri: string; width: number; height: number };
+type DgImage = {
+  type: "primary" | "secondary";
+  uri: string;
+  width: number;
+  height: number;
+};
 
 export type DgRelease = {
   id: number;
@@ -96,7 +106,10 @@ export type DgMaster = {
 
 /** "MF Doom (2)" -> "MF Doom": Discogs numbers same-named artists & labels. */
 export const cleanArtistName = (name: string) =>
-  name.replace(/\s*\(\d+\)$/, "").replace(/\*$/, "").trim();
+  name
+    .replace(/\s*\(\d+\)$/, "")
+    .replace(/\*$/, "")
+    .trim();
 
 /**
  * Discogs search is literal about punctuation: "D’Angelo" (curly, as
@@ -110,22 +123,118 @@ export const searchText = (s: string) =>
     .replace(/…/g, "...")
     .trim();
 
+/** Does a search result's "Artist - Title" fit the album asked for? */
+const isSameAlbum = (r: { title: string }, artist: string, title: string) => {
+  const i = r.title.indexOf(" - ");
+  if (i < 0) return false;
+  const rArtist = cleanArtistName(r.title.slice(0, i));
+  const rTitle = r.title.slice(i + 3);
+  return (
+    normalizeName(rTitle) === normalizeName(title) &&
+    artistMatches(artist, rArtist)
+  );
+};
+
 /** Pick the search result whose "Artist - Title" fits what we asked for. */
 export const bestSearchMatch = (
   results: DgSearchResult[],
   artist: string,
   title: string
+) => results.find((r) => isSameAlbum(r, artist, title)) ?? null;
+
+/** Same album on Discogs for vinyl status: looser than ingest matching. */
+const isSameAlbumForVinyl = (
+  r: { title: string },
+  artist: string,
+  title: string
 ) => {
-  const wanted = normalizeName(title);
-  return (
-    results.find((r) => {
-      const i = r.title.indexOf(" - ");
-      if (i < 0) return false;
-      const rArtist = cleanArtistName(r.title.slice(0, i));
-      const rTitle = r.title.slice(i + 3);
-      return normalizeName(rTitle) === wanted && artistMatches(artist, rArtist);
-    }) ?? null
-  );
+  const i = r.title.indexOf(" - ");
+  if (i < 0) return false;
+  const rArtist = cleanArtistName(r.title.slice(0, i));
+  const rTitle = r.title.slice(i + 3);
+  return titlesMatchLoose(title, rTitle) && artistsOverlap(artist, rArtist);
+};
+
+/**
+ * Official vinyl releases of an album on Discogs. Bootlegs are flagged
+ * "Unofficial Release" in the format and don't count: every vinyl listing
+ * of Kendrick's "Section.80" and SZA's "Z" is one.
+ */
+export const countOfficialVinyl = (
+  results: (DgSearchResult & { format?: string[] })[],
+  artist: string,
+  title: string
+) =>
+  results.filter(
+    (r) =>
+      !(r.format ?? []).includes("Unofficial Release") &&
+      isSameAlbumForVinyl(r, artist, title)
+  ).length;
+
+/** Artist strings to try against Discogs' literal artist field. */
+const vinylArtistQueries = (artist: string) => {
+  const full = searchText(artist);
+  const parts = artist
+    .split(/\s*(?:&|,|\band\b|\bx\b|\bfeat\.?|\bft\.?|\bwith\b)\s*/i)
+    .map(searchText)
+    .filter((p) => p.length > 1);
+  return [...new Set([full, ...parts])];
+};
+
+/** Null when Discogs can't answer (no token, outage). */
+export const discogsOfficialVinyl = async (artist: string, title: string) => {
+  if (!discogsEnabled()) return null;
+  try {
+    const t = searchText(title);
+    const seen = new Set<number>();
+    let total = 0;
+
+    const absorb = (
+      results: (DgSearchResult & { format?: string[] })[] | undefined
+    ) => {
+      for (const r of results ?? []) {
+        if (seen.has(r.id)) continue;
+        if (
+          (r.format ?? []).includes("Unofficial Release") ||
+          !isSameAlbumForVinyl(r, artist, title)
+        ) {
+          continue;
+        }
+        seen.add(r.id);
+        total += 1;
+      }
+    };
+
+    // Field search: full credit, then each collaborator (Discogs often lists
+    // only the lead artist on collabs).
+    for (const a of vinylArtistQueries(artist)) {
+      const res = await dgGet<{
+        results: (DgSearchResult & { format?: string[] })[];
+      }>("/database/search", {
+        artist: a,
+        release_title: t,
+        format: "Vinyl",
+        type: "release",
+        per_page: "100",
+      });
+      absorb(res?.results);
+      if (total > 0) return total;
+    }
+
+    // Keyword fallback when titles differ (subtitles, "Various" vs VA).
+    const res = await dgGet<{
+      results: (DgSearchResult & { format?: string[] })[];
+    }>("/database/search", {
+      q: t,
+      format: "Vinyl",
+      type: "release",
+      per_page: "100",
+    });
+    absorb(res?.results);
+    return total;
+  } catch {
+    return null;
+  }
 };
 
 /**
@@ -157,12 +266,15 @@ export const getRelease = (id: number) => dgGet<DgRelease>(`/releases/${id}`);
 
 /** Vinyl pressings of a master, oldest first. */
 export const vinylVersions = async (masterId: number, limit = 50) => {
-  const res = await dgGet<{ versions: DgVersion[] }>(`/masters/${masterId}/versions`, {
-    format: "Vinyl",
-    per_page: String(Math.min(limit, 100)),
-    sort: "released",
-    sort_order: "asc",
-  });
+  const res = await dgGet<{ versions: DgVersion[] }>(
+    `/masters/${masterId}/versions`,
+    {
+      format: "Vinyl",
+      per_page: String(Math.min(limit, 100)),
+      sort: "released",
+      sort_order: "asc",
+    }
+  );
   return res?.versions ?? [];
 };
 
@@ -170,7 +282,9 @@ export const primaryImage = (images?: DgImage[]) =>
   images?.find((i) => i.type === "primary")?.uri ?? images?.[0]?.uri ?? null;
 
 /** Download a Discogs image (CDN, not rate-limited). */
-export const fetchDiscogsImage = async (url: string): Promise<Buffer | null> => {
+export const fetchDiscogsImage = async (
+  url: string
+): Promise<Buffer | null> => {
   try {
     const res = await fetch(url, {
       headers: { "User-Agent": userAgent() },

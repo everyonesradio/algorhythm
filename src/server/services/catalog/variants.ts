@@ -48,7 +48,9 @@ export const pickDiverse = <T extends { vector: number[] }>(
     let bestIdx = -1;
     let bestScore = Infinity;
     rest.forEach((item, i) => {
-      const closest = Math.max(...selected.map((s) => dot(s.vector, item.vector)));
+      const closest = Math.max(
+        ...selected.map((s) => dot(s.vector, item.vector))
+      );
       if (closest < duplicate && closest < bestScore) {
         bestScore = closest;
         bestIdx = i;
@@ -84,9 +86,10 @@ export type DiscogsAlbumInfo = {
 };
 
 /** Album-level metadata from a Discogs master (or lone release). */
-const describe = async (
-  hit: { type: "master" | "release"; id: number }
-): Promise<{ info: DiscogsAlbumInfo; master: DgMaster | null } | null> => {
+const describe = async (hit: {
+  type: "master" | "release";
+  id: number;
+}): Promise<{ info: DiscogsAlbumInfo; master: DgMaster | null } | null> => {
   if (hit.type === "master") {
     const master = await getMaster(hit.id);
     if (!master) return null;
@@ -102,7 +105,9 @@ const describe = async (
         year: master.year || null,
         genres: master.genres ?? [],
         styles: master.styles ?? [],
-        labels: [...new Set((main?.labels ?? []).map((l) => cleanArtistName(l.name)))],
+        labels: [
+          ...new Set((main?.labels ?? []).map((l) => cleanArtistName(l.name))),
+        ],
         coverUrl: primaryImage(master.images) ?? primaryImage(main?.images),
       },
     };
@@ -120,7 +125,9 @@ const describe = async (
       year: release.year || null,
       genres: release.genres ?? [],
       styles: release.styles ?? [],
-      labels: [...new Set((release.labels ?? []).map((l) => cleanArtistName(l.name)))],
+      labels: [
+        ...new Set((release.labels ?? []).map((l) => cleanArtistName(l.name))),
+      ],
       coverUrl: primaryImage(release.images),
     },
   };
@@ -144,7 +151,9 @@ export const discogsAlbum = async (
   if (!opts.variants || !master) return { info, variants: [] };
 
   // 1. Embed every pressing's thumbnail (CDN, no API cost).
-  const versions = (await vinylVersions(master.id, MAX_VERSIONS)).filter((v) => v.thumb);
+  const versions = (await vinylVersions(master.id, MAX_VERSIONS)).filter(
+    (v) => v.thumb
+  );
   const candidates: { id: number; note: string; vector: number[] }[] = [];
   for (const v of versions) {
     const img = await fetchDiscogsImage(v.thumb!);
