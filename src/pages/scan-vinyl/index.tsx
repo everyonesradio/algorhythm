@@ -16,7 +16,6 @@ import {
   centerSquareCrop,
   computeGuideCrop,
   cropToImageData,
-  frameDifference,
 } from "@/utils/frame-crop";
 import { api } from "@/utils/trpc";
 
@@ -35,12 +34,11 @@ const GUIDE_FRACTION = 0.88;
 const EXTRA_FRACTIONS = [1, 0.55];
 /** Crops of an uploaded photo: tight framing to sleeve-on-a-table. */
 const UPLOAD_FRACTIONS = [0.95, 0.7, 0.5];
-/** Delay between recognition attempts while scanning. */
-const SCAN_INTERVAL_MS = 450;
-/** Mean pixel change (0-255) above which the frame is "moving". */
-const MOTION_THRESHOLD = 14;
-/** Consecutive "matched" frames on the same album before we show it. */
-const CONFIRM_FRAMES = 2;
+/**
+ * Pause between recognition attempts. Embedding takes most of each attempt;
+ * this only leaves the main thread a breather.
+ */
+const SCAN_INTERVAL_MS = 150;
 /** Ambiguous frames in a row before we offer the candidate picker. */
 const AMBIGUOUS_FRAMES = 6;
 /**
@@ -70,15 +68,13 @@ const VinylScan = () => {
   const pick = api.vinyl.pick.useMutation();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const prevFrame = useRef<ImageData | null>(null);
-  const streak = useRef<{ albumId: string; count: number } | null>(null);
   const ambiguousStreak = useRef(0);
   const unknownStreak = useRef(0);
   const pickerDismissedAt = useRef(0);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
   const [hint, setHint] = useState(DEFAULT_HINT);
-  /** A match is being confirmed across frames: the guide square "locks on". */
+  /** A match was found: the guide square "locks on" as the drawer opens. */
   const [locking, setLocking] = useState(false);
   // Sheet data stays mounted until its exit animation finishes, so each
   // sheet has a separate open flag. Scanning resumes once the data clears.
@@ -110,7 +106,6 @@ const VinylScan = () => {
   const showResult = useCallback(
     (scanId: string | null, matches: VinylMatch[], pick = 0) => {
       setConfirmed(false);
-      setLocking(false);
       setCandidatesOpen(false);
       setResult({
         scanId,
@@ -136,16 +131,29 @@ const VinylScan = () => {
     []
   );
 
-  /** Embed one or more crops and ask the server which album they show. */
+  /**
+   * Embed crops and ask the server which album they show. `known` are
+   * vectors already embedded for this frame, so a second look only pays
+   * for the new crops.
+   */
   const recognise = useCallback(
-    async (images: ImageData[], log = false) => {
-      if (!embedder.model || images.length === 0) return null;
-      const vectors: number[][] = [];
+    async (
+      images: ImageData[],
+      opts: { log?: boolean; probe?: boolean; known?: number[][] } = {}
+    ) => {
+      if (!embedder.model) return null;
+      const vectors = [...(opts.known ?? [])];
       // Sequential: the worker runs one inference at a time anyway.
       for (const image of images) vectors.push(await embedder.embed(image));
-      const res = await identify.mutateAsync({ model: embedder.model, vectors, log });
+      if (vectors.length === 0) return null;
+      const res = await identify.mutateAsync({
+        model: embedder.model,
+        vectors,
+        log: opts.log,
+        probe: opts.probe,
+      });
       // Keep the scan's own vector: the picker ranks an artist's covers by it.
-      return { ...res, vector: vectors[0] };
+      return { ...res, vector: vectors[0], vectors };
     },
     // identify.mutateAsync is stable across renders
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -176,23 +184,22 @@ const VinylScan = () => {
               ),
               canvas
             );
+          // No "hold steady" gate: CLIP copes with some blur, and a frame
+          // that doesn't match just costs one more try.
           const frame = cropAt(GUIDE_FRACTION);
-          const moving =
-            frame && prevFrame.current
-              ? frameDifference(frame, prevFrame.current) > MOTION_THRESHOLD
-              : false;
-          prevFrame.current = frame;
-
-          if (frame && moving) {
-            unknownStreak.current = 0;
-            setHint("Hold steady…");
-          } else if (frame) {
-            const extraFraction =
-              EXTRA_FRACTIONS[extraIndex.current++ % EXTRA_FRACTIONS.length];
-            const extra = cropAt(extraFraction);
-            // Keep this frame's scan if it may become a hand-picked record.
-            const log = unknownStreak.current >= UNKNOWN_FRAMES - 1;
-            const res = await recognise(extra ? [frame, extra] : [frame], log);
+          const extra = cropAt(
+            EXTRA_FRACTIONS[extraIndex.current++ % EXTRA_FRACTIONS.length]
+          );
+          if (frame) {
+            // First look: just the guide square (one embedding). Most
+            // records held in the frame match here.
+            let res = await recognise([frame], { probe: true });
+            if (res && res.status !== "matched" && extra && !stopped) {
+              // Second look: a closer/farther crop of the same frame.
+              // Keep this scan if it may become a hand-picked record.
+              const log = unknownStreak.current >= UNKNOWN_FRAMES - 1;
+              res = await recognise([extra], { log, known: res.vectors });
+            }
             if (res && !pausedRef.current && !stopped) handleLive(res);
           }
         }
@@ -210,31 +217,29 @@ const VinylScan = () => {
       vector: number[];
     }) => {
       if (res.status === "matched" && res.matches[0]) {
+        // A match is confident by itself (score + margin over the runner-
+        // up), so open the result now: waiting for a second frame meant the
+        // record could leave the frame between "green" and the drawer.
         ambiguousStreak.current = 0;
         unknownStreak.current = 0;
-        const id = res.matches[0].album.id;
-        streak.current =
-          streak.current?.albumId === id
-            ? { albumId: id, count: streak.current.count + 1 }
-            : { albumId: id, count: 1 };
         setLocking(true);
-        setHint(`Found ${res.matches[0].album.title}…`);
-        if (streak.current.count >= CONFIRM_FRAMES) {
-          streak.current = null;
-          showResult(res.scanId, res.matches);
-        }
+        setHint(`Found ${res.matches[0].album.title}`);
+        showResult(res.scanId, res.matches);
       } else if (res.status === "ambiguous") {
-        streak.current = null;
         unknownStreak.current = 0;
         ambiguousStreak.current += 1;
         setLocking(false);
-        setHint("Almost… hold the cover flat and steady");
+        setHint("Almost… fit the whole cover in the square");
         if (ambiguousStreak.current >= AMBIGUOUS_FRAMES) {
           ambiguousStreak.current = 0;
-          showCandidates(res.scanId, res.matches, res.artistSuggestions, res.vector);
+          showCandidates(
+            res.scanId,
+            res.matches,
+            res.artistSuggestions,
+            res.vector
+          );
         }
       } else {
-        streak.current = null;
         ambiguousStreak.current = 0;
         unknownStreak.current += 1;
         setLocking(false);
@@ -302,13 +307,18 @@ const VinylScan = () => {
 
       // Always keep an upload's scan: if nothing matches, the user can
       // still pick the record by artist and teach the catalog.
-      const res = await recognise(crops, true);
+      const res = await recognise(crops, { log: true });
       if (!res) {
         showNotice("Something went wrong", "We couldn't check that photo.");
       } else if (res.status === "matched") {
         showResult(res.scanId, res.matches);
       } else {
-        showCandidates(res.scanId, res.matches, res.artistSuggestions, res.vector);
+        showCandidates(
+          res.scanId,
+          res.matches,
+          res.artistSuggestions,
+          res.vector
+        );
       }
     } catch (err) {
       console.error("[upload]", err);
@@ -341,7 +351,7 @@ const VinylScan = () => {
   const onResultExit = () => {
     if (resultOpen) return;
     setResult(null);
-    prevFrame.current = null;
+    setLocking(false);
     setHint(DEFAULT_HINT);
   };
   const onCandidatesExit = () => {
@@ -350,7 +360,6 @@ const VinylScan = () => {
   const onNoticeExit = () => {
     if (noticeOpen) return;
     setNotice(null);
-    prevFrame.current = null;
   };
 
   const statusKey =
@@ -508,6 +517,7 @@ const VinylScan = () => {
           onClose={() => setResultOpen(false)}
           onExitComplete={onResultExit}
           album={result.match.album}
+          coverUrl={result.match.scannedCover}
           confirmed={confirmed}
           onConfirm={() => confirmAlbum(result.scanId, result.match.album.id)}
           onReject={
