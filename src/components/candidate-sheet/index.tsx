@@ -205,7 +205,11 @@ const Discography = ({
   return (
     <div className='flex flex-col gap-1'>
       <p className='h-4 text-xs text-gray-500' aria-live='polite'>
-        {sorting ? "Sorting by closest cover…" : ranked ? "Closest covers first" : ""}
+        {sorting
+          ? "Sorting by closest cover…"
+          : ranked
+            ? "Closest covers first"
+            : ""}
       </p>
       <motion.ul
         className='flex flex-col gap-1'
@@ -324,10 +328,7 @@ const CandidateSheet: React.FC<Props> = ({
               <section className='flex flex-col gap-2'>
                 <div className='flex items-center justify-between'>
                   <h2 className='font-semibold'>Is it one of these?</h2>
-                  <button
-                    className='text-sm text-gray-500'
-                    onClick={onDismiss}
-                  >
+                  <button className='text-sm text-gray-500' onClick={onDismiss}>
                     Keep scanning
                   </button>
                 </div>
@@ -344,13 +345,19 @@ const CandidateSheet: React.FC<Props> = ({
                         onClick={() => onPickMatch(i)}
                       >
                         <span className='w-14 shrink-0'>
-                          <Thumb src={m.album.coverUrl} title={m.album.title} eager />
+                          <Thumb
+                            src={m.album.coverUrl}
+                            title={m.album.title}
+                            eager
+                          />
                         </span>
                         <span className='flex flex-col'>
                           <span className='font-medium'>{m.album.title}</span>
                           <span className='text-sm text-gray-600'>
                             {m.album.artist}
-                            {m.album.releaseYear ? ` · ${m.album.releaseYear}` : ""}
+                            {m.album.releaseYear
+                              ? ` · ${m.album.releaseYear}`
+                              : ""}
                           </span>
                         </span>
                       </button>
@@ -363,7 +370,9 @@ const CandidateSheet: React.FC<Props> = ({
             <section className='flex flex-col gap-3'>
               <div className='flex items-center justify-between'>
                 <h2 className='font-semibold'>
-                  {matches.length > 0 ? "Not here? Is it by…" : "Not sure yet. Is it by…"}
+                  {matches.length > 0
+                    ? "Not here? Is it by…"
+                    : "Not sure yet. Is it by…"}
                 </h2>
                 {matches.length === 0 && (
                   <button className='text-sm text-gray-500' onClick={onDismiss}>
@@ -374,7 +383,11 @@ const CandidateSheet: React.FC<Props> = ({
               {artistSuggestions.length > 0 && (
                 <div className='flex flex-wrap gap-2'>
                   {artistSuggestions.map((a) => (
-                    <button key={a.mbid} className={chip} onClick={() => setArtist(a)}>
+                    <button
+                      key={a.mbid}
+                      className={chip}
+                      onClick={() => setArtist(a)}
+                    >
                       {a.name}
                     </button>
                   ))}
@@ -387,7 +400,9 @@ const CandidateSheet: React.FC<Props> = ({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={
-                    artistSuggestions.length ? "Someone else? Search artist" : "Search artist"
+                    artistSuggestions.length
+                      ? "Someone else? Search artist"
+                      : "Search artist"
                   }
                   // 16px stops iOS zooming in on focus.
                   className='h-12 w-full rounded-full border-2 border-gray-200 bg-white pl-10 pr-4 text-base focus:border-black focus:outline-none'
@@ -405,11 +420,15 @@ const CandidateSheet: React.FC<Props> = ({
                         <li key={a.mbid}>
                           <button
                             className='flex w-full items-baseline gap-2 rounded-lg px-3 py-2.5 text-left hover:bg-gray-100'
-                            onClick={() => setArtist({ name: a.name, mbid: a.mbid })}
+                            onClick={() =>
+                              setArtist({ name: a.name, mbid: a.mbid })
+                            }
                           >
                             <span className='font-medium'>{a.name}</span>
                             {a.detail && (
-                              <span className='text-xs text-gray-500'>{a.detail}</span>
+                              <span className='text-xs text-gray-500'>
+                                {a.detail}
+                              </span>
                             )}
                           </button>
                         </li>

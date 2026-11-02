@@ -6,7 +6,7 @@ import { motion } from "motion/react";
 
 // ** Custom Components, Hooks, Utils, etc.
 import { Adapter } from "@/config/enum";
-import type { SearchResult } from "@/server/services/search";
+import type { AlbumLink } from "@/server/services/vinyl/platform-links";
 
 // ** Icon Imports
 import { FaDeezer, FaSoundcloud, FaSpotify } from "react-icons/fa6";
@@ -34,14 +34,8 @@ const item = {
   },
 } as const;
 
-/** "Listen on …" links for every platform the release was found on. */
-const SearchCard = ({ searchResult }: { searchResult: SearchResult }) => {
-  // The source link is the Spotify album we searched from; list it first.
-  const rows = [
-    { type: Adapter.Spotify, url: searchResult.source },
-    ...searchResult.links.filter((l) => l.type !== Adapter.Spotify),
-  ];
-
+/** "Listen on …" links, already in display order. */
+const SearchCard = ({ links }: { links: AlbumLink[] }) => {
   return (
     <motion.ul
       className='space-y-2'
@@ -49,7 +43,7 @@ const SearchCard = ({ searchResult }: { searchResult: SearchResult }) => {
       initial='hidden'
       animate='show'
     >
-      {rows.map(({ type, url }) => {
+      {links.map(({ type, url }) => {
         const { icon: Icon, label } = PLATFORMS[type];
         return (
           <motion.li key={type} variants={item}>

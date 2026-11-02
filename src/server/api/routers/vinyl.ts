@@ -2,6 +2,8 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
+import { Adapter } from "@/config/enum";
+
 // ** Custom Components, Hooks, Utils, etc.
 import {
   EMBEDDING_MODELS,
@@ -15,6 +17,7 @@ import {
   coverExists,
   discographyForArtist,
   lookupReleaseGroup,
+  releasesWithUrls,
   searchArtists,
   toCatalogAlbum,
 } from "@/server/services/catalog/musicbrainz";
@@ -24,7 +27,13 @@ import {
   suggestArtists,
 } from "@/server/services/vinyl/artist-guess";
 import { findNearestCovers } from "@/server/services/vinyl/index-search";
-import { getAlbumLinks } from "@/server/services/vinyl/links";
+import { getAlbumLinks, type LinkDeps } from "@/server/services/vinyl/links";
+import {
+  appleByBarcode,
+  appleBySearch,
+  deezerByBarcode,
+  deezerBySearch,
+} from "@/server/services/vinyl/platform-links";
 import {
   groupHitsByAlbum,
   pickBestView,
@@ -74,6 +83,19 @@ const albumSelect = {
   discogsMasterId: true,
   discogsReleaseId: true,
 } as const;
+
+const linkDeps: LinkDeps = {
+  releases: releasesWithUrls,
+  byBarcode: {
+    [Adapter.AppleMusic]: appleByBarcode,
+    [Adapter.Deezer]: deezerByBarcode,
+  },
+  bySearch: {
+    [Adapter.AppleMusic]: appleBySearch,
+    [Adapter.Deezer]: deezerBySearch,
+  },
+  search,
+};
 
 export const vinylRouter = createTRPCRouter({
   /**
@@ -448,18 +470,17 @@ export const vinylRouter = createTRPCRouter({
 
   /**
    * Streaming links for an album across Spotify, Apple Music, YouTube,
-   * Deezer, SoundCloud and Tidal. Cached on the album (30-day TTL), so a
-   * record that's been scanned before resolves instantly.
-   * `links` is null when the album has no Spotify match to search from.
+   * Tidal, Deezer and SoundCloud, from exact sources first (see
+   * services/vinyl/links.ts). Cached on the album (30-day TTL), so a record
+   * that's been scanned before resolves instantly.
    */
   links: publicProcedure
     .input(z.object({ albumId: objectId }))
     .query(async ({ ctx, input }) => {
-      const res = await getAlbumLinks(ctx.prisma, input.albumId, search);
+      const res = await getAlbumLinks(ctx.prisma, input.albumId, linkDeps);
       if (res.status === "not-found") {
         throw new TRPCError({ code: "NOT_FOUND", message: "Album not found" });
       }
-      if (res.status === "no-spotify") return { links: null, cached: false };
       return { links: res.links, cached: res.cached };
     }),
 

@@ -41,15 +41,13 @@ const DigitalAlbum: React.FC<Props> = ({
   onConfirm,
   onReject,
 }) => {
-  // Cached on the album server-side; only albums with a Spotify match can be
-  // resolved to the other platforms.
+  // Cached on the album server-side.
   const { data: linkData, isError } = api.vinyl.links.useQuery(
     { albumId: album.id },
-    { enabled: !!album.spotifyUrl, retry: 1, staleTime: Infinity }
+    { retry: 1, staleTime: Infinity }
   );
-  const links = linkData?.links ?? null;
-  const showSpotifyFallback =
-    !album.spotifyUrl || isError || (linkData !== undefined && !links);
+  const links = linkData?.links.length ? linkData.links : null;
+  const showSpotifyFallback = isError || (linkData !== undefined && !links);
 
   const spotifySearchUrl = `https://open.spotify.com/search/${encodeURIComponent(
     `${album.artist} ${album.title}`
@@ -168,7 +166,7 @@ const DigitalAlbum: React.FC<Props> = ({
               <Loader2 className='h-8 w-8 animate-spin text-black' />
             </div>
           ) : (
-            <SearchCard searchResult={links} />
+            <SearchCard links={links} />
           )}
         </div>
       </div>
