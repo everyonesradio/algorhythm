@@ -197,9 +197,22 @@ A scan that isn't a confident match never dead-ends:
 ### Scans grow the catalog
 
 Every identified record (a confident match, "Yes, that's it", or a pick)
-starts vectorising **that artist's whole catalog** in the background:
-albums + EPs + mixtapes from MusicBrainz, 6 vectors each (`IngestJob`,
-`src/server/services/catalog/`). It runs inside the same request via
+starts vectorising **that artist's vinyl catalog** in the background:
+albums + EPs from MusicBrainz that were pressed on vinyl, 6 vectors each
+(`IngestJob`, `src/server/services/catalog/`).
+
+**Vinyl first.** Vectors are what the search index (and its memory) scales
+with, and a mixtape nobody can hold never gets scanned. Each release group
+gets a `vinylStatus` (`catalog/vinyl-status.ts`): MusicBrainz official
+releases with a vinyl medium (one browse per artist page), else Discogs
+official vinyl releases (bootlegs, flagged "Unofficial Release", don't
+count), else "unknown" (re-checked on the next run). On the 140-album dev
+catalog: 88 on vinyl, 52 not (mostly mixtapes, singles and digital-only
+EPs), and those 52 held 35% of the vectors. Picking a record by hand still
+adds it whatever its format: someone is holding it. Clean up an existing
+catalog with `npm run vinyl:status` (then `-- --prune` / `--prune --yes`).
+
+It runs inside the same request via
 Vercel `waitUntil`; one job per artist, refreshed after 30 days, retried up
 to 3 times. Picking GNX in a test grew Kendrick Lamar from 2 to 28 albums
 in 165s. `npm run vinyl:worker` finishes anything cut short (e.g. a

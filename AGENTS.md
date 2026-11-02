@@ -84,6 +84,7 @@ PR titles are **not** commit messages. They are a short Title Case headline for 
 | `npx prisma studio` | Inspect Mongo models |
 | `./scripts/seed-local.sh` | Schema + vector index + seed covers (see `docs/VINYL_RECOGNITION.md`) |
 | `npm run vinyl:seed` / `vinyl:index` / `vinyl:eval` / `vinyl:synth` | Recognition catalog + accuracy tooling |
+| `npm run vinyl:status` / `vinyl:remove` / `vinyl:worker` | Catalog upkeep: vinyl status + pruning, remove one album, finish ingest jobs |
 
 ## Architecture sketch
 
