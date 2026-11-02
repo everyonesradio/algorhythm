@@ -16,6 +16,8 @@ import {
   centerSquareCrop,
   computeGuideCrop,
   cropToImageData,
+  frameDifference,
+  skipSameScene,
 } from "@/utils/frame-crop";
 import { api } from "@/utils/trpc";
 
@@ -95,6 +97,9 @@ const VinylScan = () => {
   );
   const [noticeOpen, setNoticeOpen] = useState(false);
   const extraIndex = useRef(0);
+  /** Last frame actually searched, its answer, and frames skipped since. */
+  const lastAsked = useRef<{ frame: ImageData; status: string } | null>(null);
+  const sameSceneSkips = useRef(0);
 
   const paused = !!result || !!candidates || !!notice || busyUpload;
   // The scan loop reads this ref, so it sees pause changes without restarting.
@@ -190,16 +195,34 @@ const VinylScan = () => {
           const extra = cropAt(
             EXTRA_FRACTIONS[extraIndex.current++ % EXTRA_FRACTIONS.length]
           );
-          if (frame) {
+          const mustAsk = unknownStreak.current >= UNKNOWN_FRAMES - 1;
+          if (
+            frame &&
+            lastAsked.current &&
+            skipSameScene({
+              lastStatus: lastAsked.current.status,
+              diff: frameDifference(frame, lastAsked.current.frame),
+              skips: sameSceneSkips.current,
+              mustAsk,
+            })
+          ) {
+            // Nothing in view has changed since "no match": same answer.
+            sameSceneSkips.current += 1;
+            unknownStreak.current += 1;
+          } else if (frame) {
+            sameSceneSkips.current = 0;
             // First look: just the guide square (one embedding). Most
             // records held in the frame match here.
             let res = await recognise([frame], { probe: true });
             if (res && res.status !== "matched" && extra && !stopped) {
               // Second look: a closer/farther crop of the same frame.
               // Keep this scan if it may become a hand-picked record.
-              const log = unknownStreak.current >= UNKNOWN_FRAMES - 1;
-              res = await recognise([extra], { log, known: res.vectors });
+              res = await recognise([extra], {
+                log: mustAsk,
+                known: res.vectors,
+              });
             }
+            if (res) lastAsked.current = { frame, status: res.status };
             if (res && !pausedRef.current && !stopped) handleLive(res);
           }
         }
@@ -247,14 +270,14 @@ const VinylScan = () => {
         // Held steady on a cover we don't know: offer to pick it by artist.
         const coolingDown =
           Date.now() - pickerDismissedAt.current < UNKNOWN_COOLDOWN_MS;
-        if (
-          res.scanId &&
-          unknownStreak.current >= UNKNOWN_FRAMES &&
-          res.artistSuggestions.length > 0 &&
-          !coolingDown
-        ) {
+        if (unknownStreak.current >= UNKNOWN_FRAMES) {
+          // Start counting again either way: otherwise, with no artist to
+          // suggest, every later frame was searched *and* logged (a 6.8 KB
+          // scan row every few hundred ms while the camera sat on a table).
           unknownStreak.current = 0;
-          showCandidates(res.scanId, [], res.artistSuggestions, res.vector);
+          if (res.scanId && res.artistSuggestions.length > 0 && !coolingDown) {
+            showCandidates(res.scanId, [], res.artistSuggestions, res.vector);
+          }
         }
       }
     };
@@ -353,13 +376,18 @@ const VinylScan = () => {
     setResult(null);
     setLocking(false);
     setHint(DEFAULT_HINT);
+    lastAsked.current = null;
   };
   const onCandidatesExit = () => {
-    if (!candidatesOpen) setCandidates(null);
+    if (candidatesOpen) return;
+    setCandidates(null);
+    // A pick may have just added this record: ask again.
+    lastAsked.current = null;
   };
   const onNoticeExit = () => {
     if (noticeOpen) return;
     setNotice(null);
+    lastAsked.current = null;
   };
 
   const statusKey =

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { centerSquareCrop, computeGuideCrop } from "@/utils/frame-crop";
+import {
+  centerSquareCrop,
+  computeGuideCrop,
+  MAX_SAME_SCENE_SKIPS,
+  skipSameScene,
+} from "@/utils/frame-crop";
 
 describe("computeGuideCrop", () => {
   it("maps the guide on a portrait phone screen into landscape video pixels", () => {
@@ -44,5 +49,24 @@ describe("sortBySimilarity", () => {
       { id: "d", similarity: null },
     ]);
     expect(out.map((x) => x.id)).toEqual(["c", "b", "a", "d"]);
+  });
+});
+
+describe("skipSameScene", () => {
+  const base = { lastStatus: "none", diff: 1.5, skips: 0, mustAsk: false };
+
+  it("skips a still scene that just had no match", () => {
+    expect(skipSameScene(base)).toBe(true);
+  });
+
+  it("asks when anything changed, or the last answer wasn't 'none'", () => {
+    expect(skipSameScene({ ...base, diff: 25 })).toBe(false);
+    expect(skipSameScene({ ...base, lastStatus: "ambiguous" })).toBe(false);
+    expect(skipSameScene({ ...base, lastStatus: null })).toBe(false);
+  });
+
+  it("asks when the artist picker is due, and every so often regardless", () => {
+    expect(skipSameScene({ ...base, mustAsk: true })).toBe(false);
+    expect(skipSameScene({ ...base, skips: MAX_SAME_SCENE_SKIPS })).toBe(false);
   });
 });

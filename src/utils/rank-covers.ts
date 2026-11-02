@@ -67,11 +67,14 @@ export const rankCoversByScan = async <T extends { thumbUrl: string }>(
 };
 
 /** Highest similarity first; unscored items keep their order at the end. */
-export const sortBySimilarity = <T extends { similarity: number | null }>(xs: T[]) =>
+export const sortBySimilarity = <T extends { similarity: number | null }>(
+  xs: T[]
+) =>
   xs
     .map((x, i) => ({ x, i }))
     .sort(
       (a, b) =>
-        (b.x.similarity ?? -Infinity) - (a.x.similarity ?? -Infinity) || a.i - b.i
+        (b.x.similarity ?? -Infinity) - (a.x.similarity ?? -Infinity) ||
+        a.i - b.i
     )
     .map(({ x }) => x);
