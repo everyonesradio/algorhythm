@@ -2,7 +2,6 @@ import type { PrismaClient } from "@prisma/client";
 
 import { Adapter } from "@/config/enum";
 import type { MbRelease } from "@/server/services/catalog/musicbrainz";
-import type { SearchResult } from "@/server/services/search";
 
 import {
   type AlbumLink,
@@ -18,16 +17,19 @@ import {
  *   2. Barcode: Apple Music / Deezer lookups by the release's UPC.
  *   3. Strict search: Apple / Deezer, accepted only on an artist + title
  *      match.
- *   4. The album's own Spotify match.
- *   5. Text search across platforms from the Spotify link, keeping only
- *      results the search verified, for platforms still missing.
+ *   4. The album's own Spotify match (official Spotify API).
+ *
+ * YouTube Music and SoundCloud come from MusicBrainz only: neither has an
+ * exact way to find an album, and the old page-scraping search could pick
+ * the wrong one.
  *
  * A wrong link is worse than none: the card shows what's found here and
  * nothing else.
  */
 
 export const LINKS_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-const CACHE_VERSION = 2;
+// 3: links found by the old scraping search are no longer trusted.
+const CACHE_VERSION = 3;
 
 /** Order on the card. */
 export const LINK_ORDER = [
@@ -39,20 +41,12 @@ export const LINK_ORDER = [
   Adapter.SoundCloud,
 ];
 
-/** Platforms the any-link search (links router) resolves to. */
-export const LINK_ADAPTERS = LINK_ORDER;
-
 /** Shape stored in Album.platformLinks. */
 export type CachedPlatformLinks = {
   version: typeof CACHE_VERSION;
   fetchedAt: string; // ISO date
   links: AlbumLink[];
 };
-
-export type SearchFn = (args: {
-  link: string;
-  adapters: Adapter[];
-}) => Promise<SearchResult>;
 
 export type LinkDeps = {
   releases: (releaseGroupMbid: string) => Promise<MbRelease[]>;
@@ -65,7 +59,6 @@ export type LinkDeps = {
       (artist: string, title: string) => Promise<AlbumLink | null>
     >
   >;
-  search: SearchFn;
 };
 
 const isCached = (value: unknown): value is CachedPlatformLinks => {
@@ -132,20 +125,6 @@ export const resolveAlbumLinks = async (
   const spotify = album.spotifyUrl ? platformOf(album.spotifyUrl) : null;
   if (spotify && !found.has(Adapter.Spotify)) {
     found.set(Adapter.Spotify, { ...spotify, via: "spotify" });
-  }
-
-  // 5. Verified text-search results for anything still missing.
-  const anchor = found.get(Adapter.Spotify)?.url;
-  const rest = missing([Adapter.YouTube, Adapter.SoundCloud]);
-  if (anchor && rest.length) {
-    const res = await deps
-      .search({ link: anchor, adapters: rest })
-      .catch(() => null);
-    for (const l of res?.links ?? []) {
-      if (l.isVerified && rest.includes(l.type) && !found.has(l.type)) {
-        found.set(l.type, { type: l.type, url: l.url, via: "search" });
-      }
-    }
   }
 
   return LINK_ORDER.flatMap((t) => {

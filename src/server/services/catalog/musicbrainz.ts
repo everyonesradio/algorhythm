@@ -427,3 +427,39 @@ export const officialReleasesWithMedia = async (
 /** An artist's canonical name by MusicBrainz id. */
 export const artistNameById = async (artistMbid: string) =>
   (await mbGet<{ name: string }>(`artist/${artistMbid}`, {})).name;
+
+/**
+ * The album (release group) a streaming URL belongs to, when MusicBrainz
+ * editors linked that URL to a release. Exact, no text matching.
+ */
+export const releaseGroupForUrl = async (
+  url: string
+): Promise<string | null> => {
+  const res = await mbGet<{
+    relations?: { release?: { id: string } }[];
+  }>("url", { resource: url, inc: "release-rels" }).catch((err: Error) => {
+    if (/MusicBrainz 404/.test(err.message)) return null;
+    throw err;
+  });
+  const releaseId = res?.relations?.find((r) => r.release)?.release?.id;
+  if (!releaseId) return null;
+  const release = await mbGet<{ "release-group"?: { id: string } }>(
+    `release/${releaseId}`,
+    { inc: "release-groups" }
+  );
+  return release["release-group"]?.id ?? null;
+};
+
+/** The album a barcode (UPC/EAN) was printed on, if MusicBrainz has it. */
+export const releaseGroupForBarcode = async (
+  barcode: string
+): Promise<string | null> => {
+  if (!/^\d{8,14}$/.test(barcode)) return null;
+  const res = await mbGet<{
+    releases: { "release-group"?: { id: string }; score?: number }[];
+  }>("release", { query: `barcode:${barcode}`, limit: "5" });
+  return (
+    res.releases.find((r) => (r.score ?? 0) >= 90)?.["release-group"]?.id ??
+    null
+  );
+};

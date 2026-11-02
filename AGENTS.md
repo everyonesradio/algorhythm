@@ -92,13 +92,12 @@ PR titles are **not** commit messages. They are a short Title Case headline for 
 src/
 ├── pages/           # Next routes (home waitlist, scan-vinyl, API)
 ├── components/      # UI (waitlist, vinyl-cover, digital-album, search-card)
-├── adapters/        # Platform link builders (Spotify, Apple, YT, …)
-├── parsers/         # URL → metadata extractors
-├── server/          # tRPC + search/cache/metadata services
-├── utils/           # http client, scraper, retry, encoding
+├── server/          # tRPC routers + services (catalog, vinyl, links)
+├── utils/           # frame crops, trpc client, logger
 └── hooks/
 ├── lib/embeddings/   # shared CLIP embedder (browser worker + Node seeder)
-├── server/services/vinyl/  # vector search + match ranking
+├── server/services/vinyl/  # vector search, match ranking, album links
+├── server/services/links/  # pasted music link → album links everywhere
 └── workers/         # embedding Web Worker
 lib/                 # prisma helper
 scripts/             # catalog seeding, vector index, accuracy eval
@@ -108,12 +107,14 @@ prisma/              # Mongo schema
 **Domain note:** `Album` is the record identity (MusicBrainz release group,
 with Spotify id/url when matched). Cross-platform links are cached in
 `Album.platformLinks` by `vinyl.links`; `links.search` resolves any pasted
-music URL. (`MusicIDX` was retired; its Mongo collection is left in place.) Recognition and routing are separate
+music URL. Links come only from exact sources: MusicBrainz URL
+relationships and barcodes, official APIs (Spotify Web API, Apple's
+iTunes lookup, Deezer), strict artist + title matches. No page scraping. (`MusicIDX` was retired; its Mongo collection is left in place.) Recognition and routing are separate
 concerns — a bad match must not look verified.
 
 ## Boundaries
 
 - Never commit `.env` / secrets
-- Prefer existing adapters/parsers over new platform one-offs without a plan
+- Streaming links: exact sources only (MusicBrainz, barcodes, official APIs); never scrape platform pages or take a best-guess search result
 - Camera + ML paths need fail-safe UX (retry / paste link) when detection misses
 - Do not invent API shapes the Spotify/Apple/etc. SDKs don't support — `/research` first

@@ -121,3 +121,58 @@ export const findSpotifyAlbum = async (
   }
   return null;
 };
+
+/** GET an official Spotify Web API path; null when not configured or 404. */
+const spotifyGet = async <T>(path: string): Promise<T | null> => {
+  if (!spotifyEnabled()) return null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch(`https://api.spotify.com/v1/${path}`, {
+      headers: { Authorization: `Bearer ${await getToken()}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (res.status === 429) {
+      const retry = Number(res.headers.get("retry-after") ?? "2");
+      await new Promise((r) => setTimeout(r, retry * 1000));
+      continue;
+    }
+    if (res.status === 404 || res.status === 400) return null;
+    if (!res.ok) throw new Error(`Spotify ${res.status} for ${path}`);
+    return (await res.json()) as T;
+  }
+  return null;
+};
+
+export type SpotifyAlbumInfo = {
+  id: string;
+  title: string;
+  artist: string;
+  upc: string | null;
+  url: string;
+  imageUrl: string | null;
+};
+
+/** An album by id, with its barcode (UPC) for exact cross-platform lookups. */
+export const getSpotifyAlbum = async (
+  id: string
+): Promise<SpotifyAlbumInfo | null> => {
+  const a = await spotifyGet<
+    SpotifyAlbum & { external_ids?: { upc?: string } }
+  >(`albums/${encodeURIComponent(id)}`);
+  if (!a) return null;
+  return {
+    id: a.id,
+    title: a.name,
+    artist: a.artists[0]?.name ?? "",
+    upc: a.external_ids?.upc ?? null,
+    url: a.external_urls.spotify,
+    imageUrl: a.images[0]?.url ?? null,
+  };
+};
+
+/** The album a Spotify track belongs to. */
+export const spotifyTrackAlbumId = async (id: string) =>
+  (
+    await spotifyGet<{ album?: { id: string } }>(
+      `tracks/${encodeURIComponent(id)}`
+    )
+  )?.album?.id ?? null;

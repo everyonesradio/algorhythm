@@ -3,8 +3,6 @@ import { TRPCError } from "@trpc/server";
 import { waitUntil } from "@vercel/functions";
 import { z } from "zod";
 
-import { Adapter } from "@/config/enum";
-
 // ** Custom Components, Hooks, Utils, etc.
 import {
   EMBEDDING_MODELS,
@@ -18,11 +16,9 @@ import {
   coverExists,
   discographyForArtist,
   lookupReleaseGroup,
-  releasesWithUrls,
   searchArtists,
   toCatalogAlbum,
 } from "@/server/services/catalog/musicbrainz";
-import { search } from "@/server/services/search";
 import {
   ARTIST_SUGGEST,
   suggestArtists,
@@ -32,13 +28,8 @@ import {
   maybeSweepScanLog,
   scanIsActionable,
 } from "@/server/services/vinyl/scan-log";
-import { getAlbumLinks, type LinkDeps } from "@/server/services/vinyl/links";
-import {
-  appleByBarcode,
-  appleBySearch,
-  deezerByBarcode,
-  deezerBySearch,
-} from "@/server/services/vinyl/platform-links";
+import { getAlbumLinks } from "@/server/services/vinyl/links";
+import { albumLinkDeps } from "@/server/services/links/server";
 import {
   groupHitsByAlbum,
   pickBestView,
@@ -85,19 +76,6 @@ const albumSelect = {
   discogsMasterId: true,
   discogsReleaseId: true,
 } as const;
-
-const linkDeps: LinkDeps = {
-  releases: releasesWithUrls,
-  byBarcode: {
-    [Adapter.AppleMusic]: appleByBarcode,
-    [Adapter.Deezer]: deezerByBarcode,
-  },
-  bySearch: {
-    [Adapter.AppleMusic]: appleBySearch,
-    [Adapter.Deezer]: deezerBySearch,
-  },
-  search,
-};
 
 export const vinylRouter = createTRPCRouter({
   /**
@@ -487,7 +465,7 @@ export const vinylRouter = createTRPCRouter({
   links: publicProcedure
     .input(z.object({ albumId: objectId }))
     .query(async ({ ctx, input }) => {
-      const res = await getAlbumLinks(ctx.prisma, input.albumId, linkDeps);
+      const res = await getAlbumLinks(ctx.prisma, input.albumId, albumLinkDeps);
       if (res.status === "not-found") {
         throw new TRPCError({ code: "NOT_FOUND", message: "Album not found" });
       }
