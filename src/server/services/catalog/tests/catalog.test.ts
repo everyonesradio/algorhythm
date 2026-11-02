@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { artistMatches, toCatalogAlbum } from "@/server/services/catalog/musicbrainz";
+import {
+  artistMatches,
+  pickArtist,
+  toCatalogAlbum,
+} from "@/server/services/catalog/musicbrainz";
 import { scoreSpotifyCandidate } from "@/server/services/catalog/spotify";
 
 describe("toCatalogAlbum", () => {
@@ -10,7 +14,9 @@ describe("toCatalogAlbum", () => {
       title: "Voodoo",
       "primary-type": "Album",
       "first-release-date": "2000-01-25",
-      "artist-credit": [{ name: "D’Angelo", artist: { id: "art-1", name: "D’Angelo" } }],
+      "artist-credit": [
+        { name: "D’Angelo", artist: { id: "art-1", name: "D’Angelo" } },
+      ],
       genres: [
         { name: "neo soul", count: 5 },
         { name: "r&b", count: 3 },
@@ -36,7 +42,11 @@ describe("toCatalogAlbum", () => {
       id: "rg-2",
       title: "Watch the Throne",
       "artist-credit": [
-        { name: "JAY-Z", joinphrase: " & ", artist: { id: "a", name: "JAY-Z" } },
+        {
+          name: "JAY-Z",
+          joinphrase: " & ",
+          artist: { id: "a", name: "JAY-Z" },
+        },
         { name: "Kanye West", artist: { id: "b", name: "Kanye West" } },
       ],
     });
@@ -71,12 +81,35 @@ describe("artistMatches", () => {
 
   it("matches collaborations credited in a different order", () => {
     expect(
-      artistMatches("Manu Dibango & Cuarteto Patria", "Cuarteto Patria & Manu Dibango")
+      artistMatches(
+        "Manu Dibango & Cuarteto Patria",
+        "Cuarteto Patria & Manu Dibango"
+      )
     ).toBe(true);
     expect(artistMatches("Madlib x MF DOOM", "Madvillain")).toBe(false);
   });
 
   it("rejects a different artist with the same title", () => {
     expect(artistMatches("Elujay", "Strangled")).toBe(false);
+  });
+});
+
+describe("pickArtist", () => {
+  it("takes the exact name, not a lookalike ranked above it", () => {
+    const results = [
+      { name: "Sza/Za", mbid: "polish" },
+      { name: "SZA", mbid: "sza" },
+    ];
+    expect(pickArtist("SZA", results)?.mbid).toBe("sza");
+    expect(
+      pickArtist("the beatles", [{ name: "The Beatles", mbid: "b" }])?.mbid
+    ).toBe("b");
+  });
+
+  it("falls back to MusicBrainz's top hit, or null", () => {
+    expect(pickArtist("Sade Adu", [{ name: "Sade", mbid: "s" }])?.mbid).toBe(
+      "s"
+    );
+    expect(pickArtist("nobody", [])).toBeNull();
   });
 });

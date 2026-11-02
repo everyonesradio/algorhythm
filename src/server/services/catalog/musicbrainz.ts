@@ -35,7 +35,10 @@ const mbGet = async <T>(path: string, params: Record<string, string>) => {
       headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
     });
     if (res.status === 503 || res.status === 429) {
-      const retryAfter = Number.parseInt(res.headers.get("retry-after") ?? "", 10);
+      const retryAfter = Number.parseInt(
+        res.headers.get("retry-after") ?? "",
+        10
+      );
       const backoffMs = Number.isFinite(retryAfter)
         ? retryAfter * 1000
         : Math.min(60_000, 3000 * 2 ** attempt);
@@ -85,7 +88,10 @@ export type CatalogAlbum = {
 };
 
 const artistName = (credits?: MbArtistCredit[]) =>
-  (credits ?? []).map((c) => `${c.name}${c.joinphrase ?? ""}`).join("").trim();
+  (credits ?? [])
+    .map((c) => `${c.name}${c.joinphrase ?? ""}`)
+    .join("")
+    .trim();
 
 const topNames = (items?: MbTag[], n = 8) =>
   (items ?? [])
@@ -183,12 +189,6 @@ export const findReleaseGroup = async (artist: string, album: string) => {
     ) ?? null
   );
 };
-
-export const releaseGroupsForArtist = (artist: string, limit: number) =>
-  searchReleaseGroups(
-    `artist:${q(artist)} AND (primarytype:album OR primarytype:ep)`,
-    limit
-  );
 
 export const releaseGroupsForTag = (tag: string, limit: number) =>
   searchReleaseGroups(
@@ -293,7 +293,10 @@ export const discographyForArtist = async (artistMbid: string, limit = 60) => {
     });
     out.push(...res["release-groups"]);
     offset += res["release-groups"].length;
-    if (offset >= res["release-group-count"] || res["release-groups"].length === 0) {
+    if (
+      offset >= res["release-group-count"] ||
+      res["release-groups"].length === 0
+    ) {
       break;
     }
   }
@@ -302,7 +305,9 @@ export const discographyForArtist = async (artistMbid: string, limit = 60) => {
       (rg) => !(rg["secondary-types"] ?? []).some((t) => SKIP_SECONDARY.has(t))
     )
     .sort((a, b) =>
-      (b["first-release-date"] ?? "").localeCompare(a["first-release-date"] ?? "")
+      (b["first-release-date"] ?? "").localeCompare(
+        a["first-release-date"] ?? ""
+      )
     )
     .slice(0, limit);
 };
@@ -314,6 +319,19 @@ type MbArtist = {
   country?: string;
   score?: number;
 };
+
+/**
+ * The artist a typed name means: an exact name match (ignoring case,
+ * accents and a leading "The") in MusicBrainz's ranking, else its top hit.
+ * "SZA" must not pull in "Sza/Za" or tracks merely credited to SZA.
+ */
+export const pickArtist = <T extends { name: string }>(
+  name: string,
+  results: T[]
+) =>
+  results.find((a) => normalizeName(a.name) === normalizeName(name)) ??
+  results[0] ??
+  null;
 
 /** Artist search for the "search artist" fallback, best matches first. */
 export const searchArtists = async (query: string, limit = 6) => {
@@ -334,7 +352,10 @@ export const searchArtists = async (query: string, limit = 6) => {
  * Does the release group have a front cover? Asks Cover Art Archive for the
  * redirect only (~0.2s) instead of downloading the image (~2s).
  */
-export const coverExists = async (mbid: string, size: 250 | 500 | 1200 = 500) => {
+export const coverExists = async (
+  mbid: string,
+  size: 250 | 500 | 1200 = 500
+) => {
   const res = await fetch(coverArtUrl(mbid, size), {
     method: "HEAD",
     redirect: "manual",
