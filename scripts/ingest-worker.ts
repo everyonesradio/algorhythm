@@ -15,6 +15,7 @@ import { parseArgs } from "node:util";
 import { PrismaClient } from "@prisma/client";
 
 import { serverRunnerDeps } from "@/server/services/catalog/background";
+import { dropOldScanVectors } from "@/server/services/vinyl/scan-log";
 import {
   claimJob,
   isDue,
@@ -66,6 +67,10 @@ const main = async () => {
     if (!(await claimJob(prisma, job.id))) continue;
     await runArtistJob(prisma, job.id, deps);
   }
+
+  // Housekeeping: vectors of scans too old to confirm (see scan-log.ts).
+  const dropped = await dropOldScanVectors(prisma);
+  console.log(`[worker] dropped vectors from ${dropped} old scans`);
 };
 
 main()
