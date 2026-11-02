@@ -9,7 +9,9 @@ import { addPressingsToAlbum } from "./album-pressings";
 import { discogsEnabled } from "./discogs";
 import { runInBackground } from "./rate-lanes";
 import { ingestReleaseGroup } from "./ingest";
-import { discographyForArtist } from "./musicbrainz";
+import { discogsOfficialVinyl } from "./discogs";
+import { discographyForArtist, officialReleasesWithMedia } from "./musicbrainz";
+import { vinylFields, vinylReleasesByGroup } from "./vinyl-status";
 import {
   claimJob,
   requestArtistCatalog,
@@ -21,6 +23,17 @@ import { discogsAlbum } from "./variants";
 
 export const serverRunnerDeps = (prisma: PrismaClient): RunnerDeps => ({
   discography: discographyForArtist,
+  vinylReleases: async (artistMbid) =>
+    vinylReleasesByGroup(
+      await officialReleasesWithMedia({ artist: artistMbid })
+    ),
+  discogsVinyl: discogsOfficialVinyl,
+  saveVinyl: async (mbid, vinyl) => {
+    await prisma.album.updateMany({
+      where: { sourceKey: `mb:${mbid}` },
+      data: vinylFields(vinyl),
+    });
+  },
   ingest: (embedder, mbid, opts) =>
     ingestReleaseGroup(prisma, embedder, mbid, opts),
   embedder: () => loadEmbedder(ACTIVE_EMBEDDING_MODEL, { device: "cpu" }),
@@ -52,10 +65,16 @@ export const startScanIngest = (
   const task = runInBackground(async () => {
     if (discogsEnabled()) {
       try {
-        const embedder = await loadEmbedder(ACTIVE_EMBEDDING_MODEL, { device: "cpu" });
-        const res = await addPressingsToAlbum(prisma, embedder, albumId, { discogsAlbum });
+        const embedder = await loadEmbedder(ACTIVE_EMBEDDING_MODEL, {
+          device: "cpu",
+        });
+        const res = await addPressingsToAlbum(prisma, embedder, albumId, {
+          discogsAlbum,
+        });
         if (res.status === "added") {
-          logger.info(`[pressings] ${artist.name}: ${res.variants} variant covers`);
+          logger.info(
+            `[pressings] ${artist.name}: ${res.variants} variant covers`
+          );
         }
       } catch (err) {
         logger.error(`[pressings] ${artist.name}: ${(err as Error).message}`);

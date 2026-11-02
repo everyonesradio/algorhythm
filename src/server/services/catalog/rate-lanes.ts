@@ -18,7 +18,8 @@ import { AsyncLocalStorage } from "node:async_hooks";
 const lane = new AsyncLocalStorage<"background">();
 
 /** Run `fn` (and everything it awaits) in the background lane. */
-export const runInBackground = <T>(fn: () => Promise<T>) => lane.run("background", fn);
+export const runInBackground = <T>(fn: () => Promise<T>) =>
+  lane.run("background", fn);
 
 export const isBackground = () => lane.getStore() === "background";
 
@@ -33,9 +34,13 @@ export type Lanes = {
 export const createLanes = (
   initialGapMs: number,
   now: () => number = Date.now,
-  sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))
+  sleep: (ms: number) => Promise<void> = (ms) =>
+    new Promise((r) => setTimeout(r, ms))
 ): Lanes => {
-  const waiting = { interactive: [] as (() => void)[], background: [] as (() => void)[] };
+  const waiting = {
+    interactive: [] as (() => void)[],
+    background: [] as (() => void)[],
+  };
   let gapMs = initialGapMs;
   let last = -Infinity;
   let pumping = false;

@@ -54,6 +54,12 @@ model Album {
   // Last time we looked this album up on Discogs (found or not); pressings
   // are fetched at most once per 30 days per album.
   discogsCheckedAt DateTime?
+  // Pressed on vinyl? "yes" | "no" | "unknown" (see catalog/vinyl-status.ts).
+  // Only "yes" albums get vectors from catalog ingest.
+  vinylStatus    String?
+  vinylReleases  Int?             // official vinyl releases found
+  vinylSource    String?          // "musicbrainz" | "discogs"
+  vinylCheckedAt DateTime?
   platformLinks Json?            // cached cross-platform links (search service)
   extra         Json?            // room for credits, tracklist, notes...
   embeddings    CoverEmbedding[]
@@ -63,6 +69,7 @@ model Album {
   @@index([artist])
   @@index([spotifyId])
   @@index([mbid])
+  @@index([vinylStatus])
 }
 
 model CoverEmbedding {

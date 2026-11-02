@@ -387,3 +387,43 @@ export const releasesWithUrls = async (releaseGroupMbid: string) =>
       limit: "100",
     })
   ).releases;
+
+export type MbMediaRelease = {
+  id: string;
+  title: string;
+  status?: string;
+  "release-group"?: { id: string; title: string };
+  media?: { format?: string | null }[];
+};
+
+/**
+ * Official releases with their media formats, by artist or by release
+ * group, all pages. One artist's whole catalog is a few requests (SZA: 1,
+ * Kendrick Lamar: 3), instead of one per album.
+ */
+export const officialReleasesWithMedia = async (
+  by: { artist: string } | { releaseGroup: string }
+) => {
+  const out: MbMediaRelease[] = [];
+  for (let offset = 0; ;) {
+    const res = await mbGet<{
+      "release-count": number;
+      releases: MbMediaRelease[];
+    }>("release", {
+      ...("artist" in by
+        ? { artist: by.artist }
+        : { "release-group": by.releaseGroup }),
+      status: "official",
+      inc: "media+release-groups",
+      limit: "100",
+      offset: String(offset),
+    });
+    out.push(...res.releases);
+    offset += res.releases.length;
+    if (offset >= res["release-count"] || res.releases.length === 0) return out;
+  }
+};
+
+/** An artist's canonical name by MusicBrainz id. */
+export const artistNameById = async (artistMbid: string) =>
+  (await mbGet<{ name: string }>(`artist/${artistMbid}`, {})).name;

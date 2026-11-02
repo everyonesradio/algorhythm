@@ -69,7 +69,12 @@ export type DgVersion = {
   thumb?: string;
 };
 
-type DgImage = { type: "primary" | "secondary"; uri: string; width: number; height: number };
+type DgImage = {
+  type: "primary" | "secondary";
+  uri: string;
+  width: number;
+  height: number;
+};
 
 export type DgRelease = {
   id: number;
@@ -96,7 +101,10 @@ export type DgMaster = {
 
 /** "MF Doom (2)" -> "MF Doom": Discogs numbers same-named artists & labels. */
 export const cleanArtistName = (name: string) =>
-  name.replace(/\s*\(\d+\)$/, "").replace(/\*$/, "").trim();
+  name
+    .replace(/\s*\(\d+\)$/, "")
+    .replace(/\*$/, "")
+    .trim();
 
 /**
  * Discogs search is literal about punctuation: "D’Angelo" (curly, as
@@ -110,22 +118,58 @@ export const searchText = (s: string) =>
     .replace(/…/g, "...")
     .trim();
 
+/** Does a search result's "Artist - Title" fit the album asked for? */
+const isSameAlbum = (r: { title: string }, artist: string, title: string) => {
+  const i = r.title.indexOf(" - ");
+  if (i < 0) return false;
+  const rArtist = cleanArtistName(r.title.slice(0, i));
+  const rTitle = r.title.slice(i + 3);
+  return (
+    normalizeName(rTitle) === normalizeName(title) &&
+    artistMatches(artist, rArtist)
+  );
+};
+
 /** Pick the search result whose "Artist - Title" fits what we asked for. */
 export const bestSearchMatch = (
   results: DgSearchResult[],
   artist: string,
   title: string
-) => {
-  const wanted = normalizeName(title);
-  return (
-    results.find((r) => {
-      const i = r.title.indexOf(" - ");
-      if (i < 0) return false;
-      const rArtist = cleanArtistName(r.title.slice(0, i));
-      const rTitle = r.title.slice(i + 3);
-      return normalizeName(rTitle) === wanted && artistMatches(artist, rArtist);
-    }) ?? null
-  );
+) => results.find((r) => isSameAlbum(r, artist, title)) ?? null;
+
+/**
+ * Official vinyl releases of an album on Discogs. Bootlegs are flagged
+ * "Unofficial Release" in the format and don't count: every vinyl listing
+ * of Kendrick's "Section.80" and SZA's "Z" is one.
+ */
+export const countOfficialVinyl = (
+  results: (DgSearchResult & { format?: string[] })[],
+  artist: string,
+  title: string
+) =>
+  results.filter(
+    (r) =>
+      !(r.format ?? []).includes("Unofficial Release") &&
+      isSameAlbum(r, artist, title)
+  ).length;
+
+/** Null when Discogs can't answer (no token, outage). */
+export const discogsOfficialVinyl = async (artist: string, title: string) => {
+  if (!discogsEnabled()) return null;
+  try {
+    const res = await dgGet<{
+      results: (DgSearchResult & { format?: string[] })[];
+    }>("/database/search", {
+      artist: searchText(artist),
+      release_title: searchText(title),
+      format: "Vinyl",
+      type: "release",
+      per_page: "100",
+    });
+    return res ? countOfficialVinyl(res.results, artist, title) : 0;
+  } catch {
+    return null;
+  }
 };
 
 /**
@@ -157,12 +201,15 @@ export const getRelease = (id: number) => dgGet<DgRelease>(`/releases/${id}`);
 
 /** Vinyl pressings of a master, oldest first. */
 export const vinylVersions = async (masterId: number, limit = 50) => {
-  const res = await dgGet<{ versions: DgVersion[] }>(`/masters/${masterId}/versions`, {
-    format: "Vinyl",
-    per_page: String(Math.min(limit, 100)),
-    sort: "released",
-    sort_order: "asc",
-  });
+  const res = await dgGet<{ versions: DgVersion[] }>(
+    `/masters/${masterId}/versions`,
+    {
+      format: "Vinyl",
+      per_page: String(Math.min(limit, 100)),
+      sort: "released",
+      sort_order: "asc",
+    }
+  );
   return res?.versions ?? [];
 };
 
@@ -170,7 +217,9 @@ export const primaryImage = (images?: DgImage[]) =>
   images?.find((i) => i.type === "primary")?.uri ?? images?.[0]?.uri ?? null;
 
 /** Download a Discogs image (CDN, not rate-limited). */
-export const fetchDiscogsImage = async (url: string): Promise<Buffer | null> => {
+export const fetchDiscogsImage = async (
+  url: string
+): Promise<Buffer | null> => {
   try {
     const res = await fetch(url, {
       headers: { "User-Agent": userAgent() },

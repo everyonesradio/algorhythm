@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { createLanes, isBackground, runInBackground } from "@/server/services/catalog/rate-lanes";
+import {
+  createLanes,
+  isBackground,
+  runInBackground,
+} from "@/server/services/catalog/rate-lanes";
 
 /**
  * A fake clock: sleeping advances time without waiting, but only after a
@@ -42,7 +46,11 @@ describe("rate lanes", () => {
     const clock = fakeClock();
     const lanes = createLanes(1200, clock.now, clock.sleep);
     const times: number[] = [];
-    await Promise.all([1, 2, 3].map(() => lanes.acquire("interactive").then(() => times.push(clock.now()))));
+    await Promise.all(
+      [1, 2, 3].map(() =>
+        lanes.acquire("interactive").then(() => times.push(clock.now()))
+      )
+    );
     expect(times).toEqual([0, 1200, 2400]);
   });
 

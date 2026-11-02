@@ -187,11 +187,23 @@ describe("claimJob", () => {
 });
 
 describe("runArtistJob", () => {
-  const deps = (outcomes: Record<string, string | Error>) => ({
+  /** outcomes: ingest result per release; vinyl: MB vinyl releases per release. */
+  const deps = (
+    outcomes: Record<string, string | Error>,
+    mbVinyl: Record<string, number> = Object.fromEntries(
+      Object.keys(outcomes).map((id) => [id, 1])
+    ),
+    discogs: Record<string, number | null> = {}
+  ) => ({
     embedder: vi.fn(async () => ({ model: "clip-vit-b32" }) as any),
     discography: vi.fn(async () =>
       Object.keys(outcomes).map((id) => ({ id, title: id }))
     ),
+    vinylReleases: vi.fn(async () => new Map(Object.entries(mbVinyl))),
+    discogsVinyl: vi.fn(async (_artist: string, title: string) =>
+      title in discogs ? discogs[title] : 0
+    ),
+    saveVinyl: vi.fn(async () => undefined),
     ingest: vi.fn(async (_e: unknown, mbid: string, _opts?: unknown) => {
       const o = outcomes[mbid];
       if (o instanceof Error) throw o;
@@ -199,7 +211,7 @@ describe("runArtistJob", () => {
     }),
   });
 
-  it("ingests every release, counts outcomes, and marks the job done", async () => {
+  it("ingests every vinyl release, counts outcomes, and marks the job done", async () => {
     const prisma = fakePrisma();
     const id = (await requestArtistCatalog(prisma, kdot, "scan_pick", NOW))!;
     await claimJob(prisma, id);
@@ -218,6 +230,9 @@ describe("runArtistJob", () => {
     expect(d.ingest.mock.calls[0][2]).toEqual({ augment: true });
     expect(stats).toEqual({
       releases: 4,
+      vinyl: 4,
+      notVinyl: 0,
+      unknown: 0,
       added: 1,
       skipped: 1,
       noCover: 1,
@@ -228,6 +243,62 @@ describe("runArtistJob", () => {
       attempts: 0,
       error: null,
     });
+  });
+
+  it("only vectorises albums pressed on vinyl, asking Discogs when MusicBrainz has none", async () => {
+    const prisma = fakePrisma();
+    const id = (await requestArtistCatalog(prisma, kdot, "scan_pick", NOW))!;
+    await claimJob(prisma, id);
+    const d = deps(
+      {
+        gkmc: "added",
+        lostAndFound: "added",
+        mixtape: "added",
+        outage: "added",
+      },
+      { gkmc: 4, lostAndFound: 0, mixtape: 0, outage: 0 },
+      { lostAndFound: 4, mixtape: 0, outage: null }
+    );
+
+    const stats = await runArtistJob(prisma, id, d);
+
+    expect(d.ingest.mock.calls.map((c) => c[1])).toEqual([
+      "gkmc",
+      "lostAndFound",
+    ]);
+    // MusicBrainz already said yes for gkmc: no Discogs request.
+    expect(d.discogsVinyl.mock.calls.map((c) => c[1])).toEqual([
+      "lostAndFound",
+      "mixtape",
+      "outage",
+    ]);
+    expect(stats).toMatchObject({
+      vinyl: 2,
+      notVinyl: 1,
+      unknown: 1,
+      added: 2,
+    });
+    // Every release's status is recorded, ingested or not.
+    expect(d.saveVinyl).toHaveBeenCalledWith("mixtape", {
+      status: "no",
+      releases: 0,
+      source: "discogs",
+    });
+    expect(d.saveVinyl).toHaveBeenCalledWith("lostAndFound", {
+      status: "yes",
+      releases: 4,
+      source: "discogs",
+    });
+  });
+
+  it("doesn't load the model when no release is on vinyl", async () => {
+    const prisma = fakePrisma();
+    const id = (await requestArtistCatalog(prisma, kdot, "scan_pick", NOW))!;
+    await claimJob(prisma, id);
+    const d = deps({ tape: "added" }, { tape: 0 });
+    await runArtistJob(prisma, id, d);
+    expect(d.embedder).not.toHaveBeenCalled();
+    expect(prisma.jobs[0]).toMatchObject({ status: "done" });
   });
 
   it("marks the job failed when the discography can't be fetched", async () => {

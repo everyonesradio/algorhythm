@@ -29,7 +29,10 @@ const getToken = async () => {
     body: "grant_type=client_credentials",
   });
   if (!res.ok) throw new Error(`Spotify auth failed: ${res.status}`);
-  const json = (await res.json()) as { access_token: string; expires_in: number };
+  const json = (await res.json()) as {
+    access_token: string;
+    expires_in: number;
+  };
   token = {
     value: json.access_token,
     expiresAt: Date.now() + json.expires_in * 1000,
@@ -60,7 +63,10 @@ const norm = (s: string) =>
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
     // drop "(Deluxe Edition)", "[Remastered 2015]" etc.
-    .replace(/[([].*?(deluxe|remaster|edition|version|expanded|anniversary).*?[)\]]/g, "")
+    .replace(
+      /[([].*?(deluxe|remaster|edition|version|expanded|anniversary).*?[)\]]/g,
+      ""
+    )
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
