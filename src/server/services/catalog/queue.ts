@@ -23,6 +23,12 @@ export const REFRESH_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
 /** A job "running" longer than this is assumed dead (crashed instance). */
 export const STALE_RUNNING_MS = 15 * 60 * 1000;
 export const MAX_ATTEMPTS = 3;
+/**
+ * After MAX_ATTEMPTS quick retries, try a failed job again this long after
+ * its last failure: a MusicBrainz outage shouldn't cost an artist their
+ * catalog for good.
+ */
+export const FAILED_RETRY_MS = 24 * 60 * 60 * 1000;
 /** Newest releases first; cap per artist to bound the work per scan. */
 export const CATALOG_LIMIT = 40;
 
@@ -37,11 +43,18 @@ export const isDue = (
     case "pending":
       return true;
     case "running":
-      return !!job.startedAt && now - job.startedAt.getTime() > STALE_RUNNING_MS;
+      return (
+        !!job.startedAt && now - job.startedAt.getTime() > STALE_RUNNING_MS
+      );
     case "failed":
-      return job.attempts < MAX_ATTEMPTS;
+      return (
+        job.attempts < MAX_ATTEMPTS ||
+        (!!job.finishedAt && now - job.finishedAt.getTime() > FAILED_RETRY_MS)
+      );
     case "done":
-      return !!job.finishedAt && now - job.finishedAt.getTime() > REFRESH_AFTER_MS;
+      return (
+        !!job.finishedAt && now - job.finishedAt.getTime() > REFRESH_AFTER_MS
+      );
     default:
       return false;
   }
@@ -78,15 +91,24 @@ export const requestArtistCatalog = async (
     }
   }
   if (!isDue(existing, now)) return null;
-  if (existing.status === "failed" && existing.attempts >= MAX_ATTEMPTS) {
-    return null;
-  }
   await prisma.ingestJob.update({
     where: { id: existing.id },
-    data: { status: "pending", trigger, error: null },
+    data: { ...requeue(existing), trigger },
   });
   return existing.id;
 };
+
+/**
+ * Update that puts a due job back to pending. A job retried after the
+ * cooldown starts a fresh round of attempts.
+ */
+export const requeue = (job: Pick<IngestJob, "status" | "attempts">) => ({
+  status: "pending" as const,
+  error: null,
+  ...(job.status === "failed" && job.attempts >= MAX_ATTEMPTS
+    ? { attempts: 0 }
+    : {}),
+});
 
 /** Atomically move a job pending -> running. False if someone else has it. */
 export const claimJob = async (prisma: PrismaClient, id: string) => {
@@ -118,7 +140,9 @@ export const runArtistJob = async (
   jobId: string,
   deps: RunnerDeps
 ) => {
-  const job = await prisma.ingestJob.findUniqueOrThrow({ where: { id: jobId } });
+  const job = await prisma.ingestJob.findUniqueOrThrow({
+    where: { id: jobId },
+  });
   const log = deps.log ?? (() => undefined);
   const stats = { releases: 0, added: 0, skipped: 0, noCover: 0, failed: 0 };
   try {
@@ -135,12 +159,20 @@ export const runArtistJob = async (
         else if (res.status === "no-cover") stats.noCover++;
       } catch (err) {
         stats.failed++;
-        log(`[ingest] ${job.label}: ${rg.title} failed: ${(err as Error).message}`);
+        log(
+          `[ingest] ${job.label}: ${rg.title} failed: ${(err as Error).message}`
+        );
       }
     }
     await prisma.ingestJob.update({
       where: { id: jobId },
-      data: { status: "done", stats, finishedAt: new Date(), error: null, attempts: 0 },
+      data: {
+        status: "done",
+        stats,
+        finishedAt: new Date(),
+        error: null,
+        attempts: 0,
+      },
     });
     log(`[ingest] ${job.label}: done ${JSON.stringify(stats)}`);
   } catch (err) {
