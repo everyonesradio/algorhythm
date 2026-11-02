@@ -20,7 +20,8 @@
     "vinyl:eval": "tsx scripts/eval-recognition.ts",
     "vinyl:synth": "tsx scripts/make-synthetic-eval.ts",
     "vinyl:seed:local": "bash scripts/seed-local.sh",
-    "vinyl:worker": "tsx scripts/ingest-worker.ts"
+    "vinyl:worker": "tsx scripts/ingest-worker.ts",
+    "vinyl:remove": "tsx scripts/remove-album.ts"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
