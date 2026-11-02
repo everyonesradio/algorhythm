@@ -2,6 +2,8 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
+import { Adapter } from "@/config/enum";
+
 // ** Custom Components, Hooks, Utils, etc.
 import {
   EMBEDDING_MODELS,
@@ -15,13 +17,23 @@ import {
   coverExists,
   discographyForArtist,
   lookupReleaseGroup,
+  releasesWithUrls,
   searchArtists,
   toCatalogAlbum,
 } from "@/server/services/catalog/musicbrainz";
 import { search } from "@/server/services/search";
-import { ARTIST_SUGGEST, suggestArtists } from "@/server/services/vinyl/artist-guess";
+import {
+  ARTIST_SUGGEST,
+  suggestArtists,
+} from "@/server/services/vinyl/artist-guess";
 import { findNearestCovers } from "@/server/services/vinyl/index-search";
-import { getAlbumLinks } from "@/server/services/vinyl/links";
+import { getAlbumLinks, type LinkDeps } from "@/server/services/vinyl/links";
+import {
+  appleByBarcode,
+  appleBySearch,
+  deezerByBarcode,
+  deezerBySearch,
+} from "@/server/services/vinyl/platform-links";
 import {
   groupHitsByAlbum,
   pickBestView,
@@ -72,6 +84,19 @@ const albumSelect = {
   discogsReleaseId: true,
 } as const;
 
+const linkDeps: LinkDeps = {
+  releases: releasesWithUrls,
+  byBarcode: {
+    [Adapter.AppleMusic]: appleByBarcode,
+    [Adapter.Deezer]: deezerByBarcode,
+  },
+  bySearch: {
+    [Adapter.AppleMusic]: appleBySearch,
+    [Adapter.Deezer]: deezerBySearch,
+  },
+  search,
+};
+
 export const vinylRouter = createTRPCRouter({
   /**
    * Takes cover embeddings computed on the device and returns the closest
@@ -93,6 +118,12 @@ export const vinylRouter = createTRPCRouter({
            * unknown cover). Live "none" frames are otherwise not stored.
            */
           log: z.boolean().optional(),
+          /**
+           * A quick first look the client may follow with more crops of the
+           * same frame: only store it if it matched, so a frame isn't
+           * logged twice.
+           */
+          probe: z.boolean().optional(),
         })
         .refine(
           (v) =>
@@ -124,17 +155,41 @@ export const vinylRouter = createTRPCRouter({
         .slice(0, ARTIST_SUGGEST.window);
       const albums = await ctx.prisma.album.findMany({
         where: {
-          id: { in: [...new Set([...candidates, ...near].map((c) => c.albumId))] },
+          id: {
+            in: [...new Set([...candidates, ...near].map((c) => c.albumId))],
+          },
         },
         select: albumSelect,
       });
       const byId = new Map(albums.map((a) => [a.id, a]));
+      // Which cover each album looks most like, over every crop of the
+      // frame: the crop that decided the match isn't always the one that
+      // shows the artwork best.
+      const imageById = new Map(
+        groupHitsByAlbum(views.flatMap((v) => v.hits)).map((r) => [
+          r.albumId,
+          r.image,
+        ])
+      );
       const matches = candidates
         .filter((c) => byId.has(c.albumId))
-        .map((c) => ({
-          album: byId.get(c.albumId)!,
-          similarity: Number(c.similarity.toFixed(4)),
-        }));
+        .map((c) => {
+          const album = byId.get(c.albumId)!;
+          // Matched an alternative cover (another pressing, the Spotify art):
+          // show the user the cover they're actually holding.
+          const img = imageById.get(c.albumId) ?? c.image;
+          const scannedCover =
+            img &&
+            (img.source === "variant" || img.source === "spotify") &&
+            img.url !== album.coverUrl
+              ? img.url
+              : undefined;
+          return {
+            album,
+            similarity: Number(c.similarity.toFixed(4)),
+            ...(scannedCover ? { scannedCover } : {}),
+          };
+        });
 
       if (status === "matched" && matches[0]) {
         // A confident scan is itself the signal: vectorise this artist's
@@ -144,7 +199,10 @@ export const vinylRouter = createTRPCRouter({
           ctx.prisma,
           {
             albumId: top.id,
-            artist: { mbid: top.artistMbid, name: top.artistName ?? top.artist },
+            artist: {
+              mbid: top.artistMbid,
+              name: top.artistName ?? top.artist,
+            },
           },
           "scan_match"
         );
@@ -159,27 +217,30 @@ export const vinylRouter = createTRPCRouter({
                 .map((r) => ({
                   similarity: r.similarity,
                   artist:
-                    byId.get(r.albumId)!.artistName ?? byId.get(r.albumId)!.artist,
+                    byId.get(r.albumId)!.artistName ??
+                    byId.get(r.albumId)!.artist,
                   artistMbid: byId.get(r.albumId)!.artistMbid,
                 }))
             );
 
       // Log scans that found something, or that the user may pick from by
       // hand; other "none" frames are noise.
-      const scan =
-        status === "none" && !input.log
-          ? null
-          : await ctx.prisma.scanEvent.create({
-              data: {
-                model: input.model,
-                vector,
-                status,
-                topAlbumIds: matches.map((m) => m.album.id),
-                topScores: matches.map((m) => m.similarity),
-                artistSuggestionMbids: artistSuggestions.map((a) => a.mbid),
-              },
-              select: { id: true },
-            });
+      const skipLog = input.probe
+        ? status !== "matched"
+        : status === "none" && !input.log;
+      const scan = skipLog
+        ? null
+        : await ctx.prisma.scanEvent.create({
+            data: {
+              model: input.model,
+              vector,
+              status,
+              topAlbumIds: matches.map((m) => m.album.id),
+              topScores: matches.map((m) => m.similarity),
+              artistSuggestionMbids: artistSuggestions.map((a) => a.mbid),
+            },
+            select: { id: true },
+          });
 
       return {
         status,
@@ -292,7 +353,9 @@ export const vinylRouter = createTRPCRouter({
       return groups.map((g) => ({
         mbid: g.id,
         title: g.title,
-        year: Number.parseInt(g["first-release-date"]?.slice(0, 4) ?? "", 10) || null,
+        year:
+          Number.parseInt(g["first-release-date"]?.slice(0, 4) ?? "", 10) ||
+          null,
         type: g["primary-type"] ?? null,
         thumbUrl: coverArtUrl(g.id, 250),
         albumId: albumIdByMbid.get(g.id) ?? null,
@@ -377,7 +440,10 @@ export const vinylRouter = createTRPCRouter({
         ctx.prisma,
         {
           albumId: album.id,
-          artist: { mbid: album.artistMbid, name: album.artistName ?? album.artist },
+          artist: {
+            mbid: album.artistMbid,
+            name: album.artistName ?? album.artist,
+          },
         },
         "scan_pick"
       );
@@ -404,18 +470,17 @@ export const vinylRouter = createTRPCRouter({
 
   /**
    * Streaming links for an album across Spotify, Apple Music, YouTube,
-   * Deezer, SoundCloud and Tidal. Cached on the album (30-day TTL), so a
-   * record that's been scanned before resolves instantly.
-   * `links` is null when the album has no Spotify match to search from.
+   * Tidal, Deezer and SoundCloud, from exact sources first (see
+   * services/vinyl/links.ts). Cached on the album (30-day TTL), so a record
+   * that's been scanned before resolves instantly.
    */
   links: publicProcedure
     .input(z.object({ albumId: objectId }))
     .query(async ({ ctx, input }) => {
-      const res = await getAlbumLinks(ctx.prisma, input.albumId, search);
+      const res = await getAlbumLinks(ctx.prisma, input.albumId, linkDeps);
       if (res.status === "not-found") {
         throw new TRPCError({ code: "NOT_FOUND", message: "Album not found" });
       }
-      if (res.status === "no-spotify") return { links: null, cached: false };
       return { links: res.links, cached: res.cached };
     }),
 

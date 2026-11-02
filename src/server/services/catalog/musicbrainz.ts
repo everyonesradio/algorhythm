@@ -343,3 +343,26 @@ export const coverExists = async (mbid: string, size: 250 | 500 | 1200 = 500) =>
   });
   return res.status >= 300 && res.status < 400;
 };
+
+export type MbRelease = {
+  id: string;
+  title: string;
+  date?: string;
+  status?: string;
+  barcode?: string | null;
+  relations?: { type: string; url?: { resource: string } }[];
+};
+
+/**
+ * Every release in a release group with its URL relationships: streaming
+ * links (Spotify, Apple Music, Deezer, Tidal, Bandcamp...) that MusicBrainz
+ * editors attached to that exact release, plus its barcode (UPC/EAN).
+ */
+export const releasesWithUrls = async (releaseGroupMbid: string) =>
+  (
+    await mbGet<{ releases: MbRelease[] }>("release", {
+      "release-group": releaseGroupMbid,
+      inc: "url-rels",
+      limit: "100",
+    })
+  ).releases;

@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { suggestArtists } from "@/server/services/vinyl/artist-guess";
 
-const hit = (similarity: number, artist: string, artistMbid: string | null = artist) => ({
+const hit = (
+  similarity: number,
+  artist: string,
+  artistMbid: string | null = artist
+) => ({
   similarity,
   artist,
   artistMbid,
@@ -18,11 +22,19 @@ describe("suggestArtists", () => {
       hit(0.671, "Tyler, the Creator"),
       hit(0.654, "Kendrick Lamar"),
     ]);
-    expect(s.map((a) => a.name)).toEqual(["Frank Ocean", "Kendrick Lamar", "Childish Gambino"]);
+    expect(s.map((a) => a.name)).toEqual([
+      "Frank Ocean",
+      "Kendrick Lamar",
+      "Childish Gambino",
+    ]);
   });
 
   it("does not repeat an artist with several near albums", () => {
-    const s = suggestArtists([hit(0.7, "Kendrick Lamar"), hit(0.69, "Kendrick Lamar"), hit(0.65, "SZA")]);
+    const s = suggestArtists([
+      hit(0.7, "Kendrick Lamar"),
+      hit(0.69, "Kendrick Lamar"),
+      hit(0.65, "SZA"),
+    ]);
     expect(s.map((a) => a.name)).toEqual(["Kendrick Lamar", "SZA"]);
   });
 

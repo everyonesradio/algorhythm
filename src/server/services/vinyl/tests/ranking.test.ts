@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { atlasScoreToCosine, cosineSimilarity, l2Normalize } from "@/lib/embeddings/vector";
+import {
+  atlasScoreToCosine,
+  cosineSimilarity,
+  l2Normalize,
+} from "@/lib/embeddings/vector";
 import {
   decideMatch,
   DEFAULT_THRESHOLDS,
@@ -21,6 +25,51 @@ describe("groupHitsByAlbum", () => {
       { albumId: "a", similarity: 0.9, support: 3 },
       { albumId: "b", similarity: 0.85, support: 1 },
     ]);
+  });
+
+  it("remembers which cover image the scan looks most like", () => {
+    const [top] = groupHitsByAlbum([
+      {
+        albumId: "a",
+        similarity: 0.84,
+        source: "catalog",
+        imageUrl: "https://caa/front",
+      },
+      {
+        albumId: "a",
+        similarity: 0.86,
+        source: "variant",
+        imageUrl: "https://discogs/2024",
+      },
+      // Augmented vectors win the score but have no image of their own.
+      { albumId: "a", similarity: 0.88, source: "augment" },
+    ]);
+    expect(top).toMatchObject({
+      similarity: 0.88,
+      source: "augment",
+      image: { url: "https://discogs/2024", source: "variant" },
+    });
+  });
+
+  it("keeps the catalog cover when it beats every pressing", () => {
+    const [top] = groupHitsByAlbum([
+      {
+        albumId: "a",
+        similarity: 0.8,
+        source: "variant",
+        imageUrl: "https://discogs/2024",
+      },
+      {
+        albumId: "a",
+        similarity: 0.9,
+        source: "catalog",
+        imageUrl: "https://caa/front",
+      },
+    ]);
+    expect(top.image).toMatchObject({
+      url: "https://caa/front",
+      source: "catalog",
+    });
   });
 });
 
@@ -51,12 +100,16 @@ describe("decideMatch", () => {
 
   it("returns none for weak or empty results", () => {
     expect(decideMatch([])).toBe("none");
-    expect(decideMatch([{ albumId: "a", similarity: 0.5, support: 1 }])).toBe("none");
+    expect(decideMatch([{ albumId: "a", similarity: 0.5, support: 1 }])).toBe(
+      "none"
+    );
   });
 
   it("matches a single strong hit with no runner-up", () => {
     expect(
-      decideMatch([{ albumId: "a", similarity: DEFAULT_THRESHOLDS.match, support: 1 }])
+      decideMatch([
+        { albumId: "a", similarity: DEFAULT_THRESHOLDS.match, support: 1 },
+      ])
     ).toBe("matched");
   });
 });
@@ -96,19 +149,23 @@ describe("vector helpers", () => {
 describe("pickBestView", () => {
   const view = (status: "matched" | "ambiguous" | "none", top?: number) => ({
     status,
-    candidates: top === undefined ? [] : [{ albumId: "a", similarity: top, support: 1 }],
+    candidates:
+      top === undefined ? [] : [{ albumId: "a", similarity: top, support: 1 }],
   });
 
   it("prefers a confident match over a higher-scoring ambiguous view", () => {
-    expect(pickBestView([view("ambiguous", 0.85), view("matched", 0.84)])).toBe(1);
+    expect(pickBestView([view("ambiguous", 0.85), view("matched", 0.84)])).toBe(
+      1
+    );
   });
 
   it("breaks ties within a status by top similarity", () => {
-    expect(pickBestView([view("ambiguous", 0.75), view("ambiguous", 0.8)])).toBe(1);
+    expect(
+      pickBestView([view("ambiguous", 0.75), view("ambiguous", 0.8)])
+    ).toBe(1);
   });
 
   it("keeps the first view when nothing matched anywhere", () => {
     expect(pickBestView([view("none"), view("none")])).toBe(0);
   });
 });
-

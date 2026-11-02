@@ -128,9 +128,7 @@ const Sheet: React.FC<Props> = ({
             >
               <span className='h-1.5 w-10 rounded-full bg-gray-300' />
             </div>
-            <div className='overflow-y-auto px-4 pb-6 sm:px-8'>
-              {children}
-            </div>
+            <div className='overflow-y-auto px-4 pb-6 sm:px-8'>{children}</div>
           </motion.div>
         </div>
       )}
