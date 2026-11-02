@@ -12,7 +12,11 @@ import {
   toCatalogAlbum,
 } from "./musicbrainz";
 import { findSpotifyAlbum, spotifyEnabled } from "./spotify";
-import { discogsAlbum, type DiscogsAlbumInfo, type VariantView } from "./variants";
+import {
+  discogsAlbum,
+  type DiscogsAlbumInfo,
+  type VariantView,
+} from "./variants";
 
 /**
  * Add one album to the vinyl index: metadata + every view of its cover as
@@ -65,7 +69,8 @@ const embedViews = async (embedder: Embedder, views: View[]) => {
   const out: EmbeddedView[] = [];
   for (const view of views) {
     const vector =
-      view.vector ?? (await embedder.embed(await toRawImage(embedder, view.image!)));
+      view.vector ??
+      (await embedder.embed(await toRawImage(embedder, view.image!)));
     out.push({
       source: view.source,
       imageUrl: view.imageUrl,
@@ -77,12 +82,20 @@ const embedViews = async (embedder: Embedder, views: View[]) => {
 };
 
 /** The cover plus photo-like and close-up views of it. */
-const coverViews = async (cover: Buffer, coverUrl: string, augment: boolean) => {
-  const views: View[] = [{ source: "catalog", image: cover, imageUrl: coverUrl }];
+const coverViews = async (
+  cover: Buffer,
+  coverUrl: string,
+  augment: boolean
+) => {
+  const views: View[] = [
+    { source: "catalog", image: cover, imageUrl: coverUrl },
+  ];
   if (augment) {
-    for (const img of await augmentCover(cover)) views.push({ source: "augment", image: img });
+    for (const img of await augmentCover(cover))
+      views.push({ source: "augment", image: img });
     // Partial-cover views for scans where the sleeve overflows the frame.
-    for (const img of await closeUpViews(cover)) views.push({ source: "closeup", image: img });
+    for (const img of await closeUpViews(cover))
+      views.push({ source: "closeup", image: img });
   }
   return views;
 };
@@ -147,7 +160,9 @@ const hasGeneratedVectors = async (
     where: { sourceKey },
     select: {
       _count: {
-        select: { embeddings: { where: { model, source: { not: "user_scan" } } } },
+        select: {
+          embeddings: { where: { model, source: { not: "user_scan" } } },
+        },
       },
     },
   });
@@ -155,6 +170,46 @@ const hasGeneratedVectors = async (
 };
 
 /** A MusicBrainz release group, optionally enriched w/ Discogs pressings. */
+export type CoverSources = {
+  /** Cover Art Archive; throws on a transient error (archive.org 5xx). */
+  coverArtArchive: () => Promise<{ url: string; image: Buffer } | null>;
+  spotify: () => Promise<string | null>;
+  discogs: () => Promise<string | null>;
+  download: (url: string) => Promise<Buffer | null>;
+};
+
+/**
+ * Front cover for an album: Cover Art Archive first (MusicBrainz's own),
+ * then the Spotify art, then Discogs. Many newer releases (2 of SZA's 7 at
+ * the time) have no cover on CAA yet and used to be skipped entirely.
+ *
+ * If CAA errored and no fallback has a cover, the error is rethrown so the
+ * job counts the album as failed (retried later) rather than coverless.
+ */
+export const resolveCover = async (
+  src: CoverSources
+): Promise<{
+  url: string;
+  image: Buffer;
+  from: "caa" | "spotify" | "discogs";
+} | null> => {
+  let caaError: unknown = null;
+  try {
+    const caa = await src.coverArtArchive();
+    if (caa) return { ...caa, from: "caa" };
+  } catch (err) {
+    caaError = err;
+  }
+  for (const from of ["spotify", "discogs"] as const) {
+    const url = await src[from]().catch(() => null);
+    if (!url) continue;
+    const image = await src.download(url).catch(() => null);
+    if (image) return { url, image, from };
+  }
+  if (caaError) throw caaError;
+  return null;
+};
+
 export const ingestReleaseGroup = async (
   prisma: PrismaClient,
   embedder: Embedder,
@@ -162,30 +217,49 @@ export const ingestReleaseGroup = async (
   opts: IngestOptions
 ): Promise<IngestOutcome> => {
   const sourceKey = `mb:${mbid}`;
-  if (!opts.force && (await hasGeneratedVectors(prisma, sourceKey, embedder.model))) {
+  if (
+    !opts.force &&
+    (await hasGeneratedVectors(prisma, sourceKey, embedder.model))
+  ) {
     return { status: "skipped", mbid };
   }
 
   const album = toCatalogAlbum(await lookupReleaseGroup(mbid));
-  const fetched = await fetchCover(mbid);
-  if (!fetched) return { status: "no-cover", mbid, title: album.title };
-  const { url: coverUrl, image: cover } = fetched;
+  const artist = album.artistName ?? album.artist;
 
   const spotify =
     (opts.spotify ?? true) && spotifyEnabled()
       ? await findSpotifyAlbum(album.artist, album.title)
       : null;
-  const discogs =
+  let discogs =
     opts.variants && discogsEnabled()
-      ? await discogsAlbum(embedder, album.artistName ?? album.artist, album.title, {
-          variants: true,
-        })
+      ? await discogsAlbum(embedder, artist, album.title, { variants: true })
       : null;
 
+  const fetched = await resolveCover({
+    coverArtArchive: () => fetchCover(mbid),
+    spotify: async () => spotify?.imageUrl ?? null,
+    discogs: async () => {
+      // Looked up only when nothing else has a cover (2-3 Discogs requests).
+      if (!discogs && discogsEnabled()) {
+        discogs = await discogsAlbum(embedder, artist, album.title);
+      }
+      return discogs?.info.coverUrl ?? null;
+    },
+    download: (url) =>
+      new URL(url).hostname.endsWith("discogs.com")
+        ? fetchDiscogsImage(url)
+        : fetchImage(url, 3),
+  });
+  if (!fetched) return { status: "no-cover", mbid, title: album.title };
+  const { url: coverUrl, image: cover } = fetched;
+
   const views = await coverViews(cover, coverUrl, opts.augment);
-  if (spotify?.imageUrl) {
+  // (When the Spotify art *is* the cover, it's already in.)
+  if (spotify?.imageUrl && fetched.from !== "spotify") {
     const img = await fetchImage(spotify.imageUrl);
-    if (img) views.push({ source: "spotify", image: img, imageUrl: spotify.imageUrl });
+    if (img)
+      views.push({ source: "spotify", image: img, imageUrl: spotify.imageUrl });
   }
   views.push(...variantViews(discogs?.variants ?? []));
   const vectors = await embedViews(embedder, views);
@@ -226,8 +300,17 @@ export const ingestReleaseGroup = async (
 };
 
 export type DiscogsIngestOutcome =
-  | { status: "not-found" | "skipped" | "no-cover"; artist: string; title: string }
-  | { status: "added" | "dry-run"; info: DiscogsAlbumInfo; vectors: number; variants: number };
+  | {
+      status: "not-found" | "skipped" | "no-cover";
+      artist: string;
+      title: string;
+    }
+  | {
+      status: "added" | "dry-run";
+      info: DiscogsAlbumInfo;
+      vectors: number;
+      variants: number;
+    };
 
 /**
  * An album MusicBrainz doesn't have (or has no cover for), built entirely
@@ -248,7 +331,10 @@ export const ingestDiscogsAlbum = async (
   const sourceKey = info.masterId
     ? `discogs:master:${info.masterId}`
     : `discogs:release:${info.releaseId}`;
-  if (!opts.force && (await hasGeneratedVectors(prisma, sourceKey, embedder.model))) {
+  if (
+    !opts.force &&
+    (await hasGeneratedVectors(prisma, sourceKey, embedder.model))
+  ) {
     return { status: "skipped", artist, title };
   }
   const cover = info.coverUrl ? await fetchDiscogsImage(info.coverUrl) : null;
@@ -262,7 +348,12 @@ export const ingestDiscogsAlbum = async (
   views.push(...variantViews(variants));
   const vectors = await embedViews(embedder, views);
   if (opts.dryRun) {
-    return { status: "dry-run", info, vectors: vectors.length, variants: variants.length };
+    return {
+      status: "dry-run",
+      info,
+      vectors: vectors.length,
+      variants: variants.length,
+    };
   }
 
   await storeAlbum(
@@ -286,5 +377,10 @@ export const ingestDiscogsAlbum = async (
     },
     vectors
   );
-  return { status: "added", info, vectors: vectors.length, variants: variants.length };
+  return {
+    status: "added",
+    info,
+    vectors: vectors.length,
+    variants: variants.length,
+  };
 };
