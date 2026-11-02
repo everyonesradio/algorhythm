@@ -38,7 +38,7 @@
     "@trpc/react-query": "^11.22.1",
     "@trpc/server": "^11.22.1",
     "@vercel/analytics": "^2.0.1",
-    "@vercel/functions": "^3.10.1",
+    "@vercel/functions": "^3.10.5",
     "lucide-react": "^1.66.0",
     "mobile-detect": "^1.4.5",
     "motion": "^14.9.0",
