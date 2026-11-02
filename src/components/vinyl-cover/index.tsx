@@ -6,6 +6,8 @@ import { useTexture } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
+import { textureUrl } from "@/utils/cover-url";
+
 interface Props {
   coverArt: string | null;
 }
@@ -70,7 +72,7 @@ const Vinyl3D: React.FC<Props> = ({ coverArt }) => (
     <Float>
       {coverArt ? (
         <Suspense fallback={<Placeholder />}>
-          <Sleeve url={coverArt} />
+          <Sleeve url={textureUrl(coverArt)} />
         </Suspense>
       ) : (
         <Placeholder />

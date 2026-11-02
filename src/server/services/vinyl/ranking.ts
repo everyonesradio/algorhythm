@@ -16,6 +16,8 @@ export type VectorHit = {
   /** Cosine similarity in [-1, 1]. */
   similarity: number;
   source?: string;
+  /** Image the vector was made from (a pressing's cover, Spotify art...). */
+  imageUrl?: string | null;
 };
 
 export type RankedAlbum = {
@@ -25,6 +27,12 @@ export type RankedAlbum = {
   support: number;
   /** Source of the album's best-scoring vector (catalog, closeup, ...). */
   source?: string;
+  /**
+   * The best-scoring vector that has an image (catalog cover, a pressing,
+   * the Spotify art). Augmented and close-up vectors have none, so this can
+   * differ from `source`: it's the cover the scan looks most like.
+   */
+  image?: { url: string; source?: string; similarity: number };
 };
 
 export type MatchStatus = "matched" | "ambiguous" | "none";
@@ -57,6 +65,12 @@ export const DEFAULT_THRESHOLDS: RankingThresholds = {
   candidate: 0.76,
 };
 
+const imageOf = (hit: VectorHit, url: string) => ({
+  url,
+  similarity: hit.similarity,
+  ...(hit.source ? { source: hit.source } : {}),
+});
+
 export const groupHitsByAlbum = (hits: VectorHit[]): RankedAlbum[] => {
   const byAlbum = new Map<string, RankedAlbum>();
   for (const hit of hits) {
@@ -67,12 +81,19 @@ export const groupHitsByAlbum = (hits: VectorHit[]): RankedAlbum[] => {
         similarity: hit.similarity,
         support: 1,
         ...(hit.source ? { source: hit.source } : {}),
+        ...(hit.imageUrl ? { image: imageOf(hit, hit.imageUrl) } : {}),
       });
     } else {
       prev.support += 1;
       if (hit.similarity > prev.similarity) {
         prev.similarity = hit.similarity;
         if (hit.source) prev.source = hit.source;
+      }
+      if (
+        hit.imageUrl &&
+        hit.similarity > (prev.image?.similarity ?? -Infinity)
+      ) {
+        prev.image = imageOf(hit, hit.imageUrl);
       }
     }
   }

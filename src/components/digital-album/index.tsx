@@ -24,23 +24,19 @@ interface Props {
   /** Fires once the close animation finishes; clear the album data here. */
   onExitComplete?: () => void;
   album: VinylAlbum;
+  /** The cover the user scanned, when it's an alternative (another pressing). */
+  coverUrl?: string;
   confirmed?: boolean;
   onConfirm?: () => void;
   onReject?: () => void;
 }
-
-const fade = {
-  initial: { opacity: 0, y: 4 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0 },
-  transition: { duration: 0.18 },
-};
 
 const DigitalAlbum: React.FC<Props> = ({
   open,
   onClose,
   onExitComplete,
   album,
+  coverUrl,
   confirmed,
   onConfirm,
   onReject,
@@ -111,27 +107,26 @@ const DigitalAlbum: React.FC<Props> = ({
           )}
         </div>
 
-        <div className='h-[300px] w-full sm:h-[400px]'>
-          <Canvas camera={{ position: [0, 0, 3], fov: 75 }}>
+        <div className='h-[340px] w-full sm:h-[440px]'>
+          <Canvas camera={{ position: [0, 0, 2.4], fov: 75 }}>
             <pointLight position={[10, 10, 10]} />
-            <Vinyl3D coverArt={album.coverUrl} />
+            <Vinyl3D coverArt={coverUrl ?? album.coverUrl} />
             <OrbitControls makeDefault />
           </Canvas>
         </div>
 
-        {(onConfirm || onReject) && (
-          <div className='mb-4 flex h-8 items-center gap-2 text-sm'>
-            <AnimatePresence mode='wait' initial={false}>
-              {confirmed ? (
-                <motion.span key='thanks' className='text-gray-600' {...fade}>
-                  Thanks, noted.
-                </motion.span>
-              ) : (
-                <motion.div
-                  key='ask'
-                  className='flex items-center gap-2'
-                  {...fade}
-                >
+        {/* Once answered, the question just goes away. */}
+        <AnimatePresence initial={false}>
+          {(onConfirm || onReject) && !confirmed && (
+            <motion.div
+              key='ask'
+              className='overflow-hidden'
+              initial={false}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.18 }}
+            >
+              <div className='mb-4 flex h-8 items-center gap-2 text-sm'>
+                <div className='flex items-center gap-2'>
                   <span className='text-gray-600'>Right record?</span>
                   {onConfirm && (
                     <button
@@ -149,11 +144,11 @@ const DigitalAlbum: React.FC<Props> = ({
                       No, show others
                     </button>
                   )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className='w-full max-w-sm'>
           {showSpotifyFallback ? (
@@ -176,22 +171,6 @@ const DigitalAlbum: React.FC<Props> = ({
             <SearchCard searchResult={links} />
           )}
         </div>
-
-        {/* Discogs API terms ask for attribution where their data is shown. */}
-        {(album.discogsMasterId || album.discogsReleaseId) && (
-          <a
-            href={
-              album.discogsMasterId
-                ? `https://www.discogs.com/master/${album.discogsMasterId}`
-                : `https://www.discogs.com/release/${album.discogsReleaseId}`
-            }
-            target='_blank'
-            rel='noreferrer'
-            className='mt-4 text-xs text-gray-500 underline-offset-4 hover:underline'
-          >
-            Pressings &amp; label data from Discogs
-          </a>
-        )}
       </div>
     </Sheet>
   );
