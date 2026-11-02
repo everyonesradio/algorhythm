@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   pruneCandidates,
   recordVinylStatus,
+  VARIOUS_ARTISTS_MBID,
 } from "@/server/services/catalog/vinyl-cleanup";
 
 type Row = Record<string, any>;
@@ -93,6 +94,31 @@ describe("recordVinylStatus", () => {
       { dryRun: true }
     );
     expect(prisma.album.update).not.toHaveBeenCalled();
+  });
+
+  it("looks up Various Artists by release group, never browses that artist", async () => {
+    const albums = [
+      album("nigeria70", VARIOUS_ARTISTS_MBID, {
+        artist: "Various Artists",
+        artistName: "Various Artists",
+      }),
+    ];
+    const prisma = fakePrisma(albums);
+    const deps = {
+      releasesByArtist: vi.fn(async () => {
+        throw new Error("must not browse Various Artists");
+      }),
+      releasesByReleaseGroup: vi.fn(async () => [
+        release("nigeria70", "Vinyl"),
+      ]),
+      discogsVinyl: vi.fn(async () => 0),
+    };
+
+    await recordVinylStatus(prisma as any, deps);
+
+    expect(deps.releasesByArtist).not.toHaveBeenCalled();
+    expect(deps.releasesByReleaseGroup).toHaveBeenCalledWith("nigeria70");
+    expect(albums[0].vinylStatus).toBe("yes");
   });
 });
 

@@ -10,7 +10,12 @@
  * Image files (i.discogs.com) are a CDN and don't count against the limit.
  * Data from Discogs needs attribution in the UI ("Data provided by Discogs").
  */
-import { artistMatches, normalizeName } from "./musicbrainz";
+import {
+  artistMatches,
+  artistsOverlap,
+  normalizeName,
+  titlesMatchLoose,
+} from "./musicbrainz";
 
 const API = "https://api.discogs.com";
 const userAgent = () =>
@@ -137,6 +142,19 @@ export const bestSearchMatch = (
   title: string
 ) => results.find((r) => isSameAlbum(r, artist, title)) ?? null;
 
+/** Same album on Discogs for vinyl status: looser than ingest matching. */
+const isSameAlbumForVinyl = (
+  r: { title: string },
+  artist: string,
+  title: string
+) => {
+  const i = r.title.indexOf(" - ");
+  if (i < 0) return false;
+  const rArtist = cleanArtistName(r.title.slice(0, i));
+  const rTitle = r.title.slice(i + 3);
+  return titlesMatchLoose(title, rTitle) && artistsOverlap(artist, rArtist);
+};
+
 /**
  * Official vinyl releases of an album on Discogs. Bootlegs are flagged
  * "Unofficial Release" in the format and don't count: every vinyl listing
@@ -150,23 +168,70 @@ export const countOfficialVinyl = (
   results.filter(
     (r) =>
       !(r.format ?? []).includes("Unofficial Release") &&
-      isSameAlbum(r, artist, title)
+      isSameAlbumForVinyl(r, artist, title)
   ).length;
+
+/** Artist strings to try against Discogs' literal artist field. */
+const vinylArtistQueries = (artist: string) => {
+  const full = searchText(artist);
+  const parts = artist
+    .split(/\s*(?:&|,|\band\b|\bx\b|\bfeat\.?|\bft\.?|\bwith\b)\s*/i)
+    .map(searchText)
+    .filter((p) => p.length > 1);
+  return [...new Set([full, ...parts])];
+};
 
 /** Null when Discogs can't answer (no token, outage). */
 export const discogsOfficialVinyl = async (artist: string, title: string) => {
   if (!discogsEnabled()) return null;
   try {
+    const t = searchText(title);
+    const seen = new Set<number>();
+    let total = 0;
+
+    const absorb = (
+      results: (DgSearchResult & { format?: string[] })[] | undefined
+    ) => {
+      for (const r of results ?? []) {
+        if (seen.has(r.id)) continue;
+        if (
+          (r.format ?? []).includes("Unofficial Release") ||
+          !isSameAlbumForVinyl(r, artist, title)
+        ) {
+          continue;
+        }
+        seen.add(r.id);
+        total += 1;
+      }
+    };
+
+    // Field search: full credit, then each collaborator (Discogs often lists
+    // only the lead artist on collabs).
+    for (const a of vinylArtistQueries(artist)) {
+      const res = await dgGet<{
+        results: (DgSearchResult & { format?: string[] })[];
+      }>("/database/search", {
+        artist: a,
+        release_title: t,
+        format: "Vinyl",
+        type: "release",
+        per_page: "100",
+      });
+      absorb(res?.results);
+      if (total > 0) return total;
+    }
+
+    // Keyword fallback when titles differ (subtitles, "Various" vs VA).
     const res = await dgGet<{
       results: (DgSearchResult & { format?: string[] })[];
     }>("/database/search", {
-      artist: searchText(artist),
-      release_title: searchText(title),
+      q: t,
       format: "Vinyl",
       type: "release",
       per_page: "100",
     });
-    return res ? countOfficialVinyl(res.results, artist, title) : 0;
+    absorb(res?.results);
+    return total;
   } catch {
     return null;
   }

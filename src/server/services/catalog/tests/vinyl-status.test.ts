@@ -109,4 +109,42 @@ describe("countOfficialVinyl", () => {
     expect(countOfficialVinyl(results, "Jorja Smith", "Lost & Found")).toBe(2);
     expect(countOfficialVinyl(results, "SZA", "Z")).toBe(0);
   });
+
+  it("matches Discogs collabs, subtitles and zero-width punctuation", () => {
+    const zw = "\u200B";
+    const results = [
+      {
+        id: 1,
+        type: "release" as const,
+        title: "Boldy James - Late To My Own Funeral",
+        format: ["Vinyl", "LP", "Album"],
+      },
+      {
+        id: 2,
+        type: "release" as const,
+        title:
+          "Various - Nigeria 70 (Lagos Jump: Original Heavyweight Afrobeat, Highlife & Afro-Funk)",
+        format: ["Vinyl", "LP", "Compilation"],
+      },
+      {
+        id: 3,
+        type: "release" as const,
+        title: `Sideshow (13) - 2MM Don${zw}’${zw}t Just Stand There!`,
+        format: ["Vinyl", "LP", "Album"],
+      },
+    ];
+    expect(
+      countOfficialVinyl(
+        results,
+        "Nicholas Craven & Boldy James",
+        "Late to My Own Funeral"
+      )
+    ).toBe(1);
+    expect(
+      countOfficialVinyl(results, "Various Artists", "Nigeria 70: Lagos Jump")
+    ).toBe(1);
+    expect(
+      countOfficialVinyl(results, "Sideshow", "2MM DON’T JUST STAND THERE!")
+    ).toBe(1);
+  });
 });

@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   artistMatches,
+  artistsOverlap,
+  normalizeName,
   pickArtist,
+  titlesMatchLoose,
   toCatalogAlbum,
 } from "@/server/services/catalog/musicbrainz";
 import { scoreSpotifyCandidate } from "@/server/services/catalog/spotify";
@@ -91,6 +94,27 @@ describe("artistMatches", () => {
 
   it("rejects a different artist with the same title", () => {
     expect(artistMatches("Elujay", "Strangled")).toBe(false);
+  });
+});
+
+describe("artistsOverlap & titlesMatchLoose", () => {
+  it("matches a Discogs lead-only credit on a collaboration", () => {
+    expect(
+      artistsOverlap("Nicholas Craven & Boldy James", "Boldy James")
+    ).toBe(true);
+    expect(artistsOverlap("Various Artists", "Various")).toBe(true);
+  });
+
+  it("matches Discogs subtitles and strips zero-width spaces", () => {
+    expect(
+      titlesMatchLoose(
+        "Nigeria 70: Lagos Jump",
+        "Nigeria 70 (Lagos Jump: Original Heavyweight Afrobeat, Highlife & Afro-Funk)"
+      )
+    ).toBe(true);
+    expect(
+      normalizeName(`2MM Don\u200B’\u200Bt Just Stand There!`)
+    ).toBe("2mm dont just stand there");
   });
 });
 

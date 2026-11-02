@@ -30,6 +30,13 @@ type AlbumRow = {
   artistMbid: string | null;
 };
 
+/** MusicBrainz "Various Artists" special-purpose artist. Browsing it pages
+ * tens of thousands of releases and hangs a catalog backfill. */
+export const VARIOUS_ARTISTS_MBID = "89ad4ac3-39f7-470e-963a-56509c546377";
+
+const canBrowseArtist = (artistMbid: string | null) =>
+  Boolean(artistMbid && artistMbid !== VARIOUS_ARTISTS_MBID);
+
 export const recordVinylStatus = async (
   prisma: PrismaClient,
   deps: CleanupDeps,
@@ -61,14 +68,15 @@ export const recordVinylStatus = async (
   const byArtist = new Map<string, Map<string, number>>();
   const mbVinylFor = async (a: AlbumRow) => {
     if (!a.mbid) return 0;
-    if (a.artistMbid) {
-      if (!byArtist.has(a.artistMbid)) {
+    if (canBrowseArtist(a.artistMbid)) {
+      const artistMbid = a.artistMbid!;
+      if (!byArtist.has(artistMbid)) {
         const releases = await deps
-          .releasesByArtist(a.artistMbid)
+          .releasesByArtist(artistMbid)
           .catch(() => []);
-        byArtist.set(a.artistMbid, vinylReleasesByGroup(releases));
+        byArtist.set(artistMbid, vinylReleasesByGroup(releases));
       }
-      const n = byArtist.get(a.artistMbid)!.get(a.mbid);
+      const n = byArtist.get(artistMbid)!.get(a.mbid);
       // Not in the artist's browse (credited to a collaboration): ask directly.
       if (n !== undefined) return n;
     }
