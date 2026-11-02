@@ -38,9 +38,9 @@ const PLATFORMS = [
   { icon: FaSpotify, label: "Spotify" },
   { icon: SiApplemusic, label: "Apple Music" },
   { icon: SiTidal, label: "Tidal" },
+  { icon: SiYoutubemusic, label: "YouTube Music" },
   { icon: FaSoundcloud, label: "SoundCloud" },
   { icon: FaDeezer, label: "Deezer" },
-  { icon: SiYoutubemusic, label: "YouTube Music" },
 ];
 
 /**
@@ -161,7 +161,7 @@ const Home = () => (
     </section>
 
     <footer className='pb-10 text-center text-xs text-black/45'>
-      For everyone
+      Built for everyone
     </footer>
   </main>
 );
