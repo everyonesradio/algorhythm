@@ -140,6 +140,10 @@ describe("countOfficialVinyl", () => {
         "Late to My Own Funeral"
       )
     ).toBe(1);
+    // Lead-only credit misses when Discogs lists the other collaborator.
+    expect(
+      countOfficialVinyl(results, "Nicholas Craven", "Late to My Own Funeral")
+    ).toBe(0);
     expect(
       countOfficialVinyl(results, "Various Artists", "Nigeria 70: Lagos Jump")
     ).toBe(1);

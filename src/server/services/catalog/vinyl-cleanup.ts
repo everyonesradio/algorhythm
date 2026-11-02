@@ -86,8 +86,11 @@ export const recordVinylStatus = async (
 
   const results: { album: AlbumRow; vinyl: VinylStatus }[] = [];
   for (const album of albums) {
+    // Full credit, not artistName (first credit only). Discogs often lists a
+    // collab under the other name ("Boldy James" vs MusicBrainz's lead
+    // "Nicholas Craven" for Late to My Own Funeral).
     const vinyl = await decideVinyl(await mbVinylFor(album), () =>
-      deps.discogsVinyl(album.artistName ?? album.artist, album.title)
+      deps.discogsVinyl(album.artist, album.title)
     );
     results.push({ album, vinyl });
     log(

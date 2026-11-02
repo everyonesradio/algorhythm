@@ -64,9 +64,11 @@ export const addPressingsToAlbum = async (
   // No vinyl pressings to fetch for an album that was never pressed.
   if (album.vinylStatus === "no") return { status: "not-vinyl" };
 
+  // Full credit — Discogs may list a collab under a different lead than
+  // MusicBrainz's artistName (first credit).
   const found = await deps.discogsAlbum(
     embedder,
-    album.artistName ?? album.artist,
+    album.artist,
     album.title,
     { variants: true }
   );

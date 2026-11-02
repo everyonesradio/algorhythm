@@ -96,6 +96,28 @@ describe("recordVinylStatus", () => {
     expect(prisma.album.update).not.toHaveBeenCalled();
   });
 
+  it("asks Discogs with the full credit, not the lead-only artistName", async () => {
+    const albums = [
+      album("funeral", "craven", {
+        artist: "Nicholas Craven & Boldy James",
+        artistName: "Nicholas Craven",
+        title: "Late to My Own Funeral",
+      }),
+    ];
+    const prisma = fakePrisma(albums);
+    const discogsVinyl = vi.fn(async () => 12);
+    await recordVinylStatus(prisma as any, {
+      releasesByArtist: vi.fn(async () => [release("funeral", "CD")]),
+      releasesByReleaseGroup: vi.fn(async () => []),
+      discogsVinyl,
+    });
+    expect(discogsVinyl).toHaveBeenCalledWith(
+      "Nicholas Craven & Boldy James",
+      "Late to My Own Funeral"
+    );
+    expect(albums[0].vinylStatus).toBe("yes");
+  });
+
   it("looks up Various Artists by release group, never browses that artist", async () => {
     const albums = [
       album("nigeria70", VARIOUS_ARTISTS_MBID, {
