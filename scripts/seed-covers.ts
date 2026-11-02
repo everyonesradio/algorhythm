@@ -3,6 +3,7 @@
  *
  *   npm run vinyl:seed -- --file seeds/albums.json
  *   npm run vinyl:seed -- --artist "Amaarae" --artist "Little Simz" --limit 20
+ *   npm run vinyl:seed -- --artist-mbid <musicbrainz artist id>   # exact artist
  *   npm run vinyl:seed -- --tag afrobeats --tag "neo soul" --limit 200 --augment
  *
  * Pipeline per album:
@@ -40,10 +41,12 @@ import {
   ingestReleaseGroup,
 } from "@/server/services/catalog/ingest";
 import {
+  discographyForArtist,
   findReleaseGroup,
   type MbReleaseGroup,
-  releaseGroupsForArtist,
+  pickArtist,
   releaseGroupsForTag,
+  searchArtists,
 } from "@/server/services/catalog/musicbrainz";
 import { spotifyEnabled } from "@/server/services/catalog/spotify";
 
@@ -53,6 +56,7 @@ const { values } = parseArgs({
   options: {
     file: { type: "string" },
     artist: { type: "string", multiple: true },
+    "artist-mbid": { type: "string", multiple: true },
     tag: { type: "string", multiple: true },
     limit: { type: "string", default: "25" },
     model: { type: "string", default: ACTIVE_EMBEDDING_MODEL },
@@ -84,7 +88,9 @@ const collectReleaseGroups = async (): Promise<MbReleaseGroup[]> => {
   const add = (rg: MbReleaseGroup | null) => rg && found.set(rg.id, rg);
 
   if (values.file) {
-    const entries = JSON.parse(readFileSync(values.file, "utf8")) as SeedEntry[];
+    const entries = JSON.parse(
+      readFileSync(values.file, "utf8")
+    ) as SeedEntry[];
     for (const entry of entries) {
       if ("mbid" in entry) {
         add({ id: entry.mbid, title: "" });
@@ -98,8 +104,21 @@ const collectReleaseGroups = async (): Promise<MbReleaseGroup[]> => {
       add(rg);
     }
   }
-  for (const artist of values.artist ?? []) {
-    (await releaseGroupsForArtist(artist, limit)).forEach(add);
+  // By MusicBrainz artist id, the same discography the scan-triggered
+  // ingest uses (albums + EPs, no live/compilation/remix). A name search
+  // pulled in other artists ("Sza/Za") and fan uploads.
+  for (const name of values.artist ?? []) {
+    const artist = pickArtist(name, await searchArtists(name, 10));
+    if (!artist) {
+      log(`  ✗ artist not on MusicBrainz: ${name}`);
+      continue;
+    }
+    const detail = artist.detail ? ` (${artist.detail})` : "";
+    log(`  artist: ${artist.name}${detail} mbid=${artist.mbid}`);
+    (await discographyForArtist(artist.mbid, limit)).forEach(add);
+  }
+  for (const mbid of values["artist-mbid"] ?? []) {
+    (await discographyForArtist(mbid, limit)).forEach(add);
   }
   for (const tag of values.tag ?? []) {
     (await releaseGroupsForTag(tag, limit)).forEach(add);
@@ -116,7 +135,9 @@ const main = async () => {
     log("  (set DISCOGS_TOKEN for alternative covers from Discogs)");
   }
   if (!useSpotify && !values["no-spotify"]) {
-    log("  (set SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET to attach Spotify links)");
+    log(
+      "  (set SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET to attach Spotify links)"
+    );
   }
 
   const groups = await collectReleaseGroups();
@@ -152,7 +173,12 @@ const main = async () => {
       }
     } catch (err) {
       stats.failed++;
-      log(`${prefix} ✗ ${rg.id}: ${(err as Error).message}`);
+      // Prisma errors start with a blank line; the cause is on the last one.
+      const reason = String((err as Error).message ?? err)
+        .trim()
+        .split("\n")
+        .pop();
+      log(`${prefix} ✗ ${rg.title || rg.id}: ${reason}`);
     }
   }
 
@@ -188,7 +214,9 @@ const main = async () => {
       }
     }
   } else if (mbMisses.length) {
-    log(`${mbMisses.length} albums missing from MusicBrainz (set DISCOGS_TOKEN to try Discogs)`);
+    log(
+      `${mbMisses.length} albums missing from MusicBrainz (set DISCOGS_TOKEN to try Discogs)`
+    );
   }
 
   log("done", stats);
