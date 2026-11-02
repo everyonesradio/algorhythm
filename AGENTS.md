@@ -84,7 +84,7 @@ PR titles are **not** commit messages. They are a short Title Case headline for 
 | `npx prisma studio` | Inspect Mongo models |
 | `./scripts/seed-local.sh` | Schema + vector index + seed covers (see `docs/VINYL_RECOGNITION.md`) |
 | `npm run vinyl:seed` / `vinyl:index` / `vinyl:eval` / `vinyl:synth` | Recognition catalog + accuracy tooling |
-| `npm run vinyl:status` / `vinyl:remove` / `vinyl:worker` | Catalog upkeep: vinyl status + pruning, remove one album, finish ingest jobs |
+| `npm run vinyl:status` / `vinyl:remove` / `vinyl:worker` / `vinyl:links` | Catalog upkeep: vinyl status + pruning, remove one album, finish ingest jobs, prefetch streaming links |
 
 ## Architecture sketch
 
@@ -109,7 +109,9 @@ with Spotify id/url when matched). Cross-platform links are cached in
 `Album.platformLinks` by `vinyl.links`; `links.search` resolves any pasted
 music URL. Links come only from exact sources: MusicBrainz URL
 relationships and barcodes, official APIs (Spotify Web API, Apple's
-iTunes lookup, Deezer), strict artist + title matches. No page scraping. (`MusicIDX` was retired; its Mongo collection is left in place.) Recognition and routing are separate
+iTunes lookup, Deezer), strict artist + title matches. No page scraping.
+Resolved links are stored in `LinkIndex` under every platform URL of the
+album (and on `Album.platformLinks`), so a known link is one indexed read. (`MusicIDX` was retired; its Mongo collection is left in place.) Recognition and routing are separate
 concerns — a bad match must not look verified.
 
 ## Boundaries

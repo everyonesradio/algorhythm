@@ -132,6 +132,8 @@ export type RunnerDeps = {
   vinylReleases: (artistMbid: string) => Promise<Map<string, number>>;
   /** Official vinyl releases on Discogs; null when it can't answer. */
   discogsVinyl: (artist: string, title: string) => Promise<number | null>;
+  /** Resolve and store an album's streaming links ahead of its first drawer. */
+  prefetchLinks?: (releaseGroupMbid: string) => Promise<void>;
   /** Record the status on the album, if it's in the catalog. */
   saveVinyl: (releaseGroupMbid: string, vinyl: VinylStatus) => Promise<void>;
   ingest: (
@@ -202,6 +204,10 @@ export const runArtistJob = async (
         if (res.status === "added") stats.added++;
         else if (res.status === "skipped") stats.skipped++;
         else if (res.status === "no-cover") stats.noCover++;
+        // Resolve its streaming links now, so the drawer never waits on them.
+        if (res.status === "added" || res.status === "skipped") {
+          await deps.prefetchLinks?.(rg.id).catch(() => undefined);
+        }
       } catch (err) {
         stats.failed++;
         log(

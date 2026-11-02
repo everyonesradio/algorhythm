@@ -176,3 +176,12 @@ export const spotifyTrackAlbumId = async (id: string) =>
       `tracks/${encodeURIComponent(id)}`
     )
   )?.album?.id ?? null;
+
+/** The Spotify album with this barcode (search `upc:`), as an exact link. */
+export const spotifyAlbumByUpc = async (upc: string) => {
+  if (!/^\d{8,14}$/.test(upc)) return null;
+  const res = await spotifyGet<{ albums: { items: SpotifyAlbum[] } }>(
+    `search?type=album&limit=1&q=${encodeURIComponent(`upc:${upc}`)}`
+  );
+  return res?.albums.items[0]?.external_urls.spotify ?? null;
+};

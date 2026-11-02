@@ -9,6 +9,9 @@ import { addPressingsToAlbum } from "./album-pressings";
 import { discogsEnabled } from "./discogs";
 import { runInBackground } from "./rate-lanes";
 import { ingestReleaseGroup } from "./ingest";
+import { albumLinkDeps, indexAlbumLinks } from "@/server/services/links/server";
+import { getAlbumLinks } from "@/server/services/vinyl/links";
+
 import { discogsOfficialVinyl } from "./discogs";
 import { discographyForArtist, officialReleasesWithMedia } from "./musicbrainz";
 import { vinylFields, vinylReleasesByGroup } from "./vinyl-status";
@@ -36,6 +39,17 @@ export const serverRunnerDeps = (prisma: PrismaClient): RunnerDeps => ({
   },
   ingest: (embedder, mbid, opts) =>
     ingestReleaseGroup(prisma, embedder, mbid, opts),
+  prefetchLinks: async (mbid) => {
+    const album = await prisma.album.findUnique({
+      where: { sourceKey: `mb:${mbid}` },
+      select: { id: true },
+    });
+    if (!album) return;
+    // Cached albums return at once; others cost ~1 MusicBrainz request.
+    await getAlbumLinks(prisma, album.id, albumLinkDeps, Date.now(), {
+      onResolved: (a, links) => indexAlbumLinks(prisma, a, links),
+    });
+  },
   embedder: () => loadEmbedder(ACTIVE_EMBEDDING_MODEL, { device: "cpu" }),
   log: (msg) => logger.info(msg),
 });

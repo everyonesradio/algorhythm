@@ -428,38 +428,51 @@ export const officialReleasesWithMedia = async (
 export const artistNameById = async (artistMbid: string) =>
   (await mbGet<{ name: string }>(`artist/${artistMbid}`, {})).name;
 
+export type MbReleaseDetail = MbRelease & {
+  "release-group"?: { id: string; title: string };
+  "artist-credit"?: MbArtistCredit[];
+};
+
 /**
- * The album (release group) a streaming URL belongs to, when MusicBrainz
- * editors linked that URL to a release. Exact, no text matching.
+ * The release a streaming URL belongs to, when MusicBrainz editors linked
+ * that URL to it. Exact, no text matching.
  */
-export const releaseGroupForUrl = async (
-  url: string
-): Promise<string | null> => {
-  const res = await mbGet<{
-    relations?: { release?: { id: string } }[];
-  }>("url", { resource: url, inc: "release-rels" }).catch((err: Error) => {
+export const releaseIdForUrl = async (url: string): Promise<string | null> => {
+  const res = await mbGet<{ relations?: { release?: { id: string } }[] }>("url", {
+    resource: url,
+    inc: "release-rels",
+  }).catch((err: Error) => {
     if (/MusicBrainz 404/.test(err.message)) return null;
     throw err;
   });
-  const releaseId = res?.relations?.find((r) => r.release)?.release?.id;
-  if (!releaseId) return null;
-  const release = await mbGet<{ "release-group"?: { id: string } }>(
-    `release/${releaseId}`,
-    { inc: "release-groups" }
-  );
-  return release["release-group"]?.id ?? null;
+  return res?.relations?.find((r) => r.release)?.release?.id ?? null;
 };
 
-/** The album a barcode (UPC/EAN) was printed on, if MusicBrainz has it. */
-export const releaseGroupForBarcode = async (
-  barcode: string
-): Promise<string | null> => {
+/** The release a barcode (UPC/EAN) was printed on, if MusicBrainz has it. */
+export const releaseIdForBarcode = async (barcode: string): Promise<string | null> => {
   if (!/^\d{8,14}$/.test(barcode)) return null;
-  const res = await mbGet<{
-    releases: { "release-group"?: { id: string }; score?: number }[];
-  }>("release", { query: `barcode:${barcode}`, limit: "5" });
-  return (
-    res.releases.find((r) => (r.score ?? 0) >= 90)?.["release-group"]?.id ??
-    null
-  );
+  const res = await mbGet<{ releases: { id: string; score?: number }[] }>("release", {
+    query: `barcode:${barcode}`,
+    limit: "5",
+  });
+  return res.releases.find((r) => (r.score ?? 0) >= 90)?.id ?? null;
+};
+
+/**
+ * One release with its album, credits, barcode and streaming links: a
+ * single request that's enough to answer "this link, everywhere".
+ */
+export const releaseDetail = async (releaseId: string) => {
+  const r = await mbGet<MbReleaseDetail>(`release/${releaseId}`, {
+    inc: "release-groups+url-rels+artist-credits",
+  });
+  const rg = r["release-group"];
+  if (!rg) return null;
+  return {
+    mbid: rg.id,
+    title: rg.title,
+    artist: artistName(r["artist-credit"]),
+    artistName: r["artist-credit"]?.[0]?.artist.name ?? null,
+    release: r as MbRelease,
+  };
 };

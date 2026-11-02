@@ -1,4 +1,5 @@
 import { Adapter } from "@/config/enum";
+import type { MbRelease } from "@/server/services/catalog/musicbrainz";
 import type {
   AlbumLink,
   PlatformAlbum,
@@ -12,13 +13,18 @@ import type {
  * which read platform web pages and picked the closest-sounding search
  * result, sometimes the wrong album. Every step here is exact:
  *
- *   1. Official platform API for the album behind the link: title, artist,
- *      barcode (Spotify Web API, Apple's iTunes lookup, Deezer API).
- *   2. The MusicBrainz album: the URL itself (editors link streaming URLs
- *      to releases), else the barcode, else a strict artist + title match.
- *   3. That album's links from MusicBrainz + barcodes (vinyl/links.ts).
- *   4. No MusicBrainz album: the source link plus barcode / strict-match
- *      links on Apple Music and Deezer.
+ *   0. Stored answer (LinkIndex, keyed by every platform URL of the album):
+ *      one database read. Stale ones are refreshed in the background.
+ *   1. In parallel: the official platform API for the album behind the link
+ *      (Spotify Web API, Apple's iTunes lookup, Deezer API: title, artist,
+ *      barcode) and MusicBrainz by the URL itself (editors link streaming
+ *      URLs to releases).
+ *   2. The exact release, by URL or barcode: one more MusicBrainz request
+ *      returns its album, credits and streaming links.
+ *   3. Answer with that release's links; the whole album's links (other
+ *      editions may add platforms) are filled in in the background.
+ *   4. No exact release: a strict artist + title match, else the source
+ *      link plus barcode / strict-match links on Apple Music and Deezer.
  */
 
 export type LinkKind = "album" | "track";
@@ -126,21 +132,13 @@ export const parseMusicLink = (raw: string): ParsedLink | null => {
   return null;
 };
 
-export type ResolveDeps = {
-  /** Official platform lookups; missing platforms have none (Tidal, YouTube, SoundCloud). */
-  platformAlbum: Partial<
-    Record<Adapter, (link: ParsedLink) => Promise<PlatformAlbum | null>>
-  >;
-  mbByUrl: (url: string) => Promise<string | null>;
-  mbByBarcode: (upc: string) => Promise<string | null>;
-  mbByArtistTitle: (artist: string, title: string) => Promise<string | null>;
-  /** All links for a MusicBrainz album (cached when it's in the catalog). */
-  albumLinks: (
-    mbid: string,
-    hint: { spotifyUrl: string | null }
-  ) => Promise<{ title: string; artist: string; links: AlbumLink[] }>;
-  /** Exact links for an album MusicBrainz doesn't know. */
-  fallbackLinks: (album: PlatformAlbum) => Promise<AlbumLink[]>;
+export type MbAlbum = {
+  mbid: string;
+  title: string;
+  artist: string;
+  artistName: string | null;
+  /** The exact release behind the link, with its streaming links. */
+  release: MbRelease;
 };
 
 export type ResolvedLink = {
@@ -151,6 +149,50 @@ export type ResolvedLink = {
   mbid: string | null;
   links: AlbumLink[];
 };
+
+export type ResolveDeps = {
+  /** Stored answers, keyed by canonical album URL (LinkIndex). */
+  store: {
+    get: (
+      url: string
+    ) => Promise<{ value: ResolvedLink; stale: boolean } | null>;
+    put: (value: ResolvedLink, urls: string[]) => Promise<void>;
+  };
+  /** Official platform lookups; missing platforms have none (Tidal, YouTube, SoundCloud). */
+  platformAlbum: Partial<
+    Record<Adapter, (link: ParsedLink) => Promise<PlatformAlbum | null>>
+  >;
+  mbReleaseForUrl: (url: string) => Promise<string | null>;
+  mbReleaseForBarcode: (upc: string) => Promise<string | null>;
+  mbRelease: (releaseId: string) => Promise<MbAlbum | null>;
+  mbByArtistTitle: (artist: string, title: string) => Promise<string | null>;
+  /**
+   * All links for a MusicBrainz album: from `releases` when given (fast),
+   * else every release of the album (one more request, more platforms).
+   */
+  albumLinks: (
+    album: {
+      mbid: string;
+      title: string;
+      artist: string;
+      artistName: string | null;
+      spotifyUrl: string | null;
+    },
+    releases?: MbRelease[]
+  ) => Promise<AlbumLink[]>;
+  /** Exact links for an album MusicBrainz doesn't know. */
+  fallbackLinks: (album: PlatformAlbum) => Promise<AlbumLink[]>;
+  /** Run work after the response (waitUntil on Vercel). */
+  background?: (task: Promise<unknown>) => void;
+  /**
+   * How long to wait for MusicBrainz before answering from the platform's
+   * own API + barcode lookups instead (the full answer is stored when it
+   * lands). MusicBrainz allows 1 request/s and the cold path needs 2.
+   */
+  budgetMs?: number;
+};
+
+export const MB_BUDGET_MS = 1500;
 
 export class UnsupportedLinkError extends Error {}
 
@@ -170,6 +212,17 @@ const withSource = (links: AlbumLink[], source: AlbumLink | null) => {
   return ORDER.flatMap((t) => (byType.has(t) ? [byType.get(t)!] : []));
 };
 
+/** Every URL an answer can be found by next time. */
+const urlsOf = (value: ResolvedLink, extra: (string | null)[]) => [
+  ...new Set(
+    [...value.links.map((l) => l.url), ...extra].filter((u): u is string => !!u)
+  ),
+];
+
+/**
+ * Stored answer if there is one (refreshed in the background once stale),
+ * else resolve it and store it under every platform URL of the album.
+ */
 export const resolveMusicLink = async (
   raw: string,
   deps: ResolveDeps
@@ -181,48 +234,149 @@ export const resolveMusicLink = async (
     );
   }
 
-  // 1. What the platform itself says the album is.
-  const lookup = deps.platformAlbum[link.platform];
-  const album = lookup ? await lookup(link).catch(() => null) : null;
-  // A track link stands for its album; the album URL is what we link to.
-  const albumUrl = album?.url ?? (link.kind === "album" ? link.url : null);
-  const source: AlbumLink | null = albumUrl
-    ? { type: link.platform, url: albumUrl, via: "source" }
-    : null;
-
-  // 2. The MusicBrainz album, most exact first.
-  const attempts: (() => Promise<string | null>)[] = [
-    ...(albumUrl ? [() => deps.mbByUrl(albumUrl)] : []),
-    ...(album?.upc ? [() => deps.mbByBarcode(album.upc!)] : []),
-    ...(album ? [() => deps.mbByArtistTitle(album.artist, album.title)] : []),
-  ];
-  let mbid: string | null = null;
-  for (const attempt of attempts) {
-    mbid = await attempt().catch(() => null);
-    if (mbid) break;
+  const stored = await deps.store.get(link.url).catch(() => null);
+  if (stored) {
+    if (stored.stale)
+      deps.background?.(resolveFresh(link, deps).catch(() => null));
+    return stored.value;
   }
+  return resolveFresh(link, deps);
+};
 
-  // 3. Everything MusicBrainz + barcodes know about that album.
-  if (mbid) {
-    const res = await deps.albumLinks(mbid, {
-      spotifyUrl: link.platform === Adapter.Spotify ? albumUrl : null,
-    });
-    return {
-      title: res.title,
-      artist: res.artist,
+const resolveFresh = async (
+  link: ParsedLink,
+  deps: ResolveDeps
+): Promise<ResolvedLink> => {
+  const lookup = deps.platformAlbum[link.platform];
+  // All started at once: the platform's answer, MusicBrainz by URL, and
+  // (speculatively, they're cheap) exact Apple/Deezer links for a quick answer.
+  const platformP = lookup
+    ? lookup(link).catch(() => null)
+    : Promise.resolve(null);
+  const urlP =
+    link.kind === "album"
+      ? deps.mbReleaseForUrl(link.url).catch(() => null)
+      : Promise.resolve(null);
+  const quickP = platformP.then((a) =>
+    a ? deps.fallbackLinks(a).catch(() => []) : null
+  );
+
+  const albumUrlOf = (album: PlatformAlbum | null) =>
+    album?.url ?? (link.kind === "album" ? link.url : null);
+  const sourceOf = (url: string | null): AlbumLink | null =>
+    url ? { type: link.platform, url, via: "source" } : null;
+  const store = (value: ResolvedLink, albumUrl: string | null) =>
+    value.links.length
+      ? deps.store
+          .put(value, urlsOf(value, [link.url, albumUrl]))
+          .catch(() => undefined)
+      : Promise.resolve();
+
+  // The full answer from MusicBrainz (or strict matches when it has none).
+  const fullP = (async () => {
+    // The release lookup starts as soon as the URL lookup answers.
+    let releaseId = await urlP;
+    const album = await platformP;
+    const albumUrl = albumUrlOf(album);
+    const source = sourceOf(albumUrl);
+    const spotifyUrl = link.platform === Adapter.Spotify ? albumUrl : null;
+    if (!releaseId && albumUrl && albumUrl !== link.url) {
+      releaseId = await deps.mbReleaseForUrl(albumUrl).catch(() => null);
+    }
+    if (!releaseId && album?.upc) {
+      releaseId = await deps.mbReleaseForBarcode(album.upc).catch(() => null);
+    }
+    const mb = releaseId
+      ? await deps.mbRelease(releaseId).catch(() => null)
+      : null;
+
+    if (mb) {
+      // That release's links now; the whole album's (more platforms) after.
+      const meta = {
+        mbid: mb.mbid,
+        title: mb.title,
+        artist: mb.artist,
+        artistName: mb.artistName,
+        spotifyUrl,
+      };
+      const value: ResolvedLink = {
+        title: mb.title,
+        artist: mb.artist,
+        imageUrl: album?.imageUrl ?? null,
+        mbid: mb.mbid,
+        links: withSource(await deps.albumLinks(meta, [mb.release]), source),
+      };
+      return {
+        value,
+        albumUrl,
+        enrich: () => deps.albumLinks(meta).then((l) => withSource(l, source)),
+      };
+    }
+    // No exact release: the album by strict artist + title, else
+    // platform-exact links only.
+    const mbid = album
+      ? await deps.mbByArtistTitle(album.artist, album.title).catch(() => null)
+      : null;
+    const links = mbid
+      ? await deps.albumLinks({
+          mbid,
+          title: album!.title,
+          artist: album!.artist,
+          artistName: null,
+          spotifyUrl,
+        })
+      : ((await quickP) ?? []);
+    const value: ResolvedLink = {
+      title: album?.title ?? null,
+      artist: album?.artist ?? null,
       imageUrl: album?.imageUrl ?? null,
       mbid,
-      links: withSource(res.links, source),
+      links: withSource(links, source),
     };
+    return { value, albumUrl, enrich: null };
+  })();
+
+  /** Store the full answer, then the whole album's links when richer. */
+  const settle = async (full: Awaited<typeof fullP>) => {
+    await store(full.value, full.albumUrl);
+    if (!full.enrich) return;
+    const all = await full.enrich().catch(() => null);
+    if (all && all.length > full.value.links.length) {
+      const richer = { ...full.value, links: all };
+      await store(richer, full.albumUrl);
+    }
+  };
+
+  const budget = deps.budgetMs ?? MB_BUDGET_MS;
+  const inTime = await Promise.race([
+    fullP.then((full) => full),
+    new Promise<null>((r) => setTimeout(() => r(null), budget)),
+  ]);
+  if (inTime) {
+    await store(inTime.value, inTime.albumUrl);
+    if (inTime.enrich && deps.background)
+      deps.background(settle(inTime).catch(() => null));
+    return inTime.value;
   }
 
-  // 4. Not on MusicBrainz: exact platform lookups only.
-  const extra = album ? await deps.fallbackLinks(album).catch(() => []) : [];
-  return {
-    title: album?.title ?? null,
-    artist: album?.artist ?? null,
-    imageUrl: album?.imageUrl ?? null,
+  // MusicBrainz is slow: answer from the platform's own exact data now.
+  const [album, quick] = await Promise.all([platformP, quickP]);
+  if (!album || !quick) {
+    const full = await fullP; // nothing quicker to offer
+    await store(full.value, full.albumUrl);
+    if (full.enrich && deps.background)
+      deps.background(settle(full).catch(() => null));
+    return full.value;
+  }
+  const albumUrl = albumUrlOf(album);
+  const quickValue: ResolvedLink = {
+    title: album.title,
+    artist: album.artist,
+    imageUrl: album.imageUrl,
     mbid: null,
-    links: withSource(extra, source),
+    links: withSource(quick, sourceOf(albumUrl)),
   };
+  // The full answer replaces this one in the store when it lands.
+  if (deps.background) deps.background(fullP.then(settle).catch(() => null));
+  return quickValue;
 };

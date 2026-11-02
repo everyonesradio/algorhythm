@@ -29,7 +29,7 @@ import {
   scanIsActionable,
 } from "@/server/services/vinyl/scan-log";
 import { getAlbumLinks } from "@/server/services/vinyl/links";
-import { albumLinkDeps } from "@/server/services/links/server";
+import { albumLinkDeps, indexAlbumLinks } from "@/server/services/links/server";
 import {
   groupHitsByAlbum,
   pickBestView,
@@ -465,7 +465,18 @@ export const vinylRouter = createTRPCRouter({
   links: publicProcedure
     .input(z.object({ albumId: objectId }))
     .query(async ({ ctx, input }) => {
-      const res = await getAlbumLinks(ctx.prisma, input.albumId, albumLinkDeps);
+      const res = await getAlbumLinks(
+        ctx.prisma,
+        input.albumId,
+        albumLinkDeps,
+        Date.now(),
+        {
+          background: (task) => waitUntil(task),
+          // Pasting any of these links later is then a single read.
+          onResolved: (album, links) =>
+            indexAlbumLinks(ctx.prisma, album, links),
+        }
+      );
       if (res.status === "not-found") {
         throw new TRPCError({ code: "NOT_FOUND", message: "Album not found" });
       }
