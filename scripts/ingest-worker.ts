@@ -18,6 +18,7 @@ import { serverRunnerDeps } from "@/server/services/catalog/background";
 import {
   claimJob,
   isDue,
+  requeue,
   requestArtistCatalog,
   runArtistJob,
 } from "@/server/services/catalog/queue";
@@ -30,13 +31,19 @@ const { values } = parseArgs({
 });
 
 const prisma = new PrismaClient();
-const deps = { ...serverRunnerDeps(prisma), log: (m: string) => console.log(m) };
+const deps = {
+  ...serverRunnerDeps(prisma),
+  log: (m: string) => console.log(m),
+};
 
 const main = async () => {
   if (values["artist-mbid"]) {
     await requestArtistCatalog(
       prisma,
-      { mbid: values["artist-mbid"], name: values.name ?? values["artist-mbid"] },
+      {
+        mbid: values["artist-mbid"],
+        name: values.name ?? values["artist-mbid"],
+      },
       "cli"
     );
   }
@@ -53,7 +60,7 @@ const main = async () => {
     if (job.status !== "pending") {
       await prisma.ingestJob.update({
         where: { id: job.id },
-        data: { status: "pending" },
+        data: requeue(job),
       });
     }
     if (!(await claimJob(prisma, job.id))) continue;
