@@ -13,7 +13,9 @@ import {
 } from "@/server/services/catalog/musicbrainz";
 import { runInBackground } from "@/server/services/catalog/rate-lanes";
 import { spotifyAlbumTracks } from "@/server/services/catalog/spotify";
+import { eventSlugInput, joinCodeInput } from "@/server/api/routers/events";
 import { getAlbumDetails } from "@/server/services/library/album-details";
+import { checkJoin } from "@/server/services/library/events";
 import {
   addFind,
   albumFinds,
@@ -74,12 +76,17 @@ export const libraryRouter = createTRPCRouter({
           .max(NOTE_MAX * 4)
           .nullish(),
         coverUrl: z.string().url().nullish(),
+        /** The pop-up this phone joined (slug + code from the join link). */
+        event: z
+          .object({ slug: eventSlugInput, code: joinCodeInput })
+          .nullish(),
       })
     )
     .mutation(async ({ ctx, input }) => {
       try {
         const res = await addFind(ctx.prisma, input, {
           confirm: (scan, albumId) => confirmScan(ctx.prisma, scan, albumId),
+          checkEvent: (event) => checkJoin(ctx.prisma, event),
         });
         // Fetch tracklist and about text now, so the library page has them.
         if (res.created) {

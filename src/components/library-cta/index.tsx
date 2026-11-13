@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "motion/react";
 
 // ** Custom Components, Hooks, Utils, etc.
 import { useDeviceKey } from "@/hooks/use-device-key";
+import { useJoinedEvent } from "@/hooks/use-joined-event";
 import { api } from "@/utils/trpc";
 
 // ** Icon Imports
@@ -56,6 +57,7 @@ const LibraryCta: React.FC<Props> = ({
   pageHref,
 }) => {
   const deviceKey = useDeviceKey();
+  const joined = useJoinedEvent();
   const noteId = useId();
   const utils = api.useUtils();
   const [writing, setWriting] = useState(false);
@@ -88,6 +90,15 @@ const LibraryCta: React.FC<Props> = ({
   const entryId = status.data?.entryId ?? null;
   const state = entryId ? "added" : writing ? "writing" : "idle";
   const error = add.error?.message ?? remove.error?.message ?? null;
+  // After adding at a pop-up: say it counted, or why it didn't.
+  const eventLine =
+    state === "added" && add.data
+      ? add.data.event && joined
+        ? `Counted for ${joined.name}`
+        : add.data.eventProblem
+          ? `Added, but not counted for the pop-up: ${add.data.eventProblem}`
+          : null
+      : null;
 
   return (
     <div className='flex w-full flex-col gap-2'>
@@ -128,6 +139,8 @@ const LibraryCta: React.FC<Props> = ({
                 deviceKey,
                 note: note.trim() || null,
                 coverUrl,
+                // At a pop-up: credit the find to it.
+                event: joined ? { slug: joined.slug, code: joined.code } : null,
               });
             }}
           >
@@ -201,6 +214,14 @@ const LibraryCta: React.FC<Props> = ({
           </motion.div>
         )}
       </AnimatePresence>
+      {state === "writing" && joined && (
+        <p className='text-center text-xs text-gray-500'>
+          Counts for {joined.name}
+        </p>
+      )}
+      {eventLine && (
+        <p className='text-center text-xs text-gray-600'>{eventLine}</p>
+      )}
       {error && (
         <p role='alert' className='text-center text-xs text-red-600'>
           {error}

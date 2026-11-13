@@ -165,7 +165,10 @@ model LibraryEntry {
   coverUrl      String? // the art that matched (pressing / Spotify)
   deviceKeyHash String // lets the same device remove it
   note          String? // up to 140 characters
-  event         String? // pop-up slug, later
+  event         String? // pop-up slug (see Event), when added at a pop-up
+  // How the record was named: "app" (matched), "suggestions" (picked from
+  // the app's candidates) or "hand" (entered by artist search: taught).
+  namedBy       String?
   hidden        Boolean  @default(false) // moderation
   reporters     String[] // device-key hashes of people who reported it
   createdAt     DateTime @default(now())
@@ -173,4 +176,24 @@ model LibraryEntry {
   @@index([albumId, createdAt])
   @@index([createdAt])
   @@index([deviceKeyHash, createdAt])
+  @@index([event, createdAt])
+}
+
+// A pop-up ("Stump the Algorithm" at a record shop). Phones that open its
+// join link (QR at the venue) during the event credit their library finds
+// to it; its page shows the scoreboard and every find. Created with
+// `npm run vinyl:event`.
+model Event {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  slug         String   @unique
+  name         String
+  venue        String?
+  city         String?
+  description  String?
+  startsAt     DateTime
+  endsAt       DateTime
+  joinCodeHash String // only the hash of the code on the QR is stored
+  createdAt    DateTime @default(now())
+
+  @@index([startsAt])
 }

@@ -12,6 +12,7 @@ import DigitalAlbum from "@/components/digital-album";
 import Sheet from "@/components/sheet";
 import { useCamera } from "@/hooks/use-camera";
 import { useCoverEmbedder } from "@/hooks/use-cover-embedder";
+import { leaveEvent, useJoinedEvent } from "@/hooks/use-joined-event";
 import type { VinylMatch } from "@/types/api";
 import {
   centerSquareCrop,
@@ -67,6 +68,7 @@ type Result = {
 const VinylScan = () => {
   const { videoRef, state: cameraState } = useCamera();
   const embedder = useCoverEmbedder();
+  const joinedEvent = useJoinedEvent();
   const identify = api.vinyl.identify.useMutation();
   const confirm = api.vinyl.confirm.useMutation();
   const pick = api.vinyl.pick.useMutation();
@@ -435,11 +437,30 @@ const VinylScan = () => {
       {/* Status */}
       <Link
         href='/library'
-        className='absolute right-4 top-4 z-10 rounded-full bg-black/60 px-3 py-1.5 text-sm text-white backdrop-blur transition-transform duration-[120ms] active:scale-[0.97]'
+        className='absolute right-4 top-12 z-30 rounded-full bg-black/60 px-3 py-1.5 text-sm text-white backdrop-blur transition-transform duration-[120ms] active:scale-[0.97]'
       >
         Library
       </Link>
-      <div className='absolute left-0 right-0 top-0 flex flex-col items-center gap-1 p-4 pt-14 text-center'>
+      {joinedEvent && (
+        // At a pop-up: finds added now are credited to it.
+        <div className='absolute left-4 top-12 z-30 flex max-w-[calc(100%-7.5rem)] items-center gap-2 rounded-full bg-emerald-600/90 py-1.5 pl-3 pr-2 text-sm text-white backdrop-blur'>
+          <Link
+            href={`/library/event/${joinedEvent.slug}`}
+            className='truncate'
+          >
+            At {joinedEvent.name}
+          </Link>
+          <button
+            type='button'
+            onClick={leaveEvent}
+            className='shrink-0 rounded-full bg-white/20 px-2 text-xs'
+            aria-label={`Leave ${joinedEvent.name}`}
+          >
+            Leave
+          </button>
+        </div>
+      )}
+      <div className='pointer-events-none absolute left-0 right-0 top-0 flex flex-col items-center gap-1 p-4 pt-24 text-center'>
         <span className='font-eightbitdragon text-xl'>algoRhythm</span>
         {cameraState === "denied" && (
           <span className='text-sm text-red-300'>

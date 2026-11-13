@@ -11,6 +11,7 @@ import {
   findStatus,
   hashDeviceKey,
   LibraryError,
+  namedBy,
   removeFind,
   scanIdentified,
 } from "@/server/services/library/library";
@@ -424,5 +425,72 @@ describe("listing", () => {
       ["newest note", true],
       ["older note", true],
     ]);
+  });
+});
+
+describe("namedBy", () => {
+  it("tells the app's names from suggestions and records the room taught it", () => {
+    const s = scanRow();
+    expect(namedBy(s as any, ALBUM)).toBe("app");
+    expect(namedBy(s as any, OTHER)).toBe("suggestions");
+    expect(namedBy(scanRow({ status: "ambiguous" }) as any, ALBUM)).toBe(
+      "suggestions"
+    );
+    expect(namedBy(s as any, "c".repeat(24))).toBe("hand");
+    expect(
+      namedBy(scanRow({ status: "no_match", topAlbumIds: [] }) as any, ALBUM)
+    ).toBe("hand");
+  });
+});
+
+describe("addFind at a pop-up", () => {
+  const input = {
+    scanId: "s".repeat(24),
+    albumId: ALBUM,
+    deviceKey: KEY,
+    event: { slug: "stump-bristol", code: "K7Q2XM" },
+  };
+
+  it("credits the find to the event, with how it was named", async () => {
+    const { prisma, entries } = fakePrisma([scanRow()]);
+    const checkEvent = vi.fn(async (e: { slug: string }) => ({ slug: e.slug }));
+    const res = await addFind(prisma, input, { ...deps(), checkEvent }, NOW);
+    expect(res).toMatchObject({
+      created: true,
+      event: "stump-bristol",
+      eventProblem: null,
+    });
+    expect(entries[0]).toMatchObject({
+      event: "stump-bristol",
+      namedBy: "app",
+    });
+  });
+
+  it("still adds the find when the code is wrong or the night is over", async () => {
+    const { prisma, entries } = fakePrisma([scanRow()]);
+    const checkEvent = vi.fn(async () => {
+      throw new Error("This pop-up has finished.");
+    });
+    const res = await addFind(prisma, input, { ...deps(), checkEvent }, NOW);
+    expect(res).toMatchObject({
+      created: true,
+      event: null,
+      eventProblem: "This pop-up has finished.",
+    });
+    expect(entries).toHaveLength(1);
+    expect(entries[0].event ?? null).toBeNull();
+  });
+
+  it("records namedBy without an event too", async () => {
+    const { prisma, entries } = fakePrisma([
+      scanRow({ status: "ambiguous", confirmedAlbumId: OTHER }),
+    ]);
+    await addFind(
+      prisma,
+      { ...input, albumId: OTHER, event: undefined },
+      deps(),
+      NOW
+    );
+    expect(entries[0]).toMatchObject({ namedBy: "suggestions" });
   });
 });

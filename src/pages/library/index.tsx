@@ -57,6 +57,7 @@ const LibraryPage = () => {
   const [open, setOpen] = useState(false);
 
   const stats = api.library.stats.useQuery(undefined, { staleTime: 60_000 });
+  const events = api.events.list.useQuery(undefined, { staleTime: 60_000 });
   const facets = api.library.facets.useQuery(undefined, { staleTime: 300_000 });
   const list = api.library.list.useInfiniteQuery(
     { sort, genre, decade, limit: 24 },
@@ -112,6 +113,53 @@ const LibraryPage = () => {
               Scan a record
             </Link>
           </header>
+
+          {(events.data?.length ?? 0) > 0 && (
+            <section aria-labelledby='popups' className='flex flex-col gap-3'>
+              <h2
+                id='popups'
+                className='text-[11px] font-semibold uppercase tracking-[0.18em] text-black/55'
+              >
+                Pop-ups
+              </h2>
+              <ul className='-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0'>
+                {events.data!.map((e) => (
+                  <li key={e.slug} className='shrink-0'>
+                    <Link
+                      href={`/library/event/${e.slug}`}
+                      className='flex w-60 flex-col gap-1 rounded-2xl bg-white/70 p-4 ring-1 ring-black/5 transition-colors hover:ring-black/30'
+                    >
+                      <span
+                        className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] ${
+                          e.status === "live"
+                            ? "text-emerald-700"
+                            : "text-black/50"
+                        }`}
+                      >
+                        {e.status === "live" && (
+                          <span className='h-2 w-2 animate-pulse rounded-full bg-emerald-600 motion-reduce:animate-none' />
+                        )}
+                        {e.status === "live"
+                          ? "Live now"
+                          : e.status === "upcoming"
+                            ? new Date(e.startsAt).toLocaleDateString("en-GB", {
+                                day: "numeric",
+                                month: "short",
+                              })
+                            : "Ended"}
+                      </span>
+                      <span className='truncate font-semibold'>{e.name}</span>
+                      {(e.venue || e.city) && (
+                        <span className='truncate text-sm text-black/60'>
+                          {[e.venue, e.city].filter(Boolean).join(", ")}
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <div className='flex flex-col gap-3'>
             <div className='flex gap-2' role='group' aria-label='Sort'>

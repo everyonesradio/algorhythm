@@ -56,9 +56,29 @@ export const scanIdentified = (
     ? scan.confirmedAlbumId === albumId
     : scan.status === "matched" && scan.topAlbumIds[0] === albumId;
 
+/**
+ * How a scan's record was named: by the app (a confident match it wasn't
+ * corrected on), from its suggestions (one of its candidates), or by hand
+ * (entered through artist search: the app didn't have it).
+ */
+export const namedBy = (
+  scan: Pick<ScanEvent, "status" | "topAlbumIds">,
+  albumId: string
+): "app" | "suggestions" | "hand" =>
+  scan.status === "matched" && scan.topAlbumIds[0] === albumId
+    ? "app"
+    : scan.topAlbumIds.includes(albumId)
+      ? "suggestions"
+      : "hand";
+
 export type LibraryDeps = {
   /** Record the scan as confirmed for this album (vinyl/confirm-scan.ts). */
   confirm: (scan: ScanEvent, albumId: string) => Promise<ConfirmOutcome>;
+  /** The pop-up a find should be credited to; throws if code or time is wrong. */
+  checkEvent?: (event: {
+    slug: string;
+    code: string;
+  }) => Promise<{ slug: string }>;
 };
 
 /** Keep the album's "dug N times" and latest-find date in step with its finds. */
@@ -86,6 +106,8 @@ export const addFind = async (
     deviceKey: string;
     note?: string | null;
     coverUrl?: string | null;
+    /** The pop-up this phone joined, with the code from its join link. */
+    event?: { slug: string; code: string } | null;
   },
   deps: LibraryDeps,
   now = Date.now()
@@ -103,7 +125,13 @@ export const addFind = async (
     const count = await prisma.libraryEntry.count({
       where: { albumId: existing.albumId, hidden: false },
     });
-    return { entryId: existing.id, count, created: false };
+    return {
+      entryId: existing.id,
+      count,
+      created: false,
+      event: existing.event,
+      eventProblem: null,
+    };
   }
 
   if (!scanIsActionable(scan, now)) {
@@ -146,6 +174,18 @@ export const addFind = async (
     if (known) coverUrl = input.coverUrl;
   }
 
+  // Credit the pop-up if the join code and time check out. A wrong code or a
+  // finished event doesn't lose the find: it's added without the credit.
+  let event: string | null = null;
+  let eventProblem: string | null = null;
+  if (input.event && deps.checkEvent) {
+    try {
+      event = (await deps.checkEvent(input.event)).slug;
+    } catch (err) {
+      eventProblem = (err as Error).message;
+    }
+  }
+
   const entry = await prisma.libraryEntry.create({
     data: {
       albumId: input.albumId,
@@ -153,11 +193,13 @@ export const addFind = async (
       coverUrl,
       deviceKeyHash,
       note: cleanNote(input.note),
+      event,
+      namedBy: namedBy(scan, input.albumId),
     },
     select: { id: true },
   });
   const count = await recount(prisma, input.albumId);
-  return { entryId: entry.id, count, created: true };
+  return { entryId: entry.id, count, created: true, event, eventProblem };
 };
 
 /** "Dug by N", and whether this scan's find is already in. */

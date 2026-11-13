@@ -118,8 +118,8 @@ or value we can't back up.
    same scan can be added once; a second tap returns the same find.
 
 Picking an unknown record by hand (the artist picker) counts as a scan, so
-taught records can be added too. At a pop-up, an event tag is attached
-automatically (set on the scanning device by George for the evening).
+taught records can be added too. At a pop-up, finds are credited to the event
+automatically once the phone has joined it (below).
 
 **Browse the library (`/library`)**
 - A counter: records dug, collectors, cities.
@@ -148,9 +148,31 @@ automatically (set on the scanning device by George for the evening).
 - Open Graph image: the cover plus "dug by N", so links to it look good in
   group chats and on social.
 
-**Event page (`/library/event/{slug}`)**
-- Every find added at one pop-up, in the order they happened, with the
-  Stump scoreboard (tried / named / stumped / taught) once that exists.
+**Pop-ups (`/library/event/{slug}`)** ✔
+- Created from the command line: `npm run vinyl:event -- create --name "Stump
+  the Algorithm · Bristol" --venue "Idle Hands" --city Bristol --starts
+  2027-01-21T18:00 --ends 2027-01-21T20:00 [--base https://…]`. It prints the
+  event page, the **join link** and its 6-character code. Put the join link on
+  the QR at the venue. `list`, `end --slug …` and `new-code --slug …` (if the
+  code leaks) are the other commands.
+- **Joining:** opening the join link checks the code and that the event is on
+  (from an hour before it starts to an hour after it ends), stores the event
+  on the phone until then, and removes the code from the address bar. The scan
+  screen shows a green "At {event}" badge with **Leave**.
+- **Credit:** finds added while joined are tagged with the event. The server
+  checks the code and time again on every add; if either fails, the find is
+  still added, just not to the event, and the drawer says why.
+- **The page:** status (Live now / Upcoming / Ended), venue, local time, the
+  scoreboard and every find in order (cover, how it was named, note, time).
+  It refreshes every 15 seconds while live, so it can go up on the shop's
+  screen. Hidden (reported) finds don't count. Unknown slugs 404.
+- **Scoreboard rules,** published on the page so "stumped" isn't decided
+  afterwards. Each find records how the record was named: **by the app**
+  (a confident match it wasn't corrected on), **from suggestions** (someone
+  picked one of its candidates) or **taught by the room** (entered by hand:
+  the app didn't know it). Stump rate = taught ÷ added.
+- `/library` shows a **Pop-ups** row: live first, then upcoming, then the last
+  six months.
 
 **Taking a find down**
 - The device that added a find can remove it (a device key, below).
@@ -285,8 +307,8 @@ export, comments beyond the note, and label or matrix scanning.
 |---|---|---|
 | 1 | `LibraryEntry` model, `libraryCount`, `library.add/status/remove` with scan checks and rate limit | M · **done** |
 | 2 | "Add to library" in the drawer: optional note, undo, device key | M · **done** |
-| 3 | `/library` grid with CSS 3D covers, sort, filters, counter | M |
-| 4 | Album page: tracklist and about fetching + caching, finds list, OG image | L |
-| 5 | Event tag + event page | S |
+| 3 | `/library` grid with CSS 3D covers, sort, filters, counter | M · **done** |
+| 4 | Album page: tracklist and about fetching + caching, finds list, OG image | L · **done** |
+| 5 | Event tag + event page (join link, scoreboard, `vinyl:event`) | S · **done** |
 | 6 | Moderation: hide flag, report review script (`vinyl:library --reported`) | S |
 | 7 | Tests, docs, the open-dataset export including finds | S |
