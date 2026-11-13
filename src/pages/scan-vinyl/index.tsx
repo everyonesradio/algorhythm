@@ -547,6 +547,9 @@ const VinylScan = () => {
           album={result.match.album}
           coverUrl={result.match.scannedCover}
           confirmed={confirmed}
+          scanId={result.scanId}
+          // The server records adding a find as a confirmation.
+          onAddedToLibrary={() => setConfirmed(true)}
           onConfirm={() => confirmAlbum(result.scanId, result.match.album.id)}
           onReject={
             result.others.length

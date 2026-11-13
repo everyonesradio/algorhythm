@@ -14,7 +14,9 @@ vi.mock("@/server/services/catalog/background", () => ({
   startScanIngest: vi.fn(),
 }));
 vi.mock("@/server/services/catalog/musicbrainz", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/server/services/catalog/musicbrainz")>()),
+  ...(await importOriginal<
+    typeof import("@/server/services/catalog/musicbrainz")
+  >()),
   lookupReleaseGroup: vi.fn(async (mbid: string) => ({
     id: mbid,
     title: mbid === GNX ? "GNX" : "Some Other Record",
@@ -22,8 +24,14 @@ vi.mock("@/server/services/catalog/musicbrainz", async (importOriginal) => ({
     "first-release-date": "2024-11-22",
     "artist-credit": [
       mbid === GNX
-        ? { name: "Kendrick Lamar", artist: { id: KDOT, name: "Kendrick Lamar" } }
-        : { name: "Someone Else", artist: { id: "someone-else", name: "Someone Else" } },
+        ? {
+            name: "Kendrick Lamar",
+            artist: { id: KDOT, name: "Kendrick Lamar" },
+          }
+        : {
+            name: "Someone Else",
+            artist: { id: "someone-else", name: "Someone Else" },
+          },
     ],
     genres: [{ name: "west coast hip hop", count: 3 }],
     tags: [],
@@ -31,7 +39,8 @@ vi.mock("@/server/services/catalog/musicbrainz", async (importOriginal) => ({
   coverExists: vi.fn(async () => true),
 }));
 
-const { startScanIngest } = await import("@/server/services/catalog/background");
+const { startScanIngest } =
+  await import("@/server/services/catalog/background");
 const { vinylRouter } = await import("@/server/api/routers/vinyl");
 const { createCallerFactory } = await import("@/server/api/trpc");
 
@@ -60,17 +69,82 @@ type Row = Record<string, any>;
 
 const makeFakePrisma = () => {
   const albums: Row[] = [
-    { id: oid(1), title: "Voodoo", artist: "D'Angelo", artistMbid: "dangelo", genres: [], tags: [], labels: [], coverUrl: "a.jpg", releaseYear: 2000 },
-    { id: oid(2), title: "Baduizm", artist: "Erykah Badu", artistMbid: "badu", genres: [], tags: [], labels: [], coverUrl: "b.jpg", releaseYear: 1997 },
-    { id: oid(3), title: "good kid, m.A.A.d city", artist: "Kendrick Lamar", artistMbid: KDOT, genres: [], tags: [], labels: [], coverUrl: "c.jpg", releaseYear: 2012 },
-    { id: oid(4), title: "To Pimp a Butterfly", artist: "Kendrick Lamar", artistMbid: KDOT, genres: [], tags: [], labels: [], coverUrl: "d.jpg", releaseYear: 2015 },
+    {
+      id: oid(1),
+      title: "Voodoo",
+      artist: "D'Angelo",
+      artistMbid: "dangelo",
+      genres: [],
+      tags: [],
+      labels: [],
+      coverUrl: "a.jpg",
+      releaseYear: 2000,
+    },
+    {
+      id: oid(2),
+      title: "Baduizm",
+      artist: "Erykah Badu",
+      artistMbid: "badu",
+      genres: [],
+      tags: [],
+      labels: [],
+      coverUrl: "b.jpg",
+      releaseYear: 1997,
+    },
+    {
+      id: oid(3),
+      title: "good kid, m.A.A.d city",
+      artist: "Kendrick Lamar",
+      artistMbid: KDOT,
+      genres: [],
+      tags: [],
+      labels: [],
+      coverUrl: "c.jpg",
+      releaseYear: 2012,
+    },
+    {
+      id: oid(4),
+      title: "To Pimp a Butterfly",
+      artist: "Kendrick Lamar",
+      artistMbid: KDOT,
+      genres: [],
+      tags: [],
+      labels: [],
+      coverUrl: "d.jpg",
+      releaseYear: 2015,
+    },
   ];
   const embeddings: Row[] = [
-    { albumId: oid(1), model: "clip-vit-b32", vector: vec(0), source: "catalog" },
-    { albumId: oid(1), model: "clip-vit-b32", vector: vec(0, 0.2), source: "spotify" },
-    { albumId: oid(2), model: "clip-vit-b32", vector: vec(5), source: "catalog" },
-    { albumId: oid(3), model: "clip-vit-b32", vector: kendrickCover(10), source: "catalog" },
-    { albumId: oid(4), model: "clip-vit-b32", vector: kendrickCover(11), source: "catalog" },
+    {
+      albumId: oid(1),
+      model: "clip-vit-b32",
+      vector: vec(0),
+      source: "catalog",
+    },
+    {
+      albumId: oid(1),
+      model: "clip-vit-b32",
+      vector: vec(0, 0.2),
+      source: "spotify",
+    },
+    {
+      albumId: oid(2),
+      model: "clip-vit-b32",
+      vector: vec(5),
+      source: "catalog",
+    },
+    {
+      albumId: oid(3),
+      model: "clip-vit-b32",
+      vector: kendrickCover(10),
+      source: "catalog",
+    },
+    {
+      albumId: oid(4),
+      model: "clip-vit-b32",
+      vector: kendrickCover(11),
+      source: "catalog",
+    },
   ];
   const scans: Row[] = [];
 
@@ -79,10 +153,14 @@ const makeFakePrisma = () => {
     embeddings,
     scans,
     coverEmbedding: {
-      findMany: async ({ where }: Row) => embeddings.filter((e) => e.model === where.model),
+      findMany: async ({ where }: Row) =>
+        embeddings.filter((e) => e.model === where.model),
       count: async ({ where }: Row) =>
         embeddings.filter(
-          (e) => e.albumId === where.albumId && e.model === where.model && e.source === where.source
+          (e) =>
+            e.albumId === where.albumId &&
+            e.model === where.model &&
+            e.source === where.source
         ).length,
       create: async ({ data }: Row) => {
         embeddings.push(data);
@@ -90,10 +168,12 @@ const makeFakePrisma = () => {
       },
     },
     album: {
-      findMany: async ({ where }: Row) => albums.filter((a) => where.id.in.includes(a.id)),
+      findMany: async ({ where }: Row) =>
+        albums.filter((a) => where.id.in.includes(a.id)),
       findUnique: async ({ where }: Row) =>
-        albums.find((a) => (where.id ? a.id === where.id : a.sourceKey === where.sourceKey)) ??
-        null,
+        albums.find((a) =>
+          where.id ? a.id === where.id : a.sourceKey === where.sourceKey
+        ) ?? null,
       create: async ({ data }: Row) => {
         const row = { id: oid(200 + albums.length), ...data };
         albums.push(row);
@@ -111,8 +191,13 @@ const makeFakePrisma = () => {
         scans.push(row);
         return { id: row.id };
       },
-      findUnique: async ({ where }: Row) => scans.find((s) => s.id === where.id) ?? null,
-      update: async ({ where, data }: Row) => Object.assign(scans.find((s) => s.id === where.id)!, data),
+      findUnique: async ({ where }: Row) =>
+        scans.find((s) => s.id === where.id) ?? null,
+      update: async ({ where, data }: Row) =>
+        Object.assign(
+          scans.find((s) => s.id === where.id)!,
+          data
+        ),
     },
   };
 };
@@ -129,7 +214,10 @@ describe("vinyl router", () => {
   });
 
   it("identifies the closest album, logs the scan and requests the artist's catalog", async () => {
-    const res = await caller.identify({ model: "clip-vit-b32", vectors: [vec(0, 0.1)] });
+    const res = await caller.identify({
+      model: "clip-vit-b32",
+      vectors: [vec(0, 0.1)],
+    });
     expect(res.status).toBe("matched");
     expect(res.matches[0].album.title).toBe("Voodoo");
     expect(res.matches).toHaveLength(1); // Baduizm is far below the candidate bar
@@ -144,14 +232,26 @@ describe("vinyl router", () => {
   });
 
   it("returns none (and logs nothing) for an unknown cover", async () => {
-    const res = await caller.identify({ model: "clip-vit-b32", vectors: [vec(300)] });
-    expect(res).toEqual({ status: "none", scanId: null, matches: [], artistSuggestions: [] });
+    const res = await caller.identify({
+      model: "clip-vit-b32",
+      vectors: [vec(300)],
+    });
+    expect(res).toEqual({
+      status: "none",
+      scanId: null,
+      matches: [],
+      artistSuggestions: [],
+    });
     expect(prisma.scans).toHaveLength(0);
     expect(startScanIngest).not.toHaveBeenCalled();
   });
 
   it("keeps an unmatched scan when asked, so the record can be picked by hand", async () => {
-    const res = await caller.identify({ model: "clip-vit-b32", vectors: [vec(300)], log: true });
+    const res = await caller.identify({
+      model: "clip-vit-b32",
+      vectors: [vec(300)],
+      log: true,
+    });
     expect(res.status).toBe("none");
     expect(res.scanId).toBeTruthy();
     expect(prisma.scans).toHaveLength(1);
@@ -173,11 +273,16 @@ describe("vinyl router", () => {
   });
 
   it("stores the confirmed scan as a new user_scan embedding, once, and requests the catalog", async () => {
-    const { scanId } = await caller.identify({ model: "clip-vit-b32", vectors: [vec(0, 0.1)] });
+    const { scanId } = await caller.identify({
+      model: "clip-vit-b32",
+      vectors: [vec(0, 0.1)],
+    });
     vi.mocked(startScanIngest).mockClear();
     const first = await caller.confirm({ scanId: scanId!, albumId: oid(1) });
     expect(first.stored).toBe(true);
-    expect(prisma.embeddings.filter((e) => e.source === "user_scan")).toHaveLength(1);
+    expect(
+      prisma.embeddings.filter((e) => e.source === "user_scan")
+    ).toHaveLength(1);
     expect(startScanIngest).toHaveBeenCalledWith(
       expect.anything(),
       { albumId: oid(1), artist: { mbid: "dangelo", name: "D'Angelo" } },
@@ -189,10 +294,13 @@ describe("vinyl router", () => {
   });
 
   it("refuses to attach a scan to an album that wasn't a candidate", async () => {
-    const { scanId } = await caller.identify({ model: "clip-vit-b32", vectors: [vec(0, 0.1)] });
-    await expect(caller.confirm({ scanId: scanId!, albumId: oid(2) })).rejects.toThrow(
-      /not a candidate/
-    );
+    const { scanId } = await caller.identify({
+      model: "clip-vit-b32",
+      vectors: [vec(0, 0.1)],
+    });
+    await expect(
+      caller.confirm({ scanId: scanId!, albumId: oid(2) })
+    ).rejects.toThrow(/not a candidate/);
   });
 
   describe("unknown album by a known artist (the GNX case)", () => {
@@ -200,21 +308,36 @@ describe("vinyl router", () => {
     const gnxScan = () => vec(12);
 
     it("suggests the artists of the nearest covers", async () => {
-      const res = await caller.identify({ model: "clip-vit-b32", vectors: [gnxScan()] });
+      const res = await caller.identify({
+        model: "clip-vit-b32",
+        vectors: [gnxScan()],
+      });
       expect(res.status).not.toBe("matched");
-      expect(res.artistSuggestions).toContainEqual({ name: "Kendrick Lamar", mbid: KDOT });
+      expect(res.artistSuggestions).toContainEqual({
+        name: "Kendrick Lamar",
+        mbid: KDOT,
+      });
       expect(res.scanId).toBeTruthy();
       expect(prisma.scans[0].artistSuggestionMbids).toContain(KDOT);
       expect(startScanIngest).not.toHaveBeenCalled();
     });
 
     it("picking the record adds it w/ the scan as its first vector and starts the catalog ingest", async () => {
-      const { scanId } = await caller.identify({ model: "clip-vit-b32", vectors: [gnxScan()] });
+      const { scanId } = await caller.identify({
+        model: "clip-vit-b32",
+        vectors: [gnxScan()],
+      });
       const { album } = await caller.pick({ scanId: scanId!, mbid: GNX });
 
-      expect(album).toMatchObject({ title: "GNX", artist: "Kendrick Lamar", artistMbid: KDOT });
+      expect(album).toMatchObject({
+        title: "GNX",
+        artist: "Kendrick Lamar",
+        artistMbid: KDOT,
+      });
       const added = prisma.albums.find((a) => a.sourceKey === `mb:${GNX}`)!;
-      expect(added.coverUrl).toBe(`https://coverartarchive.org/release-group/${GNX}/front-500`);
+      expect(added.coverUrl).toBe(
+        `https://coverartarchive.org/release-group/${GNX}/front-500`
+      );
       const vectors = prisma.embeddings.filter((e) => e.albumId === added.id);
       expect(vectors).toHaveLength(1);
       expect(vectors[0].source).toBe("user_scan");
@@ -226,7 +349,10 @@ describe("vinyl router", () => {
       );
 
       // Next time the same cover is scanned, it matches the new album.
-      const again = await caller.identify({ model: "clip-vit-b32", vectors: [gnxScan()] });
+      const again = await caller.identify({
+        model: "clip-vit-b32",
+        vectors: [gnxScan()],
+      });
       expect(again.matches[0].album.title).toBe("GNX");
     });
 
@@ -241,17 +367,27 @@ describe("vinyl router", () => {
     });
 
     it("refuses an expired scan", async () => {
-      const { scanId } = await caller.identify({ model: "clip-vit-b32", vectors: [gnxScan()] });
+      const { scanId } = await caller.identify({
+        model: "clip-vit-b32",
+        vectors: [gnxScan()],
+      });
       prisma.scans[0].createdAt = new Date(Date.now() - 31 * 60 * 1000);
-      await expect(caller.pick({ scanId: scanId!, mbid: GNX })).rejects.toThrow(/expired/);
+      await expect(caller.pick({ scanId: scanId!, mbid: GNX })).rejects.toThrow(
+        /expired/
+      );
     });
 
     it("returns the same album if a scan is picked twice", async () => {
-      const { scanId } = await caller.identify({ model: "clip-vit-b32", vectors: [gnxScan()] });
+      const { scanId } = await caller.identify({
+        model: "clip-vit-b32",
+        vectors: [gnxScan()],
+      });
       const first = await caller.pick({ scanId: scanId!, mbid: GNX });
       const second = await caller.pick({ scanId: scanId!, mbid: OTHER });
       expect(second.album.id).toBe(first.album.id);
-      expect(prisma.embeddings.filter((e) => e.source === "user_scan")).toHaveLength(1);
+      expect(
+        prisma.embeddings.filter((e) => e.source === "user_scan")
+      ).toHaveLength(1);
     });
   });
 });

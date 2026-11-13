@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 // ** Custom Components, Hooks, Utils, etc.
+import LibraryCta from "@/components/library-cta";
 import SearchCard from "@/components/search-card";
 import Sheet from "@/components/sheet";
 import Vinyl3D from "@/components/vinyl-cover";
@@ -27,6 +28,10 @@ interface Props {
   /** The cover the user scanned, when it's an alternative (another pressing). */
   coverUrl?: string;
   confirmed?: boolean;
+  /** The scan that identified this record; enables "Add to library". */
+  scanId?: string | null;
+  /** Adding to the library also confirms the record. */
+  onAddedToLibrary?: () => void;
   onConfirm?: () => void;
   onReject?: () => void;
 }
@@ -38,6 +43,8 @@ const DigitalAlbum: React.FC<Props> = ({
   album,
   coverUrl,
   confirmed,
+  scanId,
+  onAddedToLibrary,
   onConfirm,
   onReject,
 }) => {
@@ -148,7 +155,17 @@ const DigitalAlbum: React.FC<Props> = ({
           )}
         </AnimatePresence>
 
-        <div className='w-full max-w-sm'>
+        <div className='flex w-full max-w-sm flex-col gap-3'>
+          {/* Only a record a scan identified (matched, confirmed or
+              entered by hand) can go into the library. */}
+          {scanId && (
+            <LibraryCta
+              albumId={album.id}
+              scanId={scanId}
+              coverUrl={coverUrl}
+              onAdded={onAddedToLibrary}
+            />
+          )}
           {showSpotifyFallback ? (
             <a
               href={album.spotifyUrl ?? spotifySearchUrl}

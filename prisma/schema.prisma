@@ -31,23 +31,23 @@ model Waitlist {
 // ---------------------------------------------------------------------------
 
 model Album {
-  id            String           @id @default(auto()) @map("_id") @db.ObjectId
+  id               String           @id @default(auto()) @map("_id") @db.ObjectId
   // Stable dedupe key: "mb:<release-group-mbid>" or "spotify:<album-id>"
-  sourceKey     String           @unique
-  mbid          String?          // MusicBrainz release-group id
-  title         String
-  artist        String
-  artistMbid    String?
-  artistName    String?          // canonical primary artist ("Kendrick Lamar", not "K-Dot")
-  releaseYear   Int?
-  primaryType   String?          // Album, EP, Single...
-  genres        String[]
-  tags          String[]
-  styles        String[]         // Discogs styles, e.g. "Boom Bap", "Jazzy Hip-Hop"
-  labels        String[]
-  coverUrl      String
-  spotifyId     String?
-  spotifyUrl    String?
+  sourceKey        String           @unique
+  mbid             String? // MusicBrainz release-group id
+  title            String
+  artist           String
+  artistMbid       String?
+  artistName       String? // canonical primary artist ("Kendrick Lamar", not "K-Dot")
+  releaseYear      Int?
+  primaryType      String? // Album, EP, Single...
+  genres           String[]
+  tags             String[]
+  styles           String[] // Discogs styles, e.g. "Boom Bap", "Jazzy Hip-Hop"
+  labels           String[]
+  coverUrl         String
+  spotifyId        String?
+  spotifyUrl       String?
   discogsMasterId  Int?
   discogsReleaseId Int?
   discogsArtistId  Int?
@@ -56,15 +56,17 @@ model Album {
   discogsCheckedAt DateTime?
   // Pressed on vinyl? "yes" | "no" | "unknown" (see catalog/vinyl-status.ts).
   // Only "yes" albums get vectors from catalog ingest.
-  vinylStatus    String?
-  vinylReleases  Int?             // official vinyl releases found
-  vinylSource    String?          // "musicbrainz" | "discogs"
-  vinylCheckedAt DateTime?
-  platformLinks Json?            // cached cross-platform links (search service)
-  extra         Json?            // room for credits, tracklist, notes...
-  embeddings    CoverEmbedding[]
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  vinylStatus      String?
+  vinylReleases    Int? // official vinyl releases found
+  vinylSource      String? // "musicbrainz" | "discogs"
+  vinylCheckedAt   DateTime?
+  platformLinks    Json? // cached cross-platform links (search service)
+  extra            Json? // room for credits, tracklist, notes...
+  embeddings       CoverEmbedding[]
+  libraryEntries   LibraryEntry[]
+  libraryCount     Int? // visible finds in the public library
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   @@index([artist])
   @@index([spotifyId])
@@ -73,35 +75,35 @@ model Album {
 }
 
 model CoverEmbedding {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  albumId   String   @db.ObjectId
-  album     Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
-  model     String   // EmbeddingModelKey, e.g. "clip-vit-b32"
-  vector    Float[]
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  albumId          String   @db.ObjectId
+  album            Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  model            String // EmbeddingModelKey, e.g. "clip-vit-b32"
+  vector           Float[]
   // catalog | spotify | augment | closeup | variant | user_scan
-  source    String
-  imageUrl  String?
+  source           String
+  imageUrl         String?
   // For "variant" vectors: the Discogs pressing this cover photo came from,
   // so a match can say which pressing the user is holding.
   discogsReleaseId Int?
-  createdAt DateTime @default(now())
+  createdAt        DateTime @default(now())
 
   @@index([albumId, model, source])
 }
 
 model ScanEvent {
-  id               String   @id @default(auto()) @map("_id") @db.ObjectId
-  createdAt        DateTime @default(now())
-  model            String
-  vector           Float[]
+  id                    String    @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt             DateTime  @default(now())
+  model                 String
+  vector                Float[]
   // matched | ambiguous | none
-  status           String
-  topAlbumIds      String[] @db.ObjectId
-  topScores        Float[]
+  status                String
+  topAlbumIds           String[]  @db.ObjectId
+  topScores             Float[]
   // Artists offered when no album was certain ("Is it by one of these?").
   artistSuggestionMbids String[]
-  confirmedAlbumId String?  @db.ObjectId
-  confirmedAt      DateTime?
+  confirmedAlbumId      String?   @db.ObjectId
+  confirmedAt           DateTime?
 
   @@index([createdAt])
 }
@@ -112,9 +114,9 @@ model ScanEvent {
 // until the job is due for a refresh.
 model IngestJob {
   id         String    @id @default(auto()) @map("_id") @db.ObjectId
-  kind       String    // "artist"
-  key        String    // MusicBrainz artist id
-  label      String    // human-readable, e.g. "Kendrick Lamar"
+  kind       String // "artist"
+  key        String // MusicBrainz artist id
+  label      String // human-readable, e.g. "Kendrick Lamar"
   // pending | running | done | failed
   status     String
   attempts   Int       @default(0)
@@ -137,13 +139,34 @@ model IngestJob {
 // (services/links/). Refreshed in the background after 30 days.
 model LinkIndex {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  url       String   @unique   // canonical album URL on one platform
-  mbid      String?             // MusicBrainz release group, when known
+  url       String   @unique // canonical album URL on one platform
+  mbid      String? // MusicBrainz release group, when known
   title     String?
   artist    String?
   imageUrl  String?
-  links     Json                // AlbumLink[], card order
+  links     Json // AlbumLink[], card order
   fetchedAt DateTime
 
   @@index([mbid])
+}
+
+// The public library: records diggers have actually found and scanned. One
+// entry per scan, added from the result drawer (docs/PUBLIC_LIBRARY.md).
+// Open and anonymous for now: no handles or profiles until the music
+// education ("Letterboxd for music") phase.
+model LibraryEntry {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  albumId       String   @db.ObjectId
+  album         Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  scanId        String   @unique @db.ObjectId // one find per scan
+  coverUrl      String? // the art that matched (pressing / Spotify)
+  deviceKeyHash String // lets the same device remove it
+  note          String? // up to 140 characters
+  event         String? // pop-up slug, later
+  hidden        Boolean  @default(false) // moderation
+  createdAt     DateTime @default(now())
+
+  @@index([albumId, createdAt])
+  @@index([createdAt])
+  @@index([deviceKeyHash, createdAt])
 }
