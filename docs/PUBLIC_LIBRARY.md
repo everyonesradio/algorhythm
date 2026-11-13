@@ -6,7 +6,14 @@ library, alongside the streaming links they already get. The library shows every
 record people have dug, who dug it (if they want credit) and what they had to
 say about it.
 
-Status: scoped, not built. Phase 1 needs no accounts and no paid features.
+Status: the **Add to library** call to action is built (drawer button, note,
+undo; `library` router). The library page, album pages and event pages are
+next. No accounts, handles or paid features.
+
+Decided on 2026-11-13: the library is open and anonymous (no handles or
+profiles until the music-education, "Letterboxd for music" phase in the PRD),
+notes are allowed from day one, and there's no separate city field (people
+can say where they dug it in the note). It's called the Library.
 
 ## Why
 
@@ -81,16 +88,17 @@ or value we can't back up.
    Archive, Spotify, the Discogs pressing that matched), never the user's photo.
    The app only ever receives a vector from the phone, so there's nothing to
    moderate in images.
-3. **Credit is the finder's choice.** A handle or anonymous. Location is opt-in
-   and coarse (a city at most), and off by default; diggers don't reveal their
-   sources.
+3. **Open and anonymous.** No accounts, handles or profiles yet: a find is the
+   record, the date and an optional note. Profiles come with the
+   music-education phase ("Letterboxd for music"). No location field; diggers
+   don't have to reveal their sources.
 4. **Facts are sourced.** Tracklists from MusicBrainz, stories from Wikipedia
    with attribution and a link. No generated "about" text. Pressing claims only
    when we know the pressing (a Discogs variant matched, or later the barcode
    or label).
-5. **Open by default.** Library data (album, pressing, date, chosen credit,
-   event) is part of the open dataset. Notes and cities are not, unless the
-   finder opts in.
+5. **Open by default.** Library data (album, pressing art, date, event) is
+   part of the open dataset. Notes are shown publicly on the site; whether
+   they go into the dataset export is decided before the first export.
 
 ## Phase 1 — ready for the first pop-up (no accounts)
 
@@ -98,12 +106,12 @@ or value we can't back up.
 
 **Add a find (from the result drawer)**
 1. After a scan, the drawer shows **Add to library** next to the links.
-2. A small sheet asks for three optional things:
-   - **Handle**, remembered on this device (pre-filled next time).
-   - **Note**, up to 140 characters ("£3 bin, Peckham").
-   - **City**, off by default, typed or from a short list.
-3. Tap **Add**. The drawer shows "In the library · dug by 15 collectors" with a
-   link to the album page. The same scan can be added once.
+2. A small form opens with one optional field: a **note**, up to 140
+   characters ("£3 bin at a Saturday car boot"), marked "Shown publicly, no
+   name attached".
+3. Tap **Add**. The drawer shows "In the library · first find" (or "dug 15
+   times"), with **Undo**. Adding also answers "Right record?" with yes. The
+   same scan can be added once; a second tap returns the same find.
 
 Picking an unknown record by hand (the artist picker) counts as a scan, so
 taught records can be added too. At a pop-up, an event tag is attached
@@ -112,7 +120,7 @@ automatically (set on the scanning device by George for the evening).
 **Browse the library (`/library`)**
 - A counter: records dug, collectors, cities.
 - A grid of tilted covers (CSS 3D, like The Playlist Archive): cover, title,
-  artist, "dug by N", and the latest finder's handle.
+  artist, "dug N times", and the latest note.
 - Sort: **Recent** (default) or **Most dug**.
 - Filter: genre, decade, event (pop-up).
 - 24 per page with "Load more".
@@ -127,8 +135,7 @@ automatically (set on the scanning device by George for the evening).
   (from Discogs).
 - **About the album** and **About the artist**: Wikipedia summaries, each with
   "From Wikipedia" and a link. Hidden when there isn't one.
-- **Finds:** "Dug by 14 collectors", with recent finds (handle or "a digger",
-  note, city if shared, date, event).
+- **Finds:** "Dug 14 times", with recent finds (note, date, event).
 - Open Graph image: the cover plus "dug by N", so links to it look good in
   group chats and on social.
 
@@ -144,23 +151,20 @@ automatically (set on the scanning device by George for the evening).
 
 ```prisma
 model LibraryEntry {
-  id               String   @id @default(auto()) @map("_id") @db.ObjectId
-  albumId          String   @db.ObjectId
-  scanId           String   @unique @db.ObjectId  // one find per scan
-  discogsReleaseId Int?                           // pressing that matched, when known
-  coverUrl         String?                        // the art that matched (pressing / Spotify)
-  handle           String?                        // null = anonymous
-  deviceKeyHash    String                         // lets the same device remove it
-  note             String?                        // ≤ 140 chars
-  city             String?                        // opt-in
-  country          String?                        // opt-in, from the city
-  event            String?                        // pop-up slug
-  hidden           Boolean  @default(false)       // moderation
-  createdAt        DateTime @default(now())
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  albumId       String   @db.ObjectId
+  album         Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
+  scanId        String   @unique @db.ObjectId // one find per scan
+  coverUrl      String?  // the art that matched (pressing / Spotify), only art we already hold
+  deviceKeyHash String   // lets the same device remove it
+  note          String?  // up to 140 characters
+  event         String?  // pop-up slug, later
+  hidden        Boolean  @default(false) // moderation
+  createdAt     DateTime @default(now())
 
   @@index([albumId, createdAt])
   @@index([createdAt])
-  @@index([event, createdAt])
+  @@index([deviceKeyHash, createdAt])
 }
 ```
 
@@ -181,11 +185,12 @@ fix that.
 
 | Procedure | Does |
 |---|---|
-| `library.add({ scanId, handle?, note?, city?, event?, deviceKey })` | Checks the scan is fresh (`scanIsActionable`) and confirmed to an album, stores the entry, bumps `libraryCount` |
+| `library.add({ scanId, albumId, deviceKey, note?, coverUrl? })` | **Built.** Checks the scan is fresh and identified this album, confirms it if needed, stores the entry, recounts `libraryCount`. Idempotent per scan; 30 adds per device per hour |
+| `library.status({ albumId, scanId?, deviceKey? })` | **Built.** "Dug N times", and whether this scan's find is in (and is this phone's) |
+| `library.remove({ entryId, deviceKey })` | **Built.** Undo, from the phone that added it |
 | `library.list({ sort, genre?, decade?, event?, cursor })` | The grid, 24 at a time |
 | `library.album({ albumId })` | Album page: album, links, tracklist, about, recent finds |
 | `library.event({ slug })` | Event page |
-| `library.remove({ entryId, deviceKey })` | Removes the device's own find |
 | `library.report({ entryId, reason })` | Flags a find for review |
 | `library.stats()` | The counter |
 
@@ -228,12 +233,9 @@ Verified on 2026-11-12 with Frank Ocean's *Blonde*:
 
 ### Safety and privacy
 
-- No accounts, no emails, no user photos in Phase 1.
-- Anonymous is a first-class choice; city is off by default; no precise
-  location ever.
+- No accounts, handles, emails or user photos in Phase 1.
+- No location field.
 - Notes: 140 characters, plain text, rate-limited, reportable, hideable.
-- Handles: 2–24 characters, a basic blocklist; reserved names (`algorhythm`,
-  `everyonesradio`, `admin`).
 - Removal by the device that added it; anything else by request.
 
 ### Measuring it
@@ -249,9 +251,9 @@ Verified on 2026-11-12 with Frank Ocean's *Blonde*:
 Accounts, personal crate pages, following, maps, prices or value, condition,
 export, comments beyond the note, and label or matrix scanning.
 
-## Phase 2 — after real use (Q2 2027)
+## Phase 2 — profiles, with the music-education phase ("Letterboxd for music")
 
-- **Accounts by email link,** so a handle and its finds carry across devices.
+- **Accounts by email link,** with a profile, so a digger's finds carry across devices.
 - **Crate pages** at `/@handle`: everything a digger has found.
 - **Following** diggers whose finds you like.
 - **A coarse map** of where records are being dug (city level, opt-in only).
@@ -259,24 +261,21 @@ export, comments beyond the note, and label or matrix scanning.
 - **Label scanning** for generic company sleeves (as VinylScan does), feeding
   pressing identification (see `PRESSINGS_AND_PRICES.md`).
 
-## Decisions needed before Phase 1
+## Decisions
 
-1. **Name.** "The Library" is plain; something like "The Crate" or "Dug" could
-   carry more personality.
-2. **Default credit.** Handle pre-filled when one is saved, or anonymous by
-   default every time?
-3. **Stump records.** Should records taught at pop-ups enter the library
-   automatically, with the credit the contributor chose, or only when they tap
-   Add?
-4. **Notes at launch.** Allow notes from day one (more character, more
-   moderation), or start with handle and city only?
+1. **Name:** the Library. ✔
+2. **Credit:** none yet. Open and anonymous until profiles arrive with the
+   music-education phase. ✔
+3. **Notes:** allowed from day one. ✔
+4. **Stump records:** should records taught at pop-ups enter the library
+   automatically, or only when someone taps Add? (Open.)
 
 ## Build plan (Phase 1)
 
 | Step | Work | Size |
 |---|---|---|
-| 1 | `LibraryEntry` model, `libraryCount`, `library.add/remove/report` with scan freshness and rate limits | M |
-| 2 | "Add to library" in the drawer: sheet with handle, note, city; device key | M |
+| 1 | `LibraryEntry` model, `libraryCount`, `library.add/status/remove` with scan checks and rate limit | M · **done** |
+| 2 | "Add to library" in the drawer: optional note, undo, device key | M · **done** |
 | 3 | `/library` grid with CSS 3D covers, sort, filters, counter | M |
 | 4 | Album page: tracklist and about fetching + caching, finds list, OG image | L |
 | 5 | Event tag + event page | S |
