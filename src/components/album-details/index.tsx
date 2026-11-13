@@ -36,7 +36,8 @@ const AlbumDetails: React.FC<{ albumId: string }> = ({ albumId }) => {
 
   const details = api.library.details.useQuery(
     { albumId },
-    { staleTime: Infinity, retry: 1 }
+    // Its own request: a cold cache means MusicBrainz + Wikipedia calls.
+    { staleTime: Infinity, retry: 1, trpc: { context: { skipBatch: true } } }
   );
   const finds = api.library.finds.useQuery(
     { albumId, deviceKey },

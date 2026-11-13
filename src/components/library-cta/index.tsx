@@ -23,6 +23,8 @@ interface Props {
   coverUrl?: string;
   /** Adding a find also confirms the record. */
   onAdded?: () => void;
+  /** The album's library page ("See it"); defaults to the library. */
+  pageHref?: string;
 }
 
 const fade = {
@@ -51,6 +53,7 @@ const LibraryCta: React.FC<Props> = ({
   scanId,
   coverUrl,
   onAdded,
+  pageHref,
 }) => {
   const deviceKey = useDeviceKey();
   const noteId = useId();
@@ -180,7 +183,7 @@ const LibraryCta: React.FC<Props> = ({
             </span>
             <span className='flex shrink-0 items-center gap-3'>
               <Link
-                href='/library'
+                href={pageHref ?? "/library"}
                 className='text-sm text-gray-600 underline-offset-2 hover:underline'
               >
                 See it

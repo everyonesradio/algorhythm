@@ -1,23 +1,21 @@
 // ** React/Next.js Imports
+import Link from "next/link";
 import React from "react";
 
 // ** Third-Party Imports
 import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 // ** Custom Components, Hooks, Utils, etc.
 import AlbumDetails from "@/components/album-details";
 import LibraryCta from "@/components/library-cta";
-import SearchCard from "@/components/search-card";
+import StreamingLinks from "@/components/streaming-links";
 import Sheet from "@/components/sheet";
 import Vinyl3D from "@/components/vinyl-cover";
 import type { VinylAlbum } from "@/types/api";
-import { api } from "@/utils/trpc";
 
 // ** Icon Imports
-import { FaSpotify } from "react-icons/fa6";
 import { IoClose } from "react-icons/io5";
 
 interface Props {
@@ -33,6 +31,8 @@ interface Props {
   scanId?: string | null;
   /** Adding to the library also confirms the record. */
   onAddedToLibrary?: () => void;
+  /** Link to the album's shareable page, when it has one. */
+  pageHref?: string;
   onConfirm?: () => void;
   onReject?: () => void;
 }
@@ -46,20 +46,10 @@ const DigitalAlbum: React.FC<Props> = ({
   confirmed,
   scanId,
   onAddedToLibrary,
+  pageHref,
   onConfirm,
   onReject,
 }) => {
-  // Cached on the album server-side.
-  const { data: linkData, isError } = api.vinyl.links.useQuery(
-    { albumId: album.id },
-    { retry: 1, staleTime: Infinity }
-  );
-  const links = linkData?.links.length ? linkData.links : null;
-  const showSpotifyFallback = isError || (linkData !== undefined && !links);
-
-  const spotifySearchUrl = `https://open.spotify.com/search/${encodeURIComponent(
-    `${album.artist} ${album.title}`
-  )}`;
   // Discogs styles are the most specific ("Boom Bap"), then MB genres/tags.
   const seen = new Set<string>();
   const chips = [...(album.styles ?? []), ...album.genres, ...album.tags]
@@ -165,28 +155,19 @@ const DigitalAlbum: React.FC<Props> = ({
               scanId={scanId}
               coverUrl={coverUrl}
               onAdded={onAddedToLibrary}
+              pageHref={pageHref}
             />
           )}
-          {showSpotifyFallback ? (
-            <a
-              href={album.spotifyUrl ?? spotifySearchUrl}
-              target='_blank'
-              rel='noreferrer'
-              className='flex w-full items-center space-x-2 rounded-full bg-black p-2 px-4 text-white transition-transform duration-[120ms] active:scale-[0.97]'
-            >
-              <FaSpotify className='text-lg' />
-              <span>
-                {album.spotifyUrl ? "Listen on Spotify" : "Find on Spotify"}
-              </span>
-            </a>
-          ) : !links ? (
-            <div className='flex items-center justify-center py-6'>
-              <Loader2 className='h-8 w-8 animate-spin text-black' />
-            </div>
-          ) : (
-            <SearchCard links={links} />
-          )}
+          <StreamingLinks album={album} />
         </div>
+        {pageHref && !scanId && (
+          <Link
+            href={pageHref}
+            className='mt-4 text-sm font-medium underline underline-offset-4'
+          >
+            Open the album page
+          </Link>
+        )}
         <AlbumDetails albumId={album.id} />
       </div>
     </Sheet>

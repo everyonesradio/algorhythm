@@ -20,6 +20,7 @@ import {
   frameDifference,
   skipSameScene,
 } from "@/utils/frame-crop";
+import { albumPath } from "@/utils/album-path";
 import { api } from "@/utils/trpc";
 
 // ** Icon Imports
@@ -555,6 +556,7 @@ const VinylScan = () => {
           coverUrl={result.match.scannedCover}
           confirmed={confirmed}
           scanId={result.scanId}
+          pageHref={albumPath(result.match.album)}
           // The server records adding a find as a confirmation.
           onAddedToLibrary={() => setConfirmed(true)}
           onConfirm={() => confirmAlbum(result.scanId, result.match.album.id)}

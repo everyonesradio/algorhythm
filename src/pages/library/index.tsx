@@ -10,6 +10,7 @@ import { Loader2 } from "lucide-react";
 import DigitalAlbum from "@/components/digital-album";
 import LibraryCard from "@/components/library-card";
 import type { VinylAlbum } from "@/types/api";
+import { albumPath } from "@/utils/album-path";
 import { api } from "@/utils/trpc";
 
 // ** Icon Imports
@@ -245,6 +246,7 @@ const LibraryPage = () => {
             if (!open) setSelected(null);
           }}
           album={selected}
+          pageHref={albumPath(selected)}
         />
       )}
     </>
