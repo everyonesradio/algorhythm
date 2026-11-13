@@ -1,4 +1,5 @@
 // ** React/Next.js Imports
+import Link from "next/link";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 // ** Third-Party Imports
@@ -431,6 +432,12 @@ const VinylScan = () => {
       </div>
 
       {/* Status */}
+      <Link
+        href='/library'
+        className='absolute right-4 top-4 z-10 rounded-full bg-black/60 px-3 py-1.5 text-sm text-white backdrop-blur transition-transform duration-[120ms] active:scale-[0.97]'
+      >
+        Library
+      </Link>
       <div className='absolute left-0 right-0 top-0 flex flex-col items-center gap-1 p-4 pt-14 text-center'>
         <span className='font-eightbitdragon text-xl'>algoRhythm</span>
         {cameraState === "denied" && (

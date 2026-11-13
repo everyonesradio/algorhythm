@@ -115,7 +115,13 @@ export const recordVinylStatus = async (
 export const pruneCandidates = async (prisma: PrismaClient) => {
   const notVinyl = await prisma.album.findMany({
     where: { vinylStatus: "no" },
-    select: { id: true, title: true, artist: true, releaseYear: true },
+    select: {
+      id: true,
+      title: true,
+      artist: true,
+      releaseYear: true,
+      libraryCount: true,
+    },
   });
   const scanned = new Set(
     (
@@ -128,9 +134,12 @@ export const pruneCandidates = async (prisma: PrismaClient) => {
       })
     ).map((e) => e.albumId)
   );
+  // Someone held it: a confirmed scan or a find in the public library.
+  const kept = (a: (typeof notVinyl)[number]) =>
+    scanned.has(a.id) || (a.libraryCount ?? 0) > 0;
   return {
-    prune: notVinyl.filter((a) => !scanned.has(a.id)),
-    keptScanned: notVinyl.filter((a) => scanned.has(a.id)),
+    prune: notVinyl.filter((a) => !kept(a)),
+    keptScanned: notVinyl.filter(kept),
   };
 };
 

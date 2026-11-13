@@ -6,9 +6,13 @@ library, alongside the streaming links they already get. The library shows every
 record people have dug, who dug it (if they want credit) and what they had to
 say about it.
 
-Status: the **Add to library** call to action is built (drawer button, note,
-undo; `library` router). The library page, album pages and event pages are
-next. No accounts, handles or paid features.
+Status: **built** — Add to library (drawer button, note, undo) and the
+`/library` page: a grid of tilted CSS 3D covers, Recent / Most dug, genre and
+decade filters, and a counter. Tapping a record opens the album drawer with
+its streaming links, the latest three notes (with Report), a short "about"
+from Wikipedia, the tracklist and a "Reviews & more" row. Separate
+shareable album and event pages are next. No accounts, handles or paid
+features.
 
 Decided on 2026-11-13: the library is open and anonymous (no handles or
 profiles until the music-education, "Letterboxd for music" phase in the PRD),
@@ -135,6 +139,11 @@ automatically (set on the scanning device by George for the evening).
   (from Discogs).
 - **About the album** and **About the artist**: Wikipedia summaries, each with
   "From Wikipedia" and a link. Hidden when there isn't one.
+- **Reviews & more:** links to the album on AllMusic, Metacritic, Rate Your
+  Music, Genius and Discogs (Wikidata IDs) and to reviews editors linked in
+  MusicBrainz (Pitchfork, BBC Music…), one per site. Review scores only when
+  Wikidata records them with a scale and a source. Links only: published
+  review text isn't ours to copy.
 - **Finds:** "Dug 14 times", with recent finds (note, date, event).
 - Open Graph image: the cover plus "dug by N", so links to it look good in
   group chats and on social.

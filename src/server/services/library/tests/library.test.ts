@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import {
   ADDS_PER_HOUR,
   addFind,
+  albumFinds,
+  listLibrary,
+  REPORTS_TO_HIDE,
+  reportFind,
   cleanNote,
   findStatus,
   hashDeviceKey,
@@ -46,6 +50,10 @@ const fakePrisma = (scans: Row[], covers: Row[] = []) => {
           scans.find((s) => s.id === where.id) ?? null,
       },
       libraryEntry: {
+        findFirst: async ({ where }: Row) =>
+          entries
+            .filter((e) => matches(e, where))
+            .sort((a, b) => b.createdAt - a.createdAt)[0] ?? null,
         findUnique: async ({ where }: Row) =>
           entries.find((e) =>
             where.id ? e.id === where.id : e.scanId === where.scanId
@@ -299,5 +307,122 @@ describe("helpers", () => {
         ALBUM
       )
     ).toBe(false);
+  });
+});
+
+/** Fake with update/findMany/findFirst for list, finds and reports. */
+const richPrisma = () => {
+  const { prisma, entries, albums } = fakePrisma([]);
+  const visible = (where: Row) =>
+    entries.filter((e) =>
+      Object.entries(where).every(([k, v]) =>
+        v && typeof v === "object" && "in" in v
+          ? v.in.includes(e[k])
+          : e[k] === v
+      )
+    );
+  prisma.libraryEntry.findMany = async ({ where, take }: Row) =>
+    visible(where)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, take ?? 1000);
+  prisma.libraryEntry.findFirst = async ({ where }: Row) =>
+    visible(where).sort((a, b) => b.createdAt - a.createdAt)[0] ?? null;
+  prisma.libraryEntry.update = async ({ where, data }: Row) =>
+    Object.assign(
+      entries.find((e) => e.id === where.id)!,
+      data
+    );
+  prisma.album.findMany = async ({ take }: Row) =>
+    Object.values(albums)
+      .filter((a: any) => (a.libraryCount ?? 0) > 0)
+      .sort((a: any, b: any) => b.libraryLastAt - a.libraryLastAt)
+      .slice(0, take);
+  return { prisma, entries, albums };
+};
+
+const seed = (
+  entries: Row[],
+  albumId: string,
+  note: string | null,
+  ago: number,
+  key = KEY
+) =>
+  entries.push({
+    id: `x${entries.length}`,
+    albumId,
+    note,
+    coverUrl: null,
+    deviceKeyHash: hashDeviceKey(key),
+    hidden: false,
+    reporters: [],
+    createdAt: new Date(NOW - ago),
+  });
+
+describe("reportFind", () => {
+  it("hides a find after reports from three different phones, and recounts", async () => {
+    const { prisma, entries, albums } = richPrisma();
+    seed(entries, ALBUM, "bad note", 1000);
+    albums[ALBUM].libraryCount = 1;
+    for (let i = 0; i < REPORTS_TO_HIDE - 1; i++) {
+      expect(
+        await reportFind(prisma, {
+          entryId: "x0",
+          deviceKey: `reporter-${i}-aaaaaaaaaaaaaa`,
+        })
+      ).toEqual({ hidden: false });
+    }
+    // The same phone again doesn't count twice.
+    await reportFind(prisma, {
+      entryId: "x0",
+      deviceKey: "reporter-0-aaaaaaaaaaaaaa",
+    });
+    expect(entries[0].hidden).toBe(false);
+    expect(
+      await reportFind(prisma, {
+        entryId: "x0",
+        deviceKey: "reporter-x-aaaaaaaaaaaaaa",
+      })
+    ).toEqual({ hidden: true });
+    expect(albums[ALBUM].libraryCount).toBe(0);
+  });
+
+  it("won't let you report your own find", async () => {
+    const { prisma, entries } = richPrisma();
+    seed(entries, ALBUM, "mine", 1000);
+    await expect(
+      reportFind(prisma, { entryId: "x0", deviceKey: KEY })
+    ).rejects.toMatchObject({ code: "not-yours" });
+  });
+});
+
+describe("listing", () => {
+  it("lists albums with finds, latest note first, and only visible notes", async () => {
+    const { prisma, entries, albums } = richPrisma();
+    seed(entries, ALBUM, "older note", 5000);
+    seed(entries, ALBUM, "newest note", 1000);
+    seed(entries, OTHER, "hidden note", 500);
+    entries[2].hidden = true;
+    Object.assign(albums[ALBUM], {
+      libraryCount: 2,
+      libraryLastAt: new Date(NOW - 1000),
+    });
+
+    const page = await listLibrary(
+      prisma,
+      { sort: "recent", offset: 0, limit: 24 },
+      { id: true }
+    );
+    expect(page.items).toHaveLength(1);
+    expect(page.items[0]).toMatchObject({
+      count: 2,
+      latestNote: "newest note",
+    });
+    expect(page.nextOffset).toBeNull();
+
+    const finds = await albumFinds(prisma, { albumId: ALBUM, deviceKey: KEY });
+    expect(finds.finds.map((f) => [f.note, f.mine])).toEqual([
+      ["newest note", true],
+      ["older note", true],
+    ]);
   });
 });

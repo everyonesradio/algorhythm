@@ -65,6 +65,7 @@ model Album {
   embeddings       CoverEmbedding[]
   libraryEntries   LibraryEntry[]
   libraryCount     Int? // visible finds in the public library
+  libraryLastAt    DateTime? // latest visible find, for the Recent sort
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
@@ -72,6 +73,8 @@ model Album {
   @@index([spotifyId])
   @@index([mbid])
   @@index([vinylStatus])
+  @@index([libraryLastAt])
+  @@index([libraryCount])
 }
 
 model CoverEmbedding {
@@ -164,6 +167,7 @@ model LibraryEntry {
   note          String? // up to 140 characters
   event         String? // pop-up slug, later
   hidden        Boolean  @default(false) // moderation
+  reporters     String[] // device-key hashes of people who reported it
   createdAt     DateTime @default(now())
 
   @@index([albumId, createdAt])

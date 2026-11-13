@@ -1,4 +1,5 @@
 // ** React/Next.js Imports
+import Link from "next/link";
 import React, { useId, useState } from "react";
 
 // ** Third-Party Imports
@@ -61,7 +62,14 @@ const LibraryCta: React.FC<Props> = ({
     { albumId, scanId, deviceKey },
     { enabled: !!deviceKey, staleTime: 30_000 }
   );
-  const refresh = () => utils.library.status.invalidate({ albumId });
+  // The button, the album's finds and the library itself all change.
+  const refresh = () =>
+    Promise.all([
+      utils.library.status.invalidate({ albumId }),
+      utils.library.finds.invalidate({ albumId }),
+      utils.library.list.invalidate(),
+      utils.library.stats.invalidate(),
+    ]);
   const add = api.library.add.useMutation({
     onSuccess: () => {
       setWriting(false);
@@ -170,15 +178,23 @@ const LibraryCta: React.FC<Props> = ({
               <IoCheckmark className='text-lg' />
               In the library · {dugLine(count, true)}
             </span>
-            <button
-              className='text-sm text-gray-600 underline-offset-2 hover:underline disabled:opacity-50'
-              disabled={remove.isPending}
-              onClick={() =>
-                entryId && deviceKey && remove.mutate({ entryId, deviceKey })
-              }
-            >
-              Undo
-            </button>
+            <span className='flex shrink-0 items-center gap-3'>
+              <Link
+                href='/library'
+                className='text-sm text-gray-600 underline-offset-2 hover:underline'
+              >
+                See it
+              </Link>
+              <button
+                className='text-sm text-gray-600 underline-offset-2 hover:underline disabled:opacity-50'
+                disabled={remove.isPending}
+                onClick={() =>
+                  entryId && deviceKey && remove.mutate({ entryId, deviceKey })
+                }
+              >
+                Undo
+              </button>
+            </span>
           </motion.div>
         )}
       </AnimatePresence>

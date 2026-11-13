@@ -9,6 +9,7 @@ import {
   type EmbeddingModelKey,
 } from "@/lib/embeddings/config";
 import { l2Normalize } from "@/lib/embeddings/vector";
+import { albumSelect } from "@/server/api/album-select";
 import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
 import { startScanIngest } from "@/server/services/catalog/background";
 import {
@@ -56,26 +57,6 @@ const discographyCache = new Map<
   string,
   { at: number; groups: Awaited<ReturnType<typeof discographyForArtist>> }
 >();
-
-const albumSelect = {
-  id: true,
-  title: true,
-  artist: true,
-  releaseYear: true,
-  primaryType: true,
-  genres: true,
-  tags: true,
-  labels: true,
-  coverUrl: true,
-  spotifyId: true,
-  spotifyUrl: true,
-  mbid: true,
-  artistMbid: true,
-  artistName: true,
-  styles: true,
-  discogsMasterId: true,
-  discogsReleaseId: true,
-} as const;
 
 export const vinylRouter = createTRPCRouter({
   /**

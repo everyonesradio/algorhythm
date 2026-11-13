@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 // ** Custom Components, Hooks, Utils, etc.
+import AlbumDetails from "@/components/album-details";
 import LibraryCta from "@/components/library-cta";
 import SearchCard from "@/components/search-card";
 import Sheet from "@/components/sheet";
@@ -186,6 +187,7 @@ const DigitalAlbum: React.FC<Props> = ({
             <SearchCard links={links} />
           )}
         </div>
+        <AlbumDetails albumId={album.id} />
       </div>
     </Sheet>
   );
