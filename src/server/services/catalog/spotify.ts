@@ -185,3 +185,16 @@ export const spotifyAlbumByUpc = async (upc: string) => {
   );
   return res?.albums.items[0]?.external_urls.spotify ?? null;
 };
+
+/** An album's tracks from the Spotify Web API (fallback tracklist source). */
+export const spotifyAlbumTracks = async (id: string) =>
+  (
+    await spotifyGet<{
+      items: {
+        name: string;
+        track_number: number;
+        disc_number: number;
+        duration_ms: number;
+      }[];
+    }>(`albums/${encodeURIComponent(id)}/tracks?limit=50`)
+  )?.items ?? null;

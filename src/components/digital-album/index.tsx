@@ -1,21 +1,21 @@
 // ** React/Next.js Imports
+import Link from "next/link";
 import React from "react";
 
 // ** Third-Party Imports
 import { OrbitControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 
 // ** Custom Components, Hooks, Utils, etc.
-import SearchCard from "@/components/search-card";
+import AlbumDetails from "@/components/album-details";
+import LibraryCta from "@/components/library-cta";
+import StreamingLinks from "@/components/streaming-links";
 import Sheet from "@/components/sheet";
 import Vinyl3D from "@/components/vinyl-cover";
 import type { VinylAlbum } from "@/types/api";
-import { api } from "@/utils/trpc";
 
 // ** Icon Imports
-import { FaSpotify } from "react-icons/fa6";
 import { IoClose } from "react-icons/io5";
 
 interface Props {
@@ -27,6 +27,12 @@ interface Props {
   /** The cover the user scanned, when it's an alternative (another pressing). */
   coverUrl?: string;
   confirmed?: boolean;
+  /** The scan that identified this record; enables "Add to library". */
+  scanId?: string | null;
+  /** Adding to the library also confirms the record. */
+  onAddedToLibrary?: () => void;
+  /** Link to the album's shareable page, when it has one. */
+  pageHref?: string;
   onConfirm?: () => void;
   onReject?: () => void;
 }
@@ -38,20 +44,12 @@ const DigitalAlbum: React.FC<Props> = ({
   album,
   coverUrl,
   confirmed,
+  scanId,
+  onAddedToLibrary,
+  pageHref,
   onConfirm,
   onReject,
 }) => {
-  // Cached on the album server-side.
-  const { data: linkData, isError } = api.vinyl.links.useQuery(
-    { albumId: album.id },
-    { retry: 1, staleTime: Infinity }
-  );
-  const links = linkData?.links.length ? linkData.links : null;
-  const showSpotifyFallback = isError || (linkData !== undefined && !links);
-
-  const spotifySearchUrl = `https://open.spotify.com/search/${encodeURIComponent(
-    `${album.artist} ${album.title}`
-  )}`;
   // Discogs styles are the most specific ("Boom Bap"), then MB genres/tags.
   const seen = new Set<string>();
   const chips = [...(album.styles ?? []), ...album.genres, ...album.tags]
@@ -148,27 +146,29 @@ const DigitalAlbum: React.FC<Props> = ({
           )}
         </AnimatePresence>
 
-        <div className='w-full max-w-sm'>
-          {showSpotifyFallback ? (
-            <a
-              href={album.spotifyUrl ?? spotifySearchUrl}
-              target='_blank'
-              rel='noreferrer'
-              className='flex w-full items-center space-x-2 rounded-full bg-black p-2 px-4 text-white transition-transform duration-[120ms] active:scale-[0.97]'
-            >
-              <FaSpotify className='text-lg' />
-              <span>
-                {album.spotifyUrl ? "Listen on Spotify" : "Find on Spotify"}
-              </span>
-            </a>
-          ) : !links ? (
-            <div className='flex items-center justify-center py-6'>
-              <Loader2 className='h-8 w-8 animate-spin text-black' />
-            </div>
-          ) : (
-            <SearchCard links={links} />
+        <div className='flex w-full max-w-sm flex-col gap-3'>
+          {/* Only a record a scan identified (matched, confirmed or
+              entered by hand) can go into the library. */}
+          {scanId && (
+            <LibraryCta
+              albumId={album.id}
+              scanId={scanId}
+              coverUrl={coverUrl}
+              onAdded={onAddedToLibrary}
+              pageHref={pageHref}
+            />
           )}
+          <StreamingLinks album={album} />
         </div>
+        {pageHref && !scanId && (
+          <Link
+            href={pageHref}
+            className='mt-4 text-sm font-medium underline underline-offset-4'
+          >
+            Open the album page
+          </Link>
+        )}
+        <AlbumDetails albumId={album.id} />
       </div>
     </Sheet>
   );

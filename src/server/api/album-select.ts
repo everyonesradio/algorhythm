@@ -1,0 +1,20 @@
+/** Album fields the app shows (result drawer, library). */
+export const albumSelect = {
+  id: true,
+  title: true,
+  artist: true,
+  releaseYear: true,
+  primaryType: true,
+  genres: true,
+  tags: true,
+  labels: true,
+  coverUrl: true,
+  spotifyId: true,
+  spotifyUrl: true,
+  mbid: true,
+  artistMbid: true,
+  artistName: true,
+  styles: true,
+  discogsMasterId: true,
+  discogsReleaseId: true,
+} as const;

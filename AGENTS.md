@@ -85,6 +85,7 @@ PR titles are **not** commit messages. They are a short Title Case headline for 
 | `./scripts/seed-local.sh` | Schema + vector index + seed covers (see `docs/VINYL_RECOGNITION.md`) |
 | `npm run vinyl:seed` / `vinyl:index` / `vinyl:eval` / `vinyl:synth` | Recognition catalog + accuracy tooling |
 | `npm run vinyl:status` / `vinyl:remove` / `vinyl:worker` / `vinyl:links` | Catalog upkeep: vinyl status + pruning, remove one album, finish ingest jobs, prefetch streaming links |
+| `npm run vinyl:event` | Pop-ups: create (prints the join link + code), list, end, new-code |
 
 ## Architecture sketch
 

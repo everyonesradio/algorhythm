@@ -476,10 +476,13 @@ export type MbReleaseDetail = MbRelease & {
  * that URL to it. Exact, no text matching.
  */
 export const releaseIdForUrl = async (url: string): Promise<string | null> => {
-  const res = await mbGet<{ relations?: { release?: { id: string } }[] }>("url", {
-    resource: url,
-    inc: "release-rels",
-  }).catch((err: Error) => {
+  const res = await mbGet<{ relations?: { release?: { id: string } }[] }>(
+    "url",
+    {
+      resource: url,
+      inc: "release-rels",
+    }
+  ).catch((err: Error) => {
     if (/MusicBrainz 404/.test(err.message)) return null;
     throw err;
   });
@@ -487,12 +490,17 @@ export const releaseIdForUrl = async (url: string): Promise<string | null> => {
 };
 
 /** The release a barcode (UPC/EAN) was printed on, if MusicBrainz has it. */
-export const releaseIdForBarcode = async (barcode: string): Promise<string | null> => {
+export const releaseIdForBarcode = async (
+  barcode: string
+): Promise<string | null> => {
   if (!/^\d{8,14}$/.test(barcode)) return null;
-  const res = await mbGet<{ releases: { id: string; score?: number }[] }>("release", {
-    query: `barcode:${barcode}`,
-    limit: "5",
-  });
+  const res = await mbGet<{ releases: { id: string; score?: number }[] }>(
+    "release",
+    {
+      query: `barcode:${barcode}`,
+      limit: "5",
+    }
+  );
   return res.releases.find((r) => (r.score ?? 0) >= 90)?.id ?? null;
 };
 
@@ -514,3 +522,59 @@ export const releaseDetail = async (releaseId: string) => {
     release: r as MbRelease,
   };
 };
+
+const wikidataOf = (
+  relations?: { type: string; url?: { resource: string } }[]
+) =>
+  relations
+    ?.find((r) => r.type === "wikidata")
+    ?.url?.resource.match(/(Q\d+)$/)?.[1] ?? null;
+
+/**
+ * What MusicBrainz links to an album (release group): its Wikidata item and
+ * any published reviews editors attached ("review" relationships).
+ */
+export const releaseGroupLinks = async (releaseGroupMbid: string) => {
+  const res = await mbGet<{
+    relations?: { type: string; url?: { resource: string } }[];
+  }>(`release-group/${releaseGroupMbid}`, { inc: "url-rels" });
+  return {
+    wikidata: wikidataOf(res.relations),
+    reviews: (res.relations ?? [])
+      .filter((r) => r.type === "review" && r.url)
+      .map((r) => r.url!.resource),
+  };
+};
+
+/** The Wikidata item MusicBrainz links to an artist, if any. */
+export const artistWikidata = async (artistMbid: string) =>
+  wikidataOf(
+    (
+      await mbGet<{
+        relations?: { type: string; url?: { resource: string } }[];
+      }>(`artist/${artistMbid}`, { inc: "url-rels" })
+    ).relations
+  );
+
+export type MbTrackRelease = {
+  id: string;
+  title: string;
+  date?: string;
+  status?: string;
+  media?: {
+    format?: string | null;
+    position?: number;
+    tracks?: { number: string; title: string; length?: number | null }[];
+  }[];
+};
+
+/** Official releases of an album with their tracklists (first 25). */
+export const releasesWithTracks = async (releaseGroupMbid: string) =>
+  (
+    await mbGet<{ releases: MbTrackRelease[] }>("release", {
+      "release-group": releaseGroupMbid,
+      status: "official",
+      inc: "recordings+media",
+      limit: "25",
+    })
+  ).releases;

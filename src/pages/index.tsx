@@ -1,5 +1,6 @@
 // ** React/Next.js Imports
 import Image from "next/image";
+import Link from "next/link";
 import React from "react";
 
 // ** Third-Party Imports
@@ -8,6 +9,7 @@ import { motion } from "motion/react";
 import { TypeAnimation } from "react-type-animation";
 
 // ** Custom Components, Hooks, Utils, etc.
+import LibraryStrip from "@/components/library-strip";
 import Waitlist from "@/components/waitlist";
 
 // ** Icon Imports
@@ -38,9 +40,9 @@ const PLATFORMS = [
   { icon: FaSpotify, label: "Spotify" },
   { icon: SiApplemusic, label: "Apple Music" },
   { icon: SiTidal, label: "Tidal" },
+  { icon: SiYoutubemusic, label: "YouTube Music" },
   { icon: FaSoundcloud, label: "SoundCloud" },
   { icon: FaDeezer, label: "Deezer" },
-  { icon: SiYoutubemusic, label: "YouTube Music" },
 ];
 
 /**
@@ -90,8 +92,18 @@ const RecordInSleeve = () => (
 
 const Home = () => (
   <main className='min-h-dvh bg-[#f4f0e8] text-[#111] [background-image:radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.9),transparent_55%)]'>
+    {/* Top bar: the library is open to anyone, before they try the app. */}
+    <nav className='mx-auto flex max-w-5xl justify-end px-4 pt-14 sm:px-8'>
+      <Link
+        href='/library'
+        className='rounded-full border border-black/15 bg-white/60 px-4 py-1.5 text-sm font-medium transition-colors hover:border-black/40'
+      >
+        The Library
+      </Link>
+    </nav>
+
     {/* Hero: record + pitch + signup. Stacks on mobile, side by side on desktop. */}
-    <section className='mx-auto flex max-w-5xl flex-col items-center gap-10 px-4 pb-12 pt-24 sm:px-8 md:flex-row-reverse md:items-center md:justify-between md:gap-12 md:pt-32'>
+    <section className='mx-auto flex max-w-5xl flex-col items-center gap-10 px-4 pb-12 pt-8 sm:px-8 md:flex-row-reverse md:items-center md:justify-between md:gap-12 md:pt-16'>
       <RecordInSleeve />
 
       <motion.div
@@ -104,8 +116,8 @@ const Home = () => (
           Your records, on every app.
         </h1>
         <p className='text-base text-black/70 sm:text-lg'>
-          Point your phone at a vinyl sleeve and algoRhythm finds the album
-          on Spotify, Apple Music, YouTube Music and more.
+          Point your phone at a vinyl sleeve and algoRhythm finds the album on
+          Spotify, Apple Music, YouTube Music and more.
         </p>
         <Waitlist />
       </motion.div>
@@ -160,8 +172,10 @@ const Home = () => (
       </div>
     </section>
 
+    <LibraryStrip />
+
     <footer className='pb-10 text-center text-xs text-black/45'>
-      For everyone
+      Built for everyone
     </footer>
   </main>
 );

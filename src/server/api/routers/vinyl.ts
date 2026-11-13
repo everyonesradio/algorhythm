@@ -9,6 +9,7 @@ import {
   type EmbeddingModelKey,
 } from "@/lib/embeddings/config";
 import { l2Normalize } from "@/lib/embeddings/vector";
+import { albumSelect } from "@/server/api/album-select";
 import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
 import { startScanIngest } from "@/server/services/catalog/background";
 import {
@@ -28,6 +29,7 @@ import {
   maybeSweepScanLog,
   scanIsActionable,
 } from "@/server/services/vinyl/scan-log";
+import { confirmScan } from "@/server/services/vinyl/confirm-scan";
 import { getAlbumLinks } from "@/server/services/vinyl/links";
 import { albumLinkDeps, indexAlbumLinks } from "@/server/services/links/server";
 import {
@@ -42,7 +44,6 @@ const modelKeys = Object.keys(EMBEDDING_MODELS) as [
 ];
 
 /** Cap on confirmed real-world scans stored per album (keeps index lean). */
-const MAX_USER_SCANS_PER_ALBUM = 25;
 
 const objectId = z.string().regex(/^[a-f\d]{24}$/i);
 const mbid = z.string().regex(/^[0-9a-f-]{36}$/i);
@@ -56,26 +57,6 @@ const discographyCache = new Map<
   string,
   { at: number; groups: Awaited<ReturnType<typeof discographyForArtist>> }
 >();
-
-const albumSelect = {
-  id: true,
-  title: true,
-  artist: true,
-  releaseYear: true,
-  primaryType: true,
-  genres: true,
-  tags: true,
-  labels: true,
-  coverUrl: true,
-  spotifyId: true,
-  spotifyUrl: true,
-  mbid: true,
-  artistMbid: true,
-  artistName: true,
-  styles: true,
-  discogsMasterId: true,
-  discogsReleaseId: true,
-} as const;
 
 export const vinylRouter = createTRPCRouter({
   /**
@@ -255,9 +236,6 @@ export const vinylRouter = createTRPCRouter({
       if (!scan) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Scan not found" });
       }
-      if (scan.confirmedAlbumId) {
-        return { stored: false, reason: "already-confirmed" as const };
-      }
       // Only accept albums the search actually offered; stops bad writes.
       if (!scan.topAlbumIds.includes(input.albumId)) {
         throw new TRPCError({
@@ -266,55 +244,7 @@ export const vinylRouter = createTRPCRouter({
         });
       }
 
-      await ctx.prisma.scanEvent.update({
-        where: { id: scan.id },
-        data: { confirmedAlbumId: input.albumId, confirmedAt: new Date() },
-      });
-
-      // A confirmed record: make sure the rest of this artist's catalog is in.
-      const confirmed = await ctx.prisma.album.findUnique({
-        where: { id: input.albumId },
-        select: { artist: true, artistMbid: true, artistName: true },
-      });
-      if (confirmed) {
-        startScanIngest(
-          ctx.prisma,
-          {
-            albumId: input.albumId,
-            artist: {
-              mbid: confirmed.artistMbid,
-              name: confirmed.artistName ?? confirmed.artist,
-            },
-          },
-          "scan_confirm"
-        );
-      }
-
-      const existing = await ctx.prisma.coverEmbedding.count({
-        where: {
-          albumId: input.albumId,
-          model: scan.model,
-          source: "user_scan",
-        },
-      });
-      if (existing >= MAX_USER_SCANS_PER_ALBUM) {
-        return { stored: false, reason: "album-has-enough-scans" as const };
-      }
-      // Too old: its vector may be gone (scan-log.ts). The confirmation
-      // above still counts.
-      if (!scanIsActionable(scan)) {
-        return { stored: false, reason: "scan-expired" as const };
-      }
-
-      await ctx.prisma.coverEmbedding.create({
-        data: {
-          albumId: input.albumId,
-          model: scan.model,
-          vector: scan.vector,
-          source: "user_scan",
-        },
-      });
-      return { stored: true, reason: null };
+      return confirmScan(ctx.prisma, scan, input.albumId);
     }),
 
   /**
