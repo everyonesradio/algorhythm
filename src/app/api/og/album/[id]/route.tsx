@@ -144,7 +144,7 @@ export async function GET(
             color: "rgba(0,0,0,0.5)",
           }}
         >
-          {`${scanned} · The Library`}
+          {`${scanned} · Library`}
         </div>
         <div
           style={{

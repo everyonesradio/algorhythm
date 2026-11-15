@@ -91,7 +91,7 @@ const Home = () => (
         href='/library'
         className='rounded-full border border-black/15 bg-white/60 px-4 py-1.5 text-sm font-medium transition-colors hover:border-black/40'
       >
-        The Library
+        Library
       </Link>
     </nav>
 

@@ -68,7 +68,7 @@ const LibraryPage = () => {
   return (
     <>
       <Head>
-        <title>The Library · algoRhythm</title>
+        <title>Library · algoRhythm</title>
         <meta
           name='description'
           content='Every record listeners have scanned and added, from around the world.'
@@ -78,11 +78,8 @@ const LibraryPage = () => {
         <div className='mx-auto flex max-w-6xl flex-col gap-8 px-4 pt-10 sm:px-6 sm:pt-14'>
           <header className='flex flex-wrap items-end justify-between gap-6'>
             <div className='flex max-w-xl flex-col gap-3'>
-              <span className='text-[11px] font-semibold uppercase tracking-[0.2em] text-black/50'>
-                Public library
-              </span>
               <h1 className='font-eightbitdragon text-3xl sm:text-5xl'>
-                The Library
+                Library
               </h1>
               <p className='text-black/70'>
                 Every record listeners have scanned and added, from around the
@@ -98,7 +95,7 @@ const LibraryPage = () => {
               )}
             </div>
             <Link
-              href='/scan-vinyl'
+              href='/'
               className='flex items-center gap-2 rounded-full bg-black px-4 py-2.5 text-sm font-medium text-white transition-transform duration-[120ms] active:scale-[0.97]'
             >
               <IoCameraOutline className='text-lg' />
