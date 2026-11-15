@@ -71,7 +71,7 @@ const LibraryPage = () => {
         <title>The Library · algoRhythm</title>
         <meta
           name='description'
-          content='Every record crate diggers have scanned with algoRhythm, from shops, fairs and flea markets worldwide.'
+          content='Every record diggers have scanned and added, from around the world.'
         />
       </Head>
       <main className='min-h-dvh bg-[#f4f0e8] pb-16 text-[#111]'>
@@ -85,9 +85,8 @@ const LibraryPage = () => {
                 The Library
               </h1>
               <p className='text-black/70'>
-                Every record diggers have scanned and added, from record shops,
-                fairs and flea markets. No accounts, no names: just the records
-                and the odd note about where they turned up.
+                Every record diggers have scanned and added, from around the
+                world.
               </p>
               {stats.data && stats.data.records > 0 && (
                 <p className='text-sm tabular-nums text-black/55'>
@@ -116,7 +115,7 @@ const LibraryPage = () => {
                 Recent
               </Chip>
               <Chip active={sort === "most"} onClick={() => setSort("most")}>
-                Most dug
+                Most scanned
               </Chip>
             </div>
             {(facets.data?.genres.length ?? 0) > 0 && (

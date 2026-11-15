@@ -28,8 +28,8 @@ const fade = {
   transition: { duration: 0.16 },
 } as const;
 
-const dugLine = (count: number) =>
-  count <= 1 ? "First find" : `Dug ${count} times`;
+const scannedLine = (count: number) =>
+  count <= 1 ? "First scan" : `Scanned ${count} times`;
 
 const LibraryCta: React.FC<Props> = ({
   albumId,
@@ -120,7 +120,7 @@ const LibraryCta: React.FC<Props> = ({
             </button>
             {count > 0 && (
               <span className='text-xs text-gray-500'>
-                {dugLine(count)}
+                {scannedLine(count)}
               </span>
             )}
           </motion.div>
@@ -134,7 +134,7 @@ const LibraryCta: React.FC<Props> = ({
           >
             <span className='flex items-center gap-2 text-sm font-medium'>
               <IoCheckmark className='text-lg' />
-              In the library · {dugLine(count)}
+              In the library · {scannedLine(count)}
             </span>
             <span className='flex shrink-0 items-center gap-3'>
               <Link

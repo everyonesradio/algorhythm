@@ -1,8 +1,8 @@
 // ** React/Next.js Imports
 import React from "react";
 
-export const dugTimes = (count: number) =>
-  count === 1 ? "Dug once" : `Dug ${count} times`;
+export const scannedTimes = (count: number) =>
+  count === 1 ? "Scanned once" : `Scanned ${count} times`;
 
 interface Props {
   title: string;
@@ -25,7 +25,7 @@ const LibraryCard: React.FC<Props> = ({
     type='button'
     onClick={onOpen}
     className='group flex min-w-0 flex-col gap-3 rounded-2xl p-2 text-left outline-none transition-colors duration-150 hover:bg-black/[0.04] focus-visible:ring-2 focus-visible:ring-black'
-    aria-label={`${title} by ${artist}, ${dugTimes(count).toLowerCase()}`}
+    aria-label={`${title} by ${artist}, ${scannedTimes(count).toLowerCase()}`}
   >
     <div className='aspect-square w-full [perspective:900px]'>
       <div className='h-full w-full rounded-[4px] bg-[#d9d3c7] shadow-[10px_14px_24px_-10px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out [transform:rotateY(-14deg)_rotateX(4deg)] group-hover:[transform:rotateY(-4deg)_rotateX(1deg)] group-focus-visible:[transform:rotateY(-4deg)_rotateX(1deg)] motion-reduce:transition-none'>
@@ -55,7 +55,7 @@ const LibraryCard: React.FC<Props> = ({
         {year ? ` · ${year}` : ""}
       </span>
       <span className='mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-black/45'>
-        {dugTimes(count)}
+        {scannedTimes(count)}
       </span>
     </div>
   </button>

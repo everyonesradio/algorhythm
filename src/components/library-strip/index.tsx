@@ -3,7 +3,7 @@ import Link from "next/link";
 import React from "react";
 
 // ** Custom Components, Hooks, Utils, etc.
-import { dugTimes } from "@/components/library-card";
+import { scannedTimes } from "@/components/library-card";
 import { albumPath } from "@/utils/album-path";
 import { api } from "@/utils/trpc";
 
@@ -60,7 +60,7 @@ const LibraryStrip = () => {
                 {album.title}
               </span>
               <span className='-mt-2 truncate text-xs text-black/55'>
-                {album.artist} · {dugTimes(count).toLowerCase()}
+                {album.artist} · {scannedTimes(count).toLowerCase()}
               </span>
             </Link>
           </li>

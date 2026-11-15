@@ -74,8 +74,10 @@ export async function GET(
     coverData(album.coverUrl),
     loadFonts().catch(() => null),
   ]);
-  const dug =
-    album.libraryCount === 1 ? "Dug once" : `Dug ${album.libraryCount} times`;
+  const scanned =
+    album.libraryCount === 1
+      ? "Scanned once"
+      : `Scanned ${album.libraryCount} times`;
 
   return new ImageResponse(
     <div
@@ -142,7 +144,7 @@ export async function GET(
             color: "rgba(0,0,0,0.5)",
           }}
         >
-          {`${dug} · The Library`}
+          {`${scanned} · The Library`}
         </div>
         <div
           style={{

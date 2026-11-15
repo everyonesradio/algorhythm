@@ -3,32 +3,32 @@
 A public library of the vinyl records crate diggers have actually found and
 scanned, worldwide. Every record someone scans goes into the library on its
 own, alongside the streaming links they already get. The library shows every
-record people have dug and what they had to say about it.
+record people have scanned.
 
 The library is not the recognition index. Albums and their vectors are what
 the app can recognise; the library is what people actually scanned. Adding a
 find never stores a vector or confirms a scan.
 
-Status: **built** — automatic adding from the drawer (remove, optional note) and the
-`/library` page: a grid of tilted CSS 3D covers, Recent / Most dug, genre and
+Status: **built** — automatic adding from the drawer (with Remove) and the
+`/library` page: a grid of tilted CSS 3D covers, Recent / Most scanned, genre and
 decade filters, and a counter. Tapping a record opens the album drawer with
-its streaming links, the latest three notes (with Report), a short "about"
+its streaming links, a short "about"
 from Wikipedia, the tracklist and a "Reviews & more" row, plus a shareable
 page per album. No accounts, handles or paid features.
 
 Decided on 2026-11-14: no events or pop-ups on the platform. A scanned record
 goes into the library automatically; covers are Spotify's art first, then
-MusicBrainz (Cover Art Archive).
+MusicBrainz (Cover Art Archive). No notes in V1: a find is the record and the
+date, which also means no reporting or moderation.
 
 Decided on 2026-11-13: the library is open and anonymous (no handles or
-profiles until the music-education, "Letterboxd for music" phase in the PRD),
-notes are allowed from day one, and there's no separate city field (people
-can say where they dug it in the note). It's called the Library.
+profiles until the music-education, "Letterboxd for music" phase in the PRD)
+and there's no city field. It's called the Library.
 
 ## Why
 
 - **It makes algoRhythm a community, not a utility.** A scan becomes a
-  contribution: "dug by 14 collectors" is a reason to scan that a link isn't.
+  contribution: "scanned by 14 collectors" is a reason to scan that a link isn't.
 - **It closes a gap the launch simulation found:** there was no shareable page
   for a scanned record. A library album page is that page.
 - **It becomes open data** for Music Tech Hackathon 2027: real records, really
@@ -97,16 +97,15 @@ or value we can't back up.
    The app only ever receives a vector from the phone, so there's nothing to
    moderate in images.
 3. **Open and anonymous.** No accounts, handles or profiles yet: a find is the
-   record, the date and an optional note. Profiles come with the
+   record and the date. Profiles come with the
    music-education phase ("Letterboxd for music"). No location field; diggers
    don't have to reveal their sources.
 4. **Facts are sourced.** Tracklists from MusicBrainz, stories from Wikipedia
    with attribution and a link. No generated "about" text. Pressing claims only
    when we know the pressing (a Discogs variant matched, or later the barcode
    or label).
-5. **Open by default.** Library data (album, date, note) is
-   part of the open dataset. Notes are shown publicly on the site; whether
-   they go into the dataset export is decided before the first export.
+5. **Open by default.** Library data (album, date) is part of the open
+   dataset.
 
 ## Phase 1 (no accounts)
 
@@ -115,19 +114,17 @@ or value we can't back up.
 **A scan adds the find (result drawer)**
 1. When a scan identifies a record (a confident match, a candidate the person
    picked, or a record they picked by artist), the drawer adds it to the
-   library and shows "In the library · First find" (or "Dug 15 times") with
-   **See it** and **Remove**.
-2. **Add a note** opens one optional field, up to 140 characters ("£3 bin at
-   a Saturday car boot"), marked public with no name attached.
-3. Each phone counts once per record: scanning it again returns the same
+   library and shows "In the library · First scan" (or "Scanned 15 times")
+   with **See it** and **Remove**.
+2. Each phone counts once per record: scanning it again returns the same
    find. Answering "No, show others" takes the find back out; picking the
    right record adds that one instead.
 
 **Browse the library (`/library`)**
-- A counter: records dug, collectors, cities.
+- A counter: records and finds.
 - A grid of tilted covers (CSS 3D, like The Playlist Archive): cover, title,
-  artist, "dug N times", and the latest note.
-- Sort: **Recent** (default) or **Most dug**.
+  artist and "Scanned N times".
+- Sort: **Recent** (default) or **Most scanned**.
 - Filter: genre and decade.
 - 24 per page with "Load more".
 
@@ -146,13 +143,12 @@ or value we can't back up.
   MusicBrainz (Pitchfork, BBC Music…), one per site. Review scores only when
   Wikidata records them with a scale and a source. Links only: published
   review text isn't ours to copy.
-- **Finds:** "Dug 14 times", with recent finds (note, date).
-- Open Graph image: the cover plus "dug by N", so links to it look good in
+- "Scanned 14 times" in the header.
+- Open Graph image: the cover plus "Scanned N times", so links to it look good in
   group chats and on social.
 
 **Taking a find down**
 - The device that added a find can remove it (a device key, below).
-- A **Report** link on each find. George can hide a find or a note.
 
 ### Data model
 
@@ -163,9 +159,6 @@ model LibraryEntry {
   album         Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
   scanId        String   @unique @db.ObjectId // one find per scan
   deviceKeyHash String   // lets the same device remove it
-  note          String?  // up to 140 characters
-  hidden        Boolean  @default(false) // moderation
-  reporters     String[]
   createdAt     DateTime @default(now())
 
   @@index([albumId, createdAt])
@@ -176,8 +169,8 @@ model LibraryEntry {
 ```
 
 On `Album`, cached (no new collection):
-- `libraryCount Int?`, kept in step with entries, for "dug by N" and
-  "Most dug".
+- `libraryCount Int?`, kept in step with entries, for "Scanned N times" and
+  "Most scanned".
 - `extra.tracklist`: tracks from MusicBrainz. Side positions are stored per
   pressing (keyed by Discogs release id) when known.
 - `extra.about`: `{ album?: { text, url }, artist?: { text, url }, fetchedAt }`
@@ -192,15 +185,13 @@ fix that.
 
 | Procedure | Does |
 |---|---|
-| `library.add({ scanId, albumId, deviceKey, note? })` | **Built.** Called by the drawer once a scan identifies a record. Checks the scan is fresh and identified this album, stores the entry, recounts `libraryCount`. Never confirms the scan or stores vectors. One find per phone per record; a corrected scan moves its find; 120 adds per device per hour |
+| `library.add({ scanId, albumId, deviceKey })` | **Built.** Called by the drawer once a scan identifies a record. Checks the scan is fresh and identified this album, stores the entry, recounts `libraryCount`. Never confirms the scan or stores vectors. One find per phone per record; a corrected scan moves its find; 120 adds per device per hour |
 | `library.remove({ entryId, deviceKey })` | **Built.** From the phone that added it |
-| `library.note({ entryId, deviceKey, note })` | **Built.** Add or change the note, from the phone that added it |
 | `library.list({ sort, genre?, decade?, cursor })` | The grid, 24 at a time |
 | `library.album({ albumId })` | Album page: album, links, tracklist, about, recent finds |
-| `library.report({ entryId, reason })` | Flags a find for review |
 | `library.stats()` | The counter |
 
-Rate limits on `add` and `report` per IP and per device key.
+Rate limit on `add` per device key.
 
 ### Where the album information comes from
 
@@ -235,13 +226,13 @@ Verified on 2026-11-12 with Frank Ocean's *Blonde*:
   with the Discogs proxy (`/api/cover`) only where needed.
 - **Album page:** one three.js canvas, as in the drawer today. Tracklist and
   about are cached on the album, so a repeat view is a database read.
-- **Counts:** `libraryCount` on the album, so "Most dug" is one indexed sort.
+- **Counts:** `libraryCount` on the album, so "Most scanned" is one indexed sort.
 
 ### Safety and privacy
 
 - No accounts, handles, emails or user photos in Phase 1.
 - No location field.
-- Notes: 140 characters, plain text, rate-limited, reportable, hideable.
+- No user-written text, so nothing to moderate.
 - Removal by the device that added it; anything else by request.
 
 ### Measuring it
@@ -249,19 +240,18 @@ Verified on 2026-11-12 with Frank Ocean's *Blonde*:
 - Share of finds removed right after scanning (wrong match or not wanted).
 - Finds per collector; repeat collectors.
 - Album-page views from outside the app (shared links).
-- Reports per 100 finds (moderation load).
 
 ### Out of scope for Phase 1
 
 Accounts, personal crate pages, following, maps, prices or value, condition,
-export, comments beyond the note, and label or matrix scanning.
+export, notes or comments, and label or matrix scanning.
 
 ## Phase 2 — profiles, with the music-education phase ("Letterboxd for music")
 
 - **Accounts by email link,** with a profile, so a digger's finds carry across devices.
 - **Crate pages** at `/@handle`: everything a digger has found.
 - **Following** diggers whose finds you like.
-- **A coarse map** of where records are being dug (city level, opt-in only).
+- **A coarse map** of where records are being scanned (city level, opt-in only).
 - **Export** a crate (CSV; later Rekordbox, for DJs).
 - **Label scanning** for generic company sleeves (as VinylScan does), feeding
   pressing identification (see `PRESSINGS_AND_PRICES.md`).
@@ -271,7 +261,7 @@ export, comments beyond the note, and label or matrix scanning.
 1. **Name:** the Library. ✔
 2. **Credit:** none yet. Open and anonymous until profiles arrive with the
    music-education phase. ✔
-3. **Notes:** allowed from day one. ✔
+3. **Notes:** none in V1. ✔ (2026-11-14)
 4. **Adding:** automatic for every scan that identifies a record, with
    Remove in the drawer. ✔ (2026-11-14)
 5. **Events:** none on the platform. ✔ (2026-11-14)
@@ -282,9 +272,8 @@ export, comments beyond the note, and label or matrix scanning.
 
 | Step | Work | Size |
 |---|---|---|
-| 1 | `LibraryEntry` model, `libraryCount`, `library.add/remove/note` with scan checks and rate limit | M · **done** |
-| 2 | Automatic add from the drawer: remove, optional note, device key | M · **done** |
+| 1 | `LibraryEntry` model, `libraryCount`, `library.add/remove` with scan checks and rate limit | M · **done** |
+| 2 | Automatic add from the drawer: remove, device key | M · **done** |
 | 3 | `/library` grid with CSS 3D covers, sort, filters, counter | M · **done** |
-| 4 | Album page: tracklist and about fetching + caching, finds list, OG image | L · **done** |
-| 5 | Moderation: hide flag, report review script (`vinyl:library --reported`) | S |
-| 6 | Tests, docs, the open-dataset export including finds | S |
+| 4 | Album page: tracklist and about fetching + caching, OG image | L · **done** |
+| 5 | Tests, docs, the open-dataset export including finds | S |

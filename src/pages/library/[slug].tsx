@@ -8,7 +8,7 @@ import React, { useState } from "react";
 // ** Custom Components, Hooks, Utils, etc.
 import prisma from "@lib/prisma";
 import AlbumDetails from "@/components/album-details";
-import { dugTimes } from "@/components/library-card";
+import { scannedTimes } from "@/components/library-card";
 import StreamingLinks from "@/components/streaming-links";
 import { albumSelect } from "@/server/api/album-select";
 import type { VinylAlbum } from "@/types/api";
@@ -32,7 +32,7 @@ type Props = {
 };
 
 const describe = (album: VinylAlbum, count: number) =>
-  `${album.title} by ${album.artist}${album.releaseYear ? ` (${album.releaseYear})` : ""}. ${dugTimes(count)} by diggers on algoRhythm: listen on every streaming app and see the tracklist.`;
+  `${album.title} by ${album.artist}${album.releaseYear ? ` (${album.releaseYear})` : ""}. ${scannedTimes(count)} by diggers on algoRhythm: listen on every streaming app and see the tracklist.`;
 
 const AlbumPage = ({ album, count, url, ogImage }: Props) => {
   const [shared, setShared] = useState<"copied" | "failed" | null>(null);
@@ -107,7 +107,7 @@ const AlbumPage = ({ album, count, url, ogImage }: Props) => {
             <div className='flex min-w-0 flex-col gap-6'>
               <header className='flex flex-col gap-2'>
                 <span className='text-[11px] font-semibold uppercase tracking-[0.16em] text-black/50'>
-                  {dugTimes(count)} · The Library
+                  {scannedTimes(count)} · The Library
                 </span>
                 <h1 className='font-eightbitdragon text-3xl leading-tight sm:text-4xl'>
                   {album.title}
