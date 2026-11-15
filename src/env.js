@@ -18,6 +18,13 @@ export const env = createEnv({
     DISCOGS_TOKEN: z.string().optional(),
     SPOTIFY_CLIENT_ID: z.string().optional(),
     SPOTIFY_CLIENT_SECRET: z.string().optional(),
+
+    // Optional: SendGrid for the waitlist welcome email. Without them
+    // signups are stored but no email goes out.
+    SENDGRID_API_KEY: z.string().optional(),
+    SENDGRID_FROM_EMAIL: z.string().email().optional(),
+    SENDGRID_WAITLIST_TEMPLATE_ID: z.string().optional(),
+    SENDGRID_UNSUBSCRIBE_GROUP_ID: z.string().regex(/^\d+$/).optional(),
   },
 
   /**
@@ -38,6 +45,10 @@ export const env = createEnv({
     DISCOGS_TOKEN: process.env.DISCOGS_TOKEN,
     SPOTIFY_CLIENT_ID: process.env.SPOTIFY_CLIENT_ID,
     SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET,
+    SENDGRID_API_KEY: process.env.SENDGRID_API_KEY,
+    SENDGRID_FROM_EMAIL: process.env.SENDGRID_FROM_EMAIL,
+    SENDGRID_WAITLIST_TEMPLATE_ID: process.env.SENDGRID_WAITLIST_TEMPLATE_ID,
+    SENDGRID_UNSUBSCRIBE_GROUP_ID: process.env.SENDGRID_UNSUBSCRIBE_GROUP_ID,
   },
 
   /**

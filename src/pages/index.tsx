@@ -166,7 +166,13 @@ const Home = () => (
     <LibraryStrip />
 
     <footer className='pb-10 text-center text-xs text-black/45'>
-      Built for everyone
+      Built for everyone ·{" "}
+      <Link
+        href='/privacy'
+        className='underline underline-offset-2 hover:text-black'
+      >
+        Privacy
+      </Link>
     </footer>
   </main>
 );
