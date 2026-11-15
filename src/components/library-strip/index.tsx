@@ -42,7 +42,7 @@ const LibraryStrip = () => {
         </Link>
       </div>
       <ul className='-mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-6 sm:overflow-visible sm:px-0'>
-        {items.map(({ album, count, coverUrl }) => (
+        {items.map(({ album, count }) => (
           <li key={album.id} className='w-32 shrink-0 snap-start sm:w-auto'>
             <Link
               href={albumPath(album)}
@@ -50,10 +50,10 @@ const LibraryStrip = () => {
             >
               <div className='aspect-square w-full [perspective:700px]'>
                 <div className='h-full w-full rounded-[4px] bg-[#d9d3c7] shadow-[8px_10px_18px_-8px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out [transform:rotateY(-14deg)] group-hover:[transform:rotateY(-3deg)] motion-reduce:transition-none'>
-                  {(coverUrl ?? album.coverUrl) && (
+                  {album.coverUrl && (
                     // eslint-disable-next-line @next/next/no-img-element -- covers come from several CDNs
                     <img
-                      src={(coverUrl ?? album.coverUrl)!}
+                      src={album.coverUrl}
                       alt=''
                       loading='lazy'
                       className='h-full w-full rounded-[4px] object-cover'

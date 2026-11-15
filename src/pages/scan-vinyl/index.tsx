@@ -574,7 +574,6 @@ const VinylScan = () => {
           onClose={() => setResultOpen(false)}
           onExitComplete={onResultExit}
           album={result.match.album}
-          coverUrl={result.match.scannedCover}
           confirmed={confirmed}
           scanId={result.scanId}
           pageHref={albumPath(result.match.album)}

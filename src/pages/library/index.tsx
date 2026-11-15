@@ -257,7 +257,7 @@ const LibraryPage = () => {
                       title={item.album.title}
                       artist={item.album.artist}
                       year={item.album.releaseYear}
-                      coverUrl={item.coverUrl ?? item.album.coverUrl ?? null}
+                      coverUrl={item.album.coverUrl || null}
                       count={item.count}
                       latestNote={item.latestNote}
                       onOpen={() => {

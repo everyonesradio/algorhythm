@@ -78,10 +78,10 @@ export async function GET(
   const latest = await prisma.libraryEntry.findFirst({
     where: { albumId: id, hidden: false },
     orderBy: { createdAt: "desc" },
-    select: { note: true, coverUrl: true },
+    select: { note: true },
   });
   const [cover, fontFiles] = await Promise.all([
-    coverData(latest?.coverUrl ?? album.coverUrl),
+    coverData(album.coverUrl),
     loadFonts().catch(() => null),
   ]);
   const dug =

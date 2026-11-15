@@ -12,6 +12,7 @@ import { l2Normalize } from "@/lib/embeddings/vector";
 import { albumSelect } from "@/server/api/album-select";
 import { createTRPCRouter, publicProcedure } from "@/server/api/trpc";
 import { startScanIngest } from "@/server/services/catalog/background";
+import { findSpotifyAlbum } from "@/server/services/catalog/spotify";
 import {
   coverArtUrl,
   coverExists,
@@ -37,6 +38,13 @@ import {
   pickBestView,
   rankHits,
 } from "@/server/services/vinyl/ranking";
+
+/** Spotify art for a new record, if it answers quickly; never blocks a pick. */
+const spotifyWithin = (artist: string, title: string, ms: number) =>
+  Promise.race([
+    findSpotifyAlbum(artist, title).catch(() => null),
+    new Promise<null>((r) => setTimeout(() => r(null), ms)),
+  ]);
 
 const modelKeys = Object.keys(EMBEDDING_MODELS) as [
   EmbeddingModelKey,
@@ -123,34 +131,12 @@ export const vinylRouter = createTRPCRouter({
         select: albumSelect,
       });
       const byId = new Map(albums.map((a) => [a.id, a]));
-      // Which cover each album looks most like, over every crop of the
-      // frame: the crop that decided the match isn't always the one that
-      // shows the artwork best.
-      const imageById = new Map(
-        groupHitsByAlbum(views.flatMap((v) => v.hits)).map((r) => [
-          r.albumId,
-          r.image,
-        ])
-      );
       const matches = candidates
         .filter((c) => byId.has(c.albumId))
-        .map((c) => {
-          const album = byId.get(c.albumId)!;
-          // Matched an alternative cover (another pressing, the Spotify art):
-          // show the user the cover they're actually holding.
-          const img = imageById.get(c.albumId) ?? c.image;
-          const scannedCover =
-            img &&
-            (img.source === "variant" || img.source === "spotify") &&
-            img.url !== album.coverUrl
-              ? img.url
-              : undefined;
-          return {
-            album,
-            similarity: Number(c.similarity.toFixed(4)),
-            ...(scannedCover ? { scannedCover } : {}),
-          };
-        });
+        .map((c) => ({
+          album: byId.get(c.albumId)!,
+          similarity: Number(c.similarity.toFixed(4)),
+        }));
 
       if (status === "matched" && matches[0]) {
         // A confident scan is itself the signal: vectorise this artist's
@@ -319,8 +305,10 @@ export const vinylRouter = createTRPCRouter({
       if (!album) {
         // New record: one MusicBrainz lookup for its metadata (~1s).
         const meta = toCatalogAlbum(await lookupReleaseGroup(input.mbid));
-        // Existence check only; the image itself is fetched by the browser.
-        const hasCover = await coverExists(input.mbid).catch(() => false);
+        const [spotify, hasCover] = await Promise.all([
+          spotifyWithin(meta.artistName ?? meta.artist, meta.title, 2500),
+          coverExists(input.mbid).catch(() => false),
+        ]);
         album = await ctx.prisma.album.create({
           data: {
             sourceKey,
@@ -334,7 +322,11 @@ export const vinylRouter = createTRPCRouter({
             genres: meta.genres,
             tags: meta.tags,
             labels: [],
-            coverUrl: hasCover ? coverArtUrl(input.mbid, 500) : "",
+            coverUrl:
+              spotify?.imageUrl ??
+              (hasCover ? coverArtUrl(input.mbid, 500) : ""),
+            spotifyId: spotify?.id ?? null,
+            spotifyUrl: spotify?.url ?? null,
           },
           select: albumSelect,
         });

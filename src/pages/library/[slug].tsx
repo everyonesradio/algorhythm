@@ -28,8 +28,6 @@ const Sleeve3D = dynamic(() => import("@/components/sleeve-3d"), {
 type Props = {
   album: VinylAlbum;
   count: number;
-  /** The art most recently scanned for this album (a pressing), if any. */
-  coverUrl: string | null;
   url: string;
   ogImage: string;
 };
@@ -43,7 +41,7 @@ const describe = (album: VinylAlbum, count: number) =>
  * streaming links, recent notes, a little about it and its tracklist.
  * Rendered on the server so shared links get a proper preview.
  */
-const AlbumPage = ({ album, count, coverUrl, url, ogImage }: Props) => {
+const AlbumPage = ({ album, count, url, ogImage }: Props) => {
   const [shared, setShared] = useState<"copied" | "failed" | null>(null);
   const title = `${album.title} by ${album.artist} · The Library · algoRhythm`;
   const description = describe(album, count);
@@ -110,7 +108,7 @@ const AlbumPage = ({ album, count, coverUrl, url, ogImage }: Props) => {
           <div className='grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-12'>
             <div className='flex flex-col items-center gap-6 md:sticky md:top-8 md:self-start'>
               <div className='aspect-square w-full max-w-[420px]'>
-                <Sleeve3D coverArt={coverUrl ?? album.coverUrl} />
+                <Sleeve3D coverArt={album.coverUrl} />
               </div>
             </div>
 
@@ -181,12 +179,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async ({
     return { redirect: { destination: path, permanent: false } };
   }
 
-  const latest = await prisma.libraryEntry.findFirst({
-    where: { albumId: id, hidden: false, coverUrl: { not: null } },
-    orderBy: { createdAt: "desc" },
-    select: { coverUrl: true },
-  });
-
   const proto =
     (req.headers["x-forwarded-proto"] as string | undefined)?.split(",")[0] ??
     "http";
@@ -202,7 +194,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async ({
     props: {
       album: rest as VinylAlbum,
       count: libraryCount,
-      coverUrl: latest?.coverUrl ?? null,
       url: `${origin}${path}`,
       ogImage: `${origin}/api/og/album/${id}`,
     },

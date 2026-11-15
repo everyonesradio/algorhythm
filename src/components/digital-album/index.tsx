@@ -24,8 +24,6 @@ interface Props {
   /** Fires once the close animation finishes; clear the album data here. */
   onExitComplete?: () => void;
   album: VinylAlbum;
-  /** The cover the user scanned, when it's an alternative (another pressing). */
-  coverUrl?: string;
   confirmed?: boolean;
   /** The scan that identified this record; enables "Add to library". */
   scanId?: string | null;
@@ -42,7 +40,6 @@ const DigitalAlbum: React.FC<Props> = ({
   onClose,
   onExitComplete,
   album,
-  coverUrl,
   confirmed,
   scanId,
   onAddedToLibrary,
@@ -106,7 +103,7 @@ const DigitalAlbum: React.FC<Props> = ({
         <div className='h-[340px] w-full sm:h-[440px]'>
           <Canvas camera={{ position: [0, 0, 2.4], fov: 75 }}>
             <pointLight position={[10, 10, 10]} />
-            <Vinyl3D coverArt={coverUrl ?? album.coverUrl} />
+            <Vinyl3D coverArt={album.coverUrl} />
             <OrbitControls makeDefault />
           </Canvas>
         </div>
@@ -153,7 +150,6 @@ const DigitalAlbum: React.FC<Props> = ({
             <LibraryCta
               albumId={album.id}
               scanId={scanId}
-              coverUrl={coverUrl}
               onAdded={onAddedToLibrary}
               pageHref={pageHref}
             />

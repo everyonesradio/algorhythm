@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { l2Normalize } from "@/lib/embeddings/vector";
+import { findSpotifyAlbum } from "@/server/services/catalog/spotify";
 
 /**
  * Exercises identify -> confirm / pick against an in-memory stand-in for the
@@ -12,6 +13,12 @@ process.env.VECTOR_SEARCH_MODE = "local";
 
 vi.mock("@/server/services/catalog/background", () => ({
   startScanIngest: vi.fn(),
+}));
+vi.mock("@/server/services/catalog/spotify", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/server/services/catalog/spotify")
+  >()),
+  findSpotifyAlbum: vi.fn(async () => null),
 }));
 vi.mock("@/server/services/catalog/musicbrainz", async (importOriginal) => ({
   ...(await importOriginal<
@@ -335,6 +342,7 @@ describe("vinyl router", () => {
         artistMbid: KDOT,
       });
       const added = prisma.albums.find((a) => a.sourceKey === `mb:${GNX}`)!;
+      // No Spotify match here, so the MusicBrainz cover.
       expect(added.coverUrl).toBe(
         `https://coverartarchive.org/release-group/${GNX}/front-500`
       );
@@ -354,6 +362,25 @@ describe("vinyl router", () => {
         vectors: [gnxScan()],
       });
       expect(again.matches[0].album.title).toBe("GNX");
+    });
+
+    it("uses the Spotify cover for a picked record when Spotify has it", async () => {
+      vi.mocked(findSpotifyAlbum).mockResolvedValueOnce({
+        id: "sp1",
+        url: "https://open.spotify.com/album/sp1",
+        imageUrl: "https://i.scdn.co/image/gnx",
+        score: 1,
+      });
+      const { scanId } = await caller.identify({
+        model: "clip-vit-b32",
+        vectors: [gnxScan()],
+      });
+      await caller.pick({ scanId: scanId!, mbid: GNX });
+      const added = prisma.albums.find((a) => a.sourceKey === `mb:${GNX}`)!;
+      expect(added).toMatchObject({
+        coverUrl: "https://i.scdn.co/image/gnx",
+        spotifyId: "sp1",
+      });
     });
 
     it("lets the user pick a record by an artist found through search", async () => {
