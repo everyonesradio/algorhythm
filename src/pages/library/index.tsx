@@ -96,7 +96,7 @@ const LibraryPage = () => {
             </div>
             <Link
               href='/'
-              className='flex items-center gap-2 rounded-full bg-black px-4 py-2.5 text-sm font-medium text-white transition-transform duration-[120ms] active:scale-[0.97]'
+              className='flex items-center gap-2 rounded-full bg-black px-4 py-2.5 text-sm font-medium text-white transition-transform duration-120 active:scale-[0.97]'
             >
               <IoCameraOutline className='text-lg' />
               Scan a record

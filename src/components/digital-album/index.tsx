@@ -65,7 +65,7 @@ const DigitalAlbum: React.FC<Props> = ({
       <div className='relative flex w-full flex-col items-center'>
         <button
           aria-label='Close'
-          className='absolute end-0 top-0 flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-[transform,background-color] duration-[120ms] hover:bg-gray-100 active:scale-[0.97]'
+          className='absolute inset-e-0 top-0 flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-[transform,background-color] duration-120 hover:bg-gray-100 active:scale-[0.97]'
           onClick={onClose}
         >
           <IoClose size={22} />
@@ -96,7 +96,7 @@ const DigitalAlbum: React.FC<Props> = ({
           )}
         </div>
 
-        <div className='h-[340px] w-full sm:h-[440px]'>
+        <div className='h-85 w-full sm:h-110'>
           <Canvas camera={{ position: [0, 0, 2.4], fov: 75 }}>
             <pointLight position={[10, 10, 10]} />
             <Vinyl3D coverArt={album.coverUrl} />
@@ -118,7 +118,7 @@ const DigitalAlbum: React.FC<Props> = ({
                   <span className='text-gray-600'>Right record?</span>
                   {onConfirm && (
                     <button
-                      className='rounded-full border border-black px-3 py-1 transition-transform duration-[120ms] active:scale-[0.97]'
+                      className='rounded-full border border-black px-3 py-1 transition-transform duration-120 active:scale-[0.97]'
                       onClick={onConfirm}
                     >
                       Yes
@@ -126,7 +126,7 @@ const DigitalAlbum: React.FC<Props> = ({
                   )}
                   {onReject && (
                     <button
-                      className='rounded-full border border-gray-300 px-3 py-1 text-gray-700 transition-transform duration-[120ms] active:scale-[0.97]'
+                      className='rounded-full border border-gray-300 px-3 py-1 text-gray-700 transition-transform duration-120 active:scale-[0.97]'
                       onClick={onReject}
                     >
                       No, show others

@@ -65,7 +65,7 @@ const Waitlist = () => {
             </p>
             <Link
               href='/scan-vinyl'
-              className='flex h-12 items-center justify-center gap-2 rounded-full bg-black px-5 font-semibold text-white transition-transform duration-[120ms] active:scale-[0.97]'
+              className='flex h-12 items-center justify-center gap-2 rounded-full bg-black px-5 font-semibold text-white transition-transform duration-120 active:scale-[0.97]'
             >
               Scan your first record
               <ArrowRight className='h-4 w-4' />
@@ -104,7 +104,7 @@ const Waitlist = () => {
               <button
                 type='submit'
                 disabled={join.isPending}
-                className='flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-black px-6 font-semibold text-white transition-transform duration-[120ms] active:scale-[0.97] disabled:opacity-80'
+                className='flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-black px-6 font-semibold text-white transition-transform duration-120 active:scale-[0.97] disabled:opacity-80'
               >
                 {join.isPending ? (
                   <>

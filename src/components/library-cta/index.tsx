@@ -107,7 +107,7 @@ const LibraryCta: React.FC<Props> = ({
             {...fade}
           >
             <button
-              className='flex w-full items-center justify-center gap-2 rounded-full border-2 border-black p-2 px-4 font-medium transition-transform duration-[120ms] active:scale-[0.97] disabled:opacity-50'
+              className='flex w-full items-center justify-center gap-2 rounded-full border-2 border-black p-2 px-4 font-medium transition-transform duration-120 active:scale-[0.97] disabled:opacity-50'
               disabled={!deviceKey || add.isPending}
               onClick={addNow}
             >
