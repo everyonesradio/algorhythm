@@ -36,7 +36,7 @@ const describe = (album: VinylAlbum, count: number) =>
 
 const AlbumPage = ({ album, count, url, ogImage }: Props) => {
   const [shared, setShared] = useState<"copied" | "failed" | null>(null);
-  const title = `${album.title} by ${album.artist} · The Library · algoRhythm`;
+  const title = `${album.title} by ${album.artist} · Library · algoRhythm`;
   const description = describe(album, count);
 
   const share = async () => {
@@ -80,7 +80,7 @@ const AlbumPage = ({ album, count, url, ogImage }: Props) => {
               href='/library'
               className='flex items-center gap-1.5 text-sm text-black/70 hover:text-black'
             >
-              <IoArrowBack /> The Library
+              <IoArrowBack /> Library
             </Link>
             <button
               type='button'
@@ -107,7 +107,7 @@ const AlbumPage = ({ album, count, url, ogImage }: Props) => {
             <div className='flex min-w-0 flex-col gap-6'>
               <header className='flex flex-col gap-2'>
                 <span className='text-[11px] font-semibold uppercase tracking-[0.16em] text-black/50'>
-                  {scannedTimes(count)} · The Library
+                  {scannedTimes(count)} · Library
                 </span>
                 <h1 className='font-eightbitdragon text-3xl leading-tight sm:text-4xl'>
                   {album.title}
