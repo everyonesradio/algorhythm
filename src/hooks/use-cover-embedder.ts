@@ -10,7 +10,6 @@ import type {
 
 type Status = "loading" | "ready" | "error";
 
-/** Owns the embedding Web Worker and exposes a promise-based `embed`. */
 export const useCoverEmbedder = () => {
   const workerRef = useRef<Worker | null>(null);
   const pending = useRef(
@@ -18,7 +17,6 @@ export const useCoverEmbedder = () => {
   );
   const nextId = useRef(0);
 
-  // The worker starts on mount, so the hook begins in "loading".
   const [status, setStatus] = useState<Status>("loading");
   const [progress, setProgress] = useState(0);
   const [model, setModel] = useState<EmbeddingModelKey | null>(null);
@@ -31,7 +29,6 @@ export const useCoverEmbedder = () => {
       { type: "module" }
     );
     workerRef.current = worker;
-    // Track download progress per file, report the overall average.
     const files = new Map<string, number>();
     const inflight = pending.current;
 

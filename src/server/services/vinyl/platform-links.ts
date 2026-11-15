@@ -5,26 +5,10 @@ import {
   splitArtists,
 } from "@/server/services/catalog/musicbrainz";
 
-/**
- * Exact streaming links for an album, from sources that identify the
- * release rather than guess it from a text search:
- *
- *   1. MusicBrainz URL relationships: links editors attached to the release.
- *   2. Barcode (UPC) lookups: Apple's and Deezer's catalogs are keyed by it.
- *   3. Strict search: Apple/Deezer JSON search, accepted only when artist
- *      and title both match after normalising.
- *
- * Text-search scraping (services/search.ts) used to pick the best of a
- * platform's first few results, which linked MIKE's "Showbiz!" to the wrong
- * album on Apple Music.
- */
-
-/** "source": the link the user pasted (links router). */
 export type LinkSource =
   "musicbrainz" | "barcode" | "search" | "spotify" | "source";
 export type AlbumLink = { type: Adapter; url: string; via: LinkSource };
 
-/** Platform + canonical URL for a streaming link, or null. */
 export const platformOf = (
   raw: string
 ): { type: Adapter; url: string } | null => {
@@ -67,10 +51,6 @@ export const platformOf = (
   return null;
 };
 
-/**
- * Most representative releases first: same title as the album (not the
- * deluxe), official, earliest. Links and barcodes are taken in this order.
- */
 export const rankReleases = (releases: MbRelease[], albumTitle: string) => {
   const title = normalizeName(albumTitle);
   const score = (r: MbRelease) =>
@@ -120,10 +100,7 @@ type DeezerAlbum = {
   error?: unknown;
 };
 
-/**
- * Same artist, by whole names: "MIKE" matches "MIKE" and "MIKE & DJ Blackpower",
- * not "Mike Posner" (substring matching is how wrong links got through).
- */
+// Whole names, never substrings: "MIKE" must not match "Mike Posner".
 export const sameArtist = (wanted: string, found: string) => {
   if (normalizeName(wanted) === normalizeName(found)) return true;
   const have = new Set(splitArtists(found));
@@ -134,11 +111,6 @@ export const sameArtist = (wanted: string, found: string) => {
 const EDITION =
   /\s*[([][^)\]]*(edition|version|remaster|deluxe|explicit)[^)\]]*[)\]]/gi;
 
-/**
- * Same album? Artist must match (collaborations in any order) and the
- * title must be equal after normalising ("Showbiz!" == "Showbiz"), ignoring
- * an "(Explicit)" / "(Deluxe Edition)" suffix only as a second choice.
- */
 export const pickSameAlbum = <T>(
   wanted: { artist: string; title: string },
   results: T[],
@@ -231,14 +203,11 @@ export const deezerBySearch = async (
 export type PlatformAlbum = {
   title: string;
   artist: string;
-  /** Barcode, when the platform exposes it (Spotify, Deezer). */
   upc: string | null;
-  /** The album's own link on that platform. */
   url: string;
   imageUrl: string | null;
 };
 
-/** Apple's official lookup by album or song id (a song resolves to its album). */
 export const appleAlbumById = async (
   id: string
 ): Promise<PlatformAlbum | null> => {
@@ -258,7 +227,6 @@ export const appleAlbumById = async (
   };
 };
 
-/** Deezer's official API: album by id (a track resolves to its album). */
 export const deezerAlbumById = async (
   id: string,
   kind: "album" | "track" = "album"

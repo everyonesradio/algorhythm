@@ -1,5 +1,3 @@
-/** Small, dependency-free vector helpers shared by client, server and scripts. */
-
 export const l2Normalize = (vec: ArrayLike<number>): number[] => {
   let sum = 0;
   for (let i = 0; i < vec.length; i++) sum += vec[i] * vec[i];
@@ -18,7 +16,6 @@ export const dot = (a: ArrayLike<number>, b: ArrayLike<number>): number => {
   return sum;
 };
 
-/** Cosine similarity for vectors that may not be normalized. */
 export const cosineSimilarity = (
   a: ArrayLike<number>,
   b: ArrayLike<number>
@@ -35,8 +32,4 @@ export const cosineSimilarity = (
   return ab / (Math.sqrt(aa) * Math.sqrt(bb));
 };
 
-/**
- * Atlas `$vectorSearch` with similarity "cosine" returns a score normalised to
- * [0, 1] as (1 + cosine) / 2. Convert back so thresholds stay in one unit.
- */
 export const atlasScoreToCosine = (score: number) => score * 2 - 1;

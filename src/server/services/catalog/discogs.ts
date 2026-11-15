@@ -1,15 +1,3 @@
-/**
- * Discogs API client: vinyl pressings, alternative covers, label & style.
- *
- * Discogs tracks every pressing of a record with photos of the actual sleeve,
- * which is what we need for alternative covers (e.g. the 2024 reissue art of
- * MM..FOOD) and for albums MusicBrainz doesn't have.
- *
- * Auth: personal access token (DISCOGS_TOKEN). Rate limit: 60 requests/min
- * authenticated, so requests are spaced ~1.05s apart and 429s back off.
- * Image files (i.discogs.com) are a CDN and don't count against the limit.
- * Data from Discogs needs attribution in the UI ("Data provided by Discogs").
- */
 import {
   artistMatches,
   artistsOverlap,
@@ -24,6 +12,7 @@ const userAgent = () =>
 
 export const discogsEnabled = () => Boolean(process.env.DISCOGS_TOKEN);
 
+// Discogs allows 60 req/min authenticated; 429s back off.
 let lastRequest = 0;
 const throttle = async (gapMs = 1050) => {
   const wait = lastRequest + gapMs - Date.now();
@@ -58,7 +47,7 @@ const dgGet = async <T>(path: string, params: Record<string, string> = {}) => {
 type DgSearchResult = {
   id: number;
   type: "master" | "release";
-  title: string; // "Artist - Title"
+  title: string;
   year?: string;
   cover_image?: string;
   master_id?: number;
@@ -104,17 +93,14 @@ export type DgMaster = {
   images?: DgImage[];
 };
 
-/** "MF Doom (2)" -> "MF Doom": Discogs numbers same-named artists & labels. */
+// Discogs suffixes same-named artists and labels with "(2)".
 export const cleanArtistName = (name: string) =>
   name
     .replace(/\s*\(\d+\)$/, "")
     .replace(/\*$/, "")
     .trim();
 
-/**
- * Discogs search is literal about punctuation: "D’Angelo" (curly, as
- * MusicBrainz writes it) finds nothing, "D'Angelo" finds Voodoo.
- */
+// Discogs search is literal about punctuation: curly quotes find nothing.
 export const searchText = (s: string) =>
   s
     .replace(/[‘’`´]/g, "'")
@@ -123,7 +109,6 @@ export const searchText = (s: string) =>
     .replace(/…/g, "...")
     .trim();
 
-/** Does a search result's "Artist - Title" fit the album asked for? */
 const isSameAlbum = (r: { title: string }, artist: string, title: string) => {
   const i = r.title.indexOf(" - ");
   if (i < 0) return false;
@@ -135,14 +120,12 @@ const isSameAlbum = (r: { title: string }, artist: string, title: string) => {
   );
 };
 
-/** Pick the search result whose "Artist - Title" fits what we asked for. */
 export const bestSearchMatch = (
   results: DgSearchResult[],
   artist: string,
   title: string
 ) => results.find((r) => isSameAlbum(r, artist, title)) ?? null;
 
-/** Same album on Discogs for vinyl status: looser than ingest matching. */
 const isSameAlbumForVinyl = (
   r: { title: string },
   artist: string,
@@ -155,11 +138,6 @@ const isSameAlbumForVinyl = (
   return titlesMatchLoose(title, rTitle) && artistsOverlap(artist, rArtist);
 };
 
-/**
- * Official vinyl releases of an album on Discogs. Bootlegs are flagged
- * "Unofficial Release" in the format and don't count: every vinyl listing
- * of Kendrick's "Section.80" and SZA's "Z" is one.
- */
 export const countOfficialVinyl = (
   results: (DgSearchResult & { format?: string[] })[],
   artist: string,
@@ -171,7 +149,6 @@ export const countOfficialVinyl = (
       isSameAlbumForVinyl(r, artist, title)
   ).length;
 
-/** Artist strings to try against Discogs' literal artist field. */
 const vinylArtistQueries = (artist: string) => {
   const full = searchText(artist);
   const parts = artist
@@ -181,7 +158,6 @@ const vinylArtistQueries = (artist: string) => {
   return [...new Set([full, ...parts])];
 };
 
-/** Null when Discogs can't answer (no token, outage). */
 export const discogsOfficialVinyl = async (artist: string, title: string) => {
   if (!discogsEnabled()) return null;
   try {
@@ -205,8 +181,6 @@ export const discogsOfficialVinyl = async (artist: string, title: string) => {
       }
     };
 
-    // Field search: full credit, then each collaborator (Discogs often lists
-    // only the lead artist on collabs).
     for (const a of vinylArtistQueries(artist)) {
       const res = await dgGet<{
         results: (DgSearchResult & { format?: string[] })[];
@@ -221,7 +195,6 @@ export const discogsOfficialVinyl = async (artist: string, title: string) => {
       if (total > 0) return total;
     }
 
-    // Keyword fallback when titles differ (subtitles, "Various" vs VA).
     const res = await dgGet<{
       results: (DgSearchResult & { format?: string[] })[];
     }>("/database/search", {
@@ -237,14 +210,9 @@ export const discogsOfficialVinyl = async (artist: string, title: string) => {
   }
 };
 
-/**
- * Find the Discogs master (all pressings of an album) for artist + title,
- * falling back to a single release when no master exists.
- */
 export const findDiscogsAlbum = async (artist: string, title: string) => {
   const a = searchText(artist);
   const t = searchText(title);
-  // Precise field search first, then a keyword search as a fallback.
   const attempts: Record<string, string>[] = [
     { type: "master", artist: a, release_title: t },
     { type: "release", artist: a, release_title: t },
@@ -264,7 +232,6 @@ export const findDiscogsAlbum = async (artist: string, title: string) => {
 export const getMaster = (id: number) => dgGet<DgMaster>(`/masters/${id}`);
 export const getRelease = (id: number) => dgGet<DgRelease>(`/releases/${id}`);
 
-/** Vinyl pressings of a master, oldest first. */
 export const vinylVersions = async (masterId: number, limit = 50) => {
   const res = await dgGet<{ versions: DgVersion[] }>(
     `/masters/${masterId}/versions`,
@@ -281,7 +248,7 @@ export const vinylVersions = async (masterId: number, limit = 50) => {
 export const primaryImage = (images?: DgImage[]) =>
   images?.find((i) => i.type === "primary")?.uri ?? images?.[0]?.uri ?? null;
 
-/** Download a Discogs image (CDN, not rate-limited). */
+// Discogs image CDN isn't rate-limited, so skip the throttle.
 export const fetchDiscogsImage = async (
   url: string
 ): Promise<Buffer | null> => {

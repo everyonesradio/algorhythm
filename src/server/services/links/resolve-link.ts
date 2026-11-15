@@ -5,28 +5,6 @@ import type {
   PlatformAlbum,
 } from "@/server/services/vinyl/platform-links";
 
-/**
- * "Paste any music link, get it everywhere": which album a streaming link
- * points to, then that album's links on every platform.
- *
- * Replaces the old scrapers (src/parsers, src/adapters, services/search),
- * which read platform web pages and picked the closest-sounding search
- * result, sometimes the wrong album. Every step here is exact:
- *
- *   0. Stored answer (LinkIndex, keyed by every platform URL of the album):
- *      one database read. Stale ones are refreshed in the background.
- *   1. In parallel: the official platform API for the album behind the link
- *      (Spotify Web API, Apple's iTunes lookup, Deezer API: title, artist,
- *      barcode) and MusicBrainz by the URL itself (editors link streaming
- *      URLs to releases).
- *   2. The exact release, by URL or barcode: one more MusicBrainz request
- *      returns its album, credits and streaming links.
- *   3. Answer with that release's links; the whole album's links (other
- *      editions may add platforms) are filled in in the background.
- *   4. No exact release: a strict artist + title match, else the source
- *      link plus barcode / strict-match links on Apple Music and Deezer.
- */
-
 export type LinkKind = "album" | "track";
 export type ParsedLink = {
   platform: Adapter;
@@ -35,7 +13,6 @@ export type ParsedLink = {
   url: string;
 };
 
-/** Recognise a streaming link (albums, and tracks via their album). */
 export const parseMusicLink = (raw: string): ParsedLink | null => {
   let u: URL;
   try {
@@ -62,7 +39,7 @@ export const parseMusicLink = (raw: string): ParsedLink | null => {
     }
   }
   if (host === "music.apple.com" || host === "itunes.apple.com") {
-    // /us/album/name/123?i=456 is a song on album 123: the album is wanted.
+    // /album/name/123?i=456 is a song on album 123: ?i is ignored on purpose.
     m = path.match(/\/(album|song)\/(?:[^/]+\/)?(?:id)?(\d+)$/);
     if (m) {
       const kind = m[1] === "song" ? "track" : "album";
@@ -137,7 +114,6 @@ export type MbAlbum = {
   title: string;
   artist: string;
   artistName: string | null;
-  /** The exact release behind the link, with its streaming links. */
   release: MbRelease;
 };
 
@@ -145,20 +121,17 @@ export type ResolvedLink = {
   title: string | null;
   artist: string | null;
   imageUrl: string | null;
-  /** MusicBrainz release group, when found. */
   mbid: string | null;
   links: AlbumLink[];
 };
 
 export type ResolveDeps = {
-  /** Stored answers, keyed by canonical album URL (LinkIndex). */
   store: {
     get: (
       url: string
     ) => Promise<{ value: ResolvedLink; stale: boolean } | null>;
     put: (value: ResolvedLink, urls: string[]) => Promise<void>;
   };
-  /** Official platform lookups; missing platforms have none (Tidal, YouTube, SoundCloud). */
   platformAlbum: Partial<
     Record<Adapter, (link: ParsedLink) => Promise<PlatformAlbum | null>>
   >;
@@ -166,10 +139,6 @@ export type ResolveDeps = {
   mbReleaseForBarcode: (upc: string) => Promise<string | null>;
   mbRelease: (releaseId: string) => Promise<MbAlbum | null>;
   mbByArtistTitle: (artist: string, title: string) => Promise<string | null>;
-  /**
-   * All links for a MusicBrainz album: from `releases` when given (fast),
-   * else every release of the album (one more request, more platforms).
-   */
   albumLinks: (
     album: {
       mbid: string;
@@ -180,15 +149,8 @@ export type ResolveDeps = {
     },
     releases?: MbRelease[]
   ) => Promise<AlbumLink[]>;
-  /** Exact links for an album MusicBrainz doesn't know. */
   fallbackLinks: (album: PlatformAlbum) => Promise<AlbumLink[]>;
-  /** Run work after the response (waitUntil on Vercel). */
   background?: (task: Promise<unknown>) => void;
-  /**
-   * How long to wait for MusicBrainz before answering from the platform's
-   * own API + barcode lookups instead (the full answer is stored when it
-   * lands). MusicBrainz allows 1 request/s and the cold path needs 2.
-   */
   budgetMs?: number;
 };
 
@@ -205,24 +167,18 @@ const ORDER = [
   Adapter.SoundCloud,
 ];
 
-/** Source link first-class: it's exact by definition. */
 const withSource = (links: AlbumLink[], source: AlbumLink | null) => {
   const byType = new Map(links.map((l) => [l.type, l]));
   if (source) byType.set(source.type, source);
   return ORDER.flatMap((t) => (byType.has(t) ? [byType.get(t)!] : []));
 };
 
-/** Every URL an answer can be found by next time. */
 const urlsOf = (value: ResolvedLink, extra: (string | null)[]) => [
   ...new Set(
     [...value.links.map((l) => l.url), ...extra].filter((u): u is string => !!u)
   ),
 ];
 
-/**
- * Stored answer if there is one (refreshed in the background once stale),
- * else resolve it and store it under every platform URL of the album.
- */
 export const resolveMusicLink = async (
   raw: string,
   deps: ResolveDeps
@@ -248,8 +204,6 @@ const resolveFresh = async (
   deps: ResolveDeps
 ): Promise<ResolvedLink> => {
   const lookup = deps.platformAlbum[link.platform];
-  // All started at once: the platform's answer, MusicBrainz by URL, and
-  // (speculatively, they're cheap) exact Apple/Deezer links for a quick answer.
   const platformP = lookup
     ? lookup(link).catch(() => null)
     : Promise.resolve(null);
@@ -272,9 +226,7 @@ const resolveFresh = async (
           .catch(() => undefined)
       : Promise.resolve();
 
-  // The full answer from MusicBrainz (or strict matches when it has none).
   const fullP = (async () => {
-    // The release lookup starts as soon as the URL lookup answers.
     let releaseId = await urlP;
     const album = await platformP;
     const albumUrl = albumUrlOf(album);
@@ -291,7 +243,6 @@ const resolveFresh = async (
       : null;
 
     if (mb) {
-      // That release's links now; the whole album's (more platforms) after.
       const meta = {
         mbid: mb.mbid,
         title: mb.title,
@@ -312,8 +263,6 @@ const resolveFresh = async (
         enrich: () => deps.albumLinks(meta).then((l) => withSource(l, source)),
       };
     }
-    // No exact release: the album by strict artist + title, else
-    // platform-exact links only.
     const mbid = album
       ? await deps.mbByArtistTitle(album.artist, album.title).catch(() => null)
       : null;
@@ -336,7 +285,6 @@ const resolveFresh = async (
     return { value, albumUrl, enrich: null };
   })();
 
-  /** Store the full answer, then the whole album's links when richer. */
   const settle = async (full: Awaited<typeof fullP>) => {
     await store(full.value, full.albumUrl);
     if (!full.enrich) return;
@@ -359,10 +307,9 @@ const resolveFresh = async (
     return inTime.value;
   }
 
-  // MusicBrainz is slow: answer from the platform's own exact data now.
   const [album, quick] = await Promise.all([platformP, quickP]);
   if (!album || !quick) {
-    const full = await fullP; // nothing quicker to offer
+    const full = await fullP;
     await store(full.value, full.albumUrl);
     if (full.enrich && deps.background)
       deps.background(settle(full).catch(() => null));
@@ -376,7 +323,6 @@ const resolveFresh = async (
     mbid: null,
     links: withSource(quick, sourceOf(albumUrl)),
   };
-  // The full answer replaces this one in the store when it lands.
   if (deps.background) deps.background(fullP.then(settle).catch(() => null));
   return quickValue;
 };

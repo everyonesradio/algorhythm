@@ -13,29 +13,10 @@ import {
 } from "./discogs";
 import { toRawImage } from "./images";
 
-/**
- * Alternative covers from Discogs vinyl pressings.
- *
- * An album's pressings can carry different artwork (reissue art, club
- * editions, picture discs) and Discogs has photos of the actual sleeves,
- * stickers and shrink-wrap included. Each distinct cover becomes a
- * "variant" vector on the same album, so any edition matches.
- */
-
-/** Distinct covers kept per album. */
 export const MAX_VARIANTS = 6;
-/** Two covers at least this similar count as the same artwork. */
 export const DUPLICATE_SIMILARITY = 0.95;
-/** Pressings looked at per album (thumbnails are cheap, CDN-served). */
 export const MAX_VERSIONS = 30;
 
-/**
- * Farthest-first selection: start from the first item (the original
- * pressing), then keep adding the item least like everything selected so
- * far. Alternative artwork is the most different, so it's picked early
- * instead of being crowded out by many photos of the classic cover.
- * Items too similar to the selection (>= duplicate) are never added.
- */
 export const pickDiverse = <T extends { vector: number[] }>(
   items: T[],
   max = MAX_VARIANTS,
@@ -56,7 +37,7 @@ export const pickDiverse = <T extends { vector: number[] }>(
         bestIdx = i;
       }
     });
-    if (bestIdx < 0) break; // everything left is a duplicate
+    if (bestIdx < 0) break;
     selected.push(rest.splice(bestIdx, 1)[0]);
   }
   return selected;
@@ -66,9 +47,7 @@ export type VariantView = {
   source: "variant";
   vector: number[];
   imageUrl: string;
-  /** Discogs release (pressing) the photo belongs to. */
   releaseId: number;
-  /** e.g. "2024 · US · LP, Album, Limited Edition" */
   note: string;
 };
 
@@ -85,7 +64,6 @@ export type DiscogsAlbumInfo = {
   coverUrl: string | null;
 };
 
-/** Album-level metadata from a Discogs master (or lone release). */
 const describe = async (hit: {
   type: "master" | "release";
   id: number;
@@ -133,10 +111,6 @@ const describe = async (hit: {
   };
 };
 
-/**
- * Look the album up on Discogs and return its metadata plus vectors for
- * its distinct vinyl covers. Null when Discogs doesn't know the album.
- */
 export const discogsAlbum = async (
   embedder: Embedder,
   artist: string,
@@ -150,7 +124,6 @@ export const discogsAlbum = async (
   const { info, master } = described;
   if (!opts.variants || !master) return { info, variants: [] };
 
-  // 1. Embed every pressing's thumbnail (CDN, no API cost).
   const versions = (await vinylVersions(master.id, MAX_VERSIONS)).filter(
     (v) => v.thumb
   );
@@ -164,12 +137,9 @@ export const discogsAlbum = async (
         .filter(Boolean)
         .join(" · ");
       candidates.push({ id: v.id, note, vector });
-    } catch {
-      // unreadable thumbnail; skip
-    }
+    } catch {}
   }
 
-  // 2. Keep a diverse set, then re-embed those from the 600px photo.
   const variants: VariantView[] = [];
   for (const pick of pickDiverse(candidates)) {
     const release = await getRelease(pick.id);
@@ -179,9 +149,7 @@ export const discogsAlbum = async (
     if (img) {
       try {
         vector = await embedder.embed(await toRawImage(embedder, img));
-      } catch {
-        // keep the thumbnail vector
-      }
+      } catch {}
     }
     variants.push({
       source: "variant",

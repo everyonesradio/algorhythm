@@ -1,32 +1,14 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
-/**
- * Rate-limited request scheduling w/ two lanes.
- *
- * External APIs (MusicBrainz: ~1 req/s) are shared by people waiting on a
- * screen (artist search, discography, pick) and by background catalog
- * ingest started by scans. Measured before this existed: during a Radiohead
- * catalog ingest, the picker's search + discography went from 2.4s to 6.0s
- * because both queued behind the same throttle.
- *
- * Every request takes a slot from one scheduler; interactive requests always
- * get the next slot, background requests only when no one is waiting.
- * Background work is marked with `runInBackground` (AsyncLocalStorage), so
- * call sites don't change.
- */
-
 const lane = new AsyncLocalStorage<"background">();
 
-/** Run `fn` (and everything it awaits) in the background lane. */
 export const runInBackground = <T>(fn: () => Promise<T>) =>
   lane.run("background", fn);
 
 export const isBackground = () => lane.getStore() === "background";
 
 export type Lanes = {
-  /** Wait for this request's turn; resolves when it may fire. */
   acquire: (priority?: "interactive" | "background") => Promise<void>;
-  /** Current gap between requests (adapts to rate-limit replies). */
   gap: () => number;
   setGap: (ms: number) => void;
 };

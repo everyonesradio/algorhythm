@@ -30,6 +30,11 @@ const nextConfig = {
       "node_modules/onnxruntime-node/bin/napi-v3/linux/x64/libonnxruntime.so.1",
       "node_modules/onnxruntime-node/bin/napi-v3/linux/x64/libonnxruntime_providers_shared.so",
     ],
+    // Fonts the album share-preview image reads from disk at runtime.
+    "/api/og/**": [
+      "public/fonts/EightBitDragon-anqx.ttf",
+      "node_modules/next/dist/compiled/@vercel/og/Geist-Regular.ttf",
+    ],
   },
   outputFileTracingExcludes: {
     "*": [

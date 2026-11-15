@@ -6,10 +6,6 @@ import MobileDetect from "mobile-detect";
 
 type CameraState = "starting" | "live" | "denied" | "unavailable";
 
-/**
- * Attaches the device camera to a <video>. Uses the rear camera on phones and
- * asks for a high resolution so the cover crop has plenty of detail.
- */
 export const useCamera = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [state, setState] = useState<CameraState>("starting");

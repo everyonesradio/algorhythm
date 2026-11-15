@@ -6,6 +6,7 @@ import {
   l2Normalize,
 } from "@/lib/embeddings/vector";
 import {
+  CAMERA_ONLY_MAX,
   decideMatch,
   DEFAULT_THRESHOLDS,
   groupHitsByAlbum,
@@ -27,49 +28,39 @@ describe("groupHitsByAlbum", () => {
     ]);
   });
 
-  it("remembers which cover image the scan looks most like", () => {
+  it("lets a camera photo lift an album only a little above its cover", () => {
     const [top] = groupHitsByAlbum([
-      {
-        albumId: "a",
-        similarity: 0.84,
-        source: "catalog",
-        imageUrl: "https://caa/front",
-      },
-      {
-        albumId: "a",
-        similarity: 0.86,
-        source: "variant",
-        imageUrl: "https://discogs/2024",
-      },
-      // Augmented vectors win the score but have no image of their own.
-      { albumId: "a", similarity: 0.88, source: "augment" },
+      { albumId: "a", similarity: 0.759, source: "variant" },
+      { albumId: "a", similarity: 0.836, source: "user_scan" },
     ]);
-    expect(top).toMatchObject({
-      similarity: 0.88,
-      source: "augment",
-      image: { url: "https://discogs/2024", source: "variant" },
-    });
+    expect(top.similarity).toBeCloseTo(0.829);
   });
 
-  it("keeps the catalog cover when it beats every pressing", () => {
-    const [top] = groupHitsByAlbum([
-      {
-        albumId: "a",
-        similarity: 0.8,
-        source: "variant",
-        imageUrl: "https://discogs/2024",
-      },
-      {
-        albumId: "a",
-        similarity: 0.9,
-        source: "catalog",
-        imageUrl: "https://caa/front",
-      },
+  it("doesn't match the last record from a camera photo of the same spot", () => {
+    // Nov 14: the next record matched the photo saved 8s earlier at 0.862
+    // while the album's own covers only reached 0.731.
+    const ranked = groupHitsByAlbum([
+      { albumId: "previous", similarity: 0.862, source: "user_scan" },
+      { albumId: "previous", similarity: 0.731, source: "variant" },
     ]);
-    expect(top.image).toMatchObject({
-      url: "https://caa/front",
-      source: "catalog",
-    });
+    expect(ranked[0].similarity).toBeCloseTo(0.801);
+    expect(decideMatch(ranked)).toBe("ambiguous");
+  });
+
+  it("keeps an album seen only through camera photos below the match bar", () => {
+    const ranked = groupHitsByAlbum([
+      { albumId: "a", similarity: 0.95, source: "user_scan" },
+    ]);
+    expect(ranked[0].similarity).toBe(CAMERA_ONLY_MAX);
+    expect(decideMatch(ranked)).toBe("ambiguous");
+  });
+
+  it("ignores camera photos that score below the cover", () => {
+    const [top] = groupHitsByAlbum([
+      { albumId: "a", similarity: 0.9, source: "catalog" },
+      { albumId: "a", similarity: 0.85, source: "user_scan" },
+    ]);
+    expect(top.similarity).toBe(0.9);
   });
 });
 

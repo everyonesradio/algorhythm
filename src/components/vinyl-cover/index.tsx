@@ -12,14 +12,7 @@ interface Props {
   coverArt: string | null;
 }
 
-/**
- * The album as a real 3D object: a thin record sleeve with the cover art on
- * the front, gently floating and turning.
- *
- * (Replaces an HTML overlay pinned into the scene with drei's <Html>, which
- * threw `removeChild` errors on unmount under React 19.)
- */
-const SLEEVE = 2.6; // world units
+const SLEEVE = 2.6;
 const DEPTH = 0.04;
 
 const Float: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -58,7 +51,6 @@ const Sleeve: React.FC<{ url: string }> = ({ url }) => {
   );
 };
 
-/** Neutral sleeve shown while the texture loads, or if there's no art. */
 const Placeholder = () => (
   <mesh>
     <boxGeometry args={[SLEEVE, SLEEVE, DEPTH]} />

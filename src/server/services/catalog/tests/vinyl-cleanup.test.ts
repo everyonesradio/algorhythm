@@ -38,7 +38,11 @@ const fakePrisma = (albums: Row[], embeddings: Row[] = []) => ({
   },
 });
 
-const album = (id: string, artistMbid: string | null, extra: Row = {}): Row => ({
+const album = (
+  id: string,
+  artistMbid: string | null,
+  extra: Row = {}
+): Row => ({
   id,
   mbid: id,
   title: id,
@@ -145,6 +149,17 @@ describe("recordVinylStatus", () => {
 });
 
 describe("pruneCandidates", () => {
+  it("keeps non-vinyl albums that are in the public library", async () => {
+    const albums = [
+      album("mixtape", "k", { vinylStatus: "no" }),
+      album("dugBootleg", "k", { vinylStatus: "no", libraryCount: 2 }),
+    ];
+    const prisma = fakePrisma(albums);
+    const { prune, keptScanned } = await pruneCandidates(prisma as any);
+    expect(prune.map((a: Row) => a.id)).toEqual(["mixtape"]);
+    expect(keptScanned.map((a: Row) => a.id)).toEqual(["dugBootleg"]);
+  });
+
   it("keeps non-vinyl albums someone confirmed a scan of", async () => {
     const albums = [
       album("mixtape", "k", { vinylStatus: "no" }),

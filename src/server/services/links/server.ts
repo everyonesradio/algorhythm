@@ -38,7 +38,6 @@ import {
   resolveMusicLink,
 } from "./resolve-link";
 
-/** Exact link sources: MusicBrainz, barcodes, strict matches. No scraping. */
 export const albumLinkDeps: LinkDeps = {
   releases: releasesWithUrls,
   byBarcode: {
@@ -68,11 +67,6 @@ const spotifyAlbum = async (
     : null;
 };
 
-/**
- * Store an answer under every platform URL of the album (LinkIndex), and
- * on the catalog album too when it's one of ours, so the drawer and pasted
- * links share one result.
- */
 export const indexLinks = async (
   prisma: PrismaClient,
   value: ResolvedLink,
@@ -106,7 +100,6 @@ export const indexLinks = async (
   }
 };
 
-/** Index a catalog album's links (drawer, ingest) so pastes of them are instant. */
 export const indexAlbumLinks = (
   prisma: PrismaClient,
   album: { mbid: string | null; title: string; artist: string },
@@ -156,7 +149,6 @@ export const linkResolveDeps = (prisma: PrismaClient): ResolveDeps => ({
     (await findReleaseGroup(artist, title))?.id ?? null,
   albumLinks: async (album, releases) => {
     if (!releases) {
-      // A catalog album with fresh links: no MusicBrainz request at all.
       const ours = await prisma.album.findUnique({
         where: { sourceKey: `mb:${album.mbid}` },
         select: { platformLinks: true },
@@ -167,9 +159,7 @@ export const linkResolveDeps = (prisma: PrismaClient): ResolveDeps => ({
     return resolveAlbumLinks({ ...album, releases }, albumLinkDeps);
   },
   fallbackLinks: async (album) => {
-    // One request per platform: the exact barcode lookup when there is a
-    // barcode, else the strict search. Apple's public API allows only ~20
-    // requests/minute, so no speculative double calls.
+    // Apple allows ~20 requests/min: barcode or search, never both.
     const found = await Promise.all(
       album.upc
         ? [
@@ -189,6 +179,5 @@ export const linkResolveDeps = (prisma: PrismaClient): ResolveDeps => ({
   background: (task) => waitUntil(task),
 });
 
-/** Resolve any supported music link to the album's links everywhere. */
 export const resolveLinkOnServer = (prisma: PrismaClient, raw: string) =>
   resolveMusicLink(raw, linkResolveDeps(prisma));

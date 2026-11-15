@@ -8,12 +8,6 @@ import { atlasScoreToCosine, dot } from "@/lib/embeddings/vector";
 
 import type { VectorHit } from "./ranking";
 
-/**
- * "atlas" (default) uses the `$vectorSearch` stage, which needs MongoDB Atlas
- * (or the `mongodb/mongodb-atlas-local` docker image) and the vector index.
- * "local" brute-forces cosine similarity in Node: fine for a dev DB of a few
- * thousand covers, too slow beyond that.
- */
 export const vectorSearchMode = (): "atlas" | "local" =>
   process.env.VECTOR_SEARCH_MODE === "local" ? "local" : "atlas";
 
@@ -43,7 +37,6 @@ export const findNearestCovers = async (
           index: COVER_VECTOR_INDEX,
           path: "vector",
           queryVector: vector,
-          // ANN recall knob: more candidates = better recall, more latency.
           numCandidates: Math.max(k * 15, 150),
           limit: k,
           filter: { model: { $eq: model } },
@@ -83,7 +76,6 @@ const findNearestCoversLocal = async (
     .filter((e) => e.vector.length === vector.length)
     .map((e) => ({
       albumId: e.albumId,
-      // Stored and query vectors are both L2-normalised, so dot == cosine.
       similarity: dot(vector, e.vector),
       source: e.source,
       imageUrl: e.imageUrl,
