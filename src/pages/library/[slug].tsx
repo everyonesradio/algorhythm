@@ -32,7 +32,7 @@ type Props = {
 };
 
 const describe = (album: VinylAlbum, count: number) =>
-  `${album.title} by ${album.artist}${album.releaseYear ? ` (${album.releaseYear})` : ""}. ${scannedTimes(count)} by diggers on algoRhythm: listen on every streaming app and see the tracklist.`;
+  `${album.title} by ${album.artist}${album.releaseYear ? ` (${album.releaseYear})` : ""}. ${scannedTimes(count)} by listeners on algoRhythm: listen on every streaming app and see the tracklist.`;
 
 const AlbumPage = ({ album, count, url, ogImage }: Props) => {
   const [shared, setShared] = useState<"copied" | "failed" | null>(null);

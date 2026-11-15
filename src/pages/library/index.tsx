@@ -71,7 +71,7 @@ const LibraryPage = () => {
         <title>The Library · algoRhythm</title>
         <meta
           name='description'
-          content='Every record diggers have scanned and added, from around the world.'
+          content='Every record listeners have scanned and added, from around the world.'
         />
       </Head>
       <main className='min-h-dvh bg-[#f4f0e8] pb-16 text-[#111]'>
@@ -85,7 +85,7 @@ const LibraryPage = () => {
                 The Library
               </h1>
               <p className='text-black/70'>
-                Every record diggers have scanned and added, from around the
+                Every record listeners have scanned and added, from around the
                 world.
               </p>
               {stats.data && stats.data.records > 0 && (
