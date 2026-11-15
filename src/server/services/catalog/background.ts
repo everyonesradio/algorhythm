@@ -45,7 +45,6 @@ export const serverRunnerDeps = (prisma: PrismaClient): RunnerDeps => ({
       select: { id: true },
     });
     if (!album) return;
-    // Cached albums return at once; others cost ~1 MusicBrainz request.
     await getAlbumLinks(prisma, album.id, albumLinkDeps, Date.now(), {
       onResolved: (a, links) => indexAlbumLinks(prisma, a, links),
     });
@@ -54,18 +53,6 @@ export const serverRunnerDeps = (prisma: PrismaClient): RunnerDeps => ({
   log: (msg) => logger.info(msg),
 });
 
-/**
- * A scan identified an album (confident match, "Yes, that's it", or a pick).
- * In the background:
- *   1. that album's Discogs pressings become extra "variant" vectors (once
- *      per 30 days per album), so other pressings of it match too;
- *   2. the artist's whole catalog is vectorised (one job per artist).
- *
- * Returns immediately. On Vercel, `waitUntil` keeps the function alive
- * after the response is sent; elsewhere the promise simply runs in the
- * long-lived server process. If the catalog work is cut short, the job stays
- * in Mongo and `npm run vinyl:worker` (or the next scan) picks it up.
- */
 export const startScanIngest = (
   prisma: PrismaClient,
   scanned: {
@@ -75,7 +62,6 @@ export const startScanIngest = (
   trigger: Trigger
 ) => {
   const { albumId, artist } = scanned;
-  // Background lane: this work yields external-API slots to people waiting.
   const task = runInBackground(async () => {
     if (discogsEnabled()) {
       try {

@@ -18,22 +18,10 @@ import {
   type VariantView,
 } from "./variants";
 
-/**
- * Add one album to the vinyl index: metadata + every view of its cover as
- * vectors. Shared by the seeding CLI and the scan-triggered catalog ingest.
- *
- * Idempotent: albums that already have generated vectors for this model are
- * skipped unless `force`. Confirmed user scans are never deleted.
- */
-
 export type IngestOptions = {
-  /** Photo-like variants + close-up views (5 extra vectors). */
   augment: boolean;
-  /** Alternative covers from Discogs vinyl pressings (needs DISCOGS_TOKEN). */
   variants?: boolean;
-  /** Re-embed even if the album already has vectors. */
   force?: boolean;
-  /** Look up the Spotify album (needs SPOTIFY_CLIENT_ID/SECRET). */
   spotify?: boolean;
   dryRun?: boolean;
 };
@@ -64,7 +52,6 @@ type EmbeddedView = {
   vector: number[];
 };
 
-/** Embed every view of a cover (variants arrive already embedded). */
 const embedViews = async (embedder: Embedder, views: View[]) => {
   const out: EmbeddedView[] = [];
   for (const view of views) {
@@ -81,7 +68,6 @@ const embedViews = async (embedder: Embedder, views: View[]) => {
   return out;
 };
 
-/** The cover plus photo-like and close-up views of it. */
 const coverViews = async (
   cover: Buffer,
   coverUrl: string,
@@ -93,7 +79,6 @@ const coverViews = async (
   if (augment) {
     for (const img of await augmentCover(cover))
       views.push({ source: "augment", image: img });
-    // Partial-cover views for scans where the sleeve overflows the frame.
     for (const img of await closeUpViews(cover))
       views.push({ source: "closeup", image: img });
   }
@@ -108,7 +93,6 @@ const variantViews = (variants: VariantView[]): View[] =>
     discogsReleaseId: v.releaseId,
   }));
 
-/** Upsert the album and replace its generated vectors (user scans stay). */
 const storeAlbum = async (
   prisma: PrismaClient,
   model: string,
@@ -169,23 +153,13 @@ const hasGeneratedVectors = async (
   return !!existing && existing._count.embeddings > 0;
 };
 
-/** A MusicBrainz release group, optionally enriched w/ Discogs pressings. */
 export type CoverSources = {
-  /** Cover Art Archive; throws on a transient error (archive.org 5xx). */
   coverArtArchive: () => Promise<{ url: string; image: Buffer } | null>;
   spotify: () => Promise<string | null>;
   discogs: () => Promise<string | null>;
   download: (url: string) => Promise<Buffer | null>;
 };
 
-/**
- * Front cover for an album: Cover Art Archive first (MusicBrainz's own),
- * then the Spotify art, then Discogs. Many newer releases (2 of SZA's 7 at
- * the time) have no cover on CAA yet and used to be skipped entirely.
- *
- * If CAA errored and no fallback has a cover, the error is rethrown so the
- * job counts the album as failed (retried later) rather than coverless.
- */
 export const resolveCover = async (
   src: CoverSources
 ): Promise<{
@@ -240,7 +214,6 @@ export const ingestReleaseGroup = async (
     coverArtArchive: () => fetchCover(mbid),
     spotify: async () => spotify?.imageUrl ?? null,
     discogs: async () => {
-      // Looked up only when nothing else has a cover (2-3 Discogs requests).
       if (!discogs && discogsEnabled()) {
         discogs = await discogsAlbum(embedder, artist, album.title);
       }
@@ -255,7 +228,6 @@ export const ingestReleaseGroup = async (
   const { url: coverUrl, image: cover } = fetched;
 
   const views = await coverViews(cover, coverUrl, opts.augment);
-  // (When the Spotify art *is* the cover, it's already in.)
   if (spotify?.imageUrl && fetched.from !== "spotify") {
     const img = await fetchImage(spotify.imageUrl);
     if (img)
@@ -312,10 +284,6 @@ export type DiscogsIngestOutcome =
       variants: number;
     };
 
-/**
- * An album MusicBrainz doesn't have (or has no cover for), built entirely
- * from Discogs: metadata, the master's cover, and its vinyl variants.
- */
 export const ingestDiscogsAlbum = async (
   prisma: PrismaClient,
   embedder: Embedder,

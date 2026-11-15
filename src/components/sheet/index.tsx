@@ -10,27 +10,12 @@ import {
   type PanInfo,
 } from "motion/react";
 
-/**
- * Bottom sheet built on Motion (replaces MUI Drawer).
- *
- * - Rises with a soft, low-bounce spring; backdrop fades.
- * - Drag the grabber down (or flick) to dismiss; Escape and backdrop click
- *   also close. Content scrolls normally because only the grabber starts a
- *   drag (so the 3D canvas and lists keep their own gestures).
- * - Honours `<MotionConfig reducedMotion="user">` from _app: transforms are
- *   skipped, opacity still fades.
- * - Keep the sheet's data mounted until `onExitComplete` so the exit
- *   animation has something to render.
- */
-
 const SPRING = { type: "spring", bounce: 0.12, duration: 0.4 } as const;
 const EXIT = { duration: 0.22, ease: [0.32, 0.72, 0, 1] } as const;
-/** Drag distance (px) or flick velocity (px/s) that dismisses the sheet. */
 const DISMISS_OFFSET = 110;
 const DISMISS_VELOCITY = 550;
 
 const subscribe = () => () => undefined;
-/** True on the client, false during SSR, without a setState-in-effect. */
 const useIsClient = () =>
   useSyncExternalStore(
     subscribe,
@@ -42,7 +27,6 @@ type Props = {
   open: boolean;
   onClose: () => void;
   onExitComplete?: () => void;
-  /** Accessible name announced by screen readers, e.g. "Album result". */
   label: string;
   children: React.ReactNode;
 };
@@ -58,7 +42,6 @@ const Sheet: React.FC<Props> = ({
   const dragControls = useDragControls();
   const panelRef = useRef<HTMLDivElement | null>(null);
 
-  // Escape to close, scroll lock, and focus in/out while open.
   useEffect(() => {
     if (!open) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
@@ -121,7 +104,6 @@ const Sheet: React.FC<Props> = ({
             dragElastic={{ top: 0, bottom: 0.7 }}
             onDragEnd={onDragEnd}
           >
-            {/* Grabber: the only place a drag starts. */}
             <div
               className='flex cursor-grab touch-none justify-center py-3 active:cursor-grabbing'
               onPointerDown={(e) => dragControls.start(e)}

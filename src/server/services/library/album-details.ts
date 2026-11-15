@@ -3,31 +3,12 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import type { MbTrackRelease } from "@/server/services/catalog/musicbrainz";
 import { normalizeName } from "@/server/services/catalog/musicbrainz";
 
-/**
- * Extra album information for the library. Sourced, never generated:
- *
- *   tracklist  MusicBrainz (an official release, vinyl preferred); Spotify's
- *              Web API when MusicBrainz has none and credentials are set.
- *   about      the first sentence or two of Wikipedia, reached through the
- *              Wikidata item MusicBrainz links. CC BY-SA, so it's shown
- *              unedited (just shortened) with a link to the article.
- *   more       links to the album on AllMusic, Metacritic, Rate Your Music,
- *              Genius and Discogs (from Wikidata), MusicBrainz "review"
- *              links, and review scores Wikidata records with their source.
- *              Links only: published reviews aren't ours to copy.
- *
- * Sides (A1, B1…) are shown only when the release numbers its tracks that
- * way: side splits differ between pressings, so they're never invented.
- * Cached on Album.extra.details for 30 days (7 when nothing was found).
- */
+// Sourced, never generated: Wikipedia text is CC BY-SA, reviews are links only.
 
 export const DETAILS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export const EMPTY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-/** A source was down or rate-limiting: try again the next day. */
 export const PARTIAL_TTL_MS = 24 * 60 * 60 * 1000;
-/** About text: at most two sentences and this many characters. */
 export const ABOUT_MAX = 240;
-// 2: review links carry site names ("Pitchfork", not "pitchfork.com").
 const DETAILS_VERSION = 2;
 
 export type Track = { position: string; title: string; length: string | null };
@@ -42,11 +23,9 @@ export type ReviewScore = { source: string; score: string };
 export type AlbumDetails = {
   version: number;
   fetchedAt: string;
-  /** Some source failed temporarily; refreshed sooner. */
   partial?: boolean;
   tracklist: Tracklist | null;
   about: { album: About | null; artist: About | null };
-  /** Reviews and reference pages to read elsewhere: links only. */
   more: { links: SiteLink[]; scores: ReviewScore[] };
 };
 
@@ -81,11 +60,10 @@ const clock = (ms?: number | null) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
-/** First one or two sentences, at most ABOUT_MAX characters. */
 export const concise = (text: string, max = ABOUT_MAX) => {
   const clean = text.replace(/\s+/g, " ").trim();
   if (!clean) return "";
-  // Split after . ! ? followed by a capital, so "U.S." or "Vol. 2" stay put.
+  // Needs a following capital so "U.S." or "Vol. 2" don't split.
   const sentences = clean.split(/(?<=[.!?])\s+(?=[A-Z"“(])/);
   let out = "";
   for (const s of sentences.slice(0, 2)) {
@@ -94,13 +72,11 @@ export const concise = (text: string, max = ABOUT_MAX) => {
     out = next;
   }
   if (out) return out;
-  // One very long first sentence: cut at a word boundary.
   const cut = clean.slice(0, max - 1);
   const space = cut.lastIndexOf(" ");
   return `${space > max / 2 ? cut.slice(0, space) : cut}…`;
 };
 
-/** The release whose tracklist we show: official vinyl with the album's title, earliest. */
 export const pickRelease = (releases: MbTrackRelease[], albumTitle: string) => {
   const title = normalizeName(albumTitle);
   const score = (r: MbTrackRelease) =>
@@ -123,7 +99,6 @@ export const tracklistFromRelease = (
   const media = (release.media ?? []).filter((m) => m.tracks?.length);
   const tracks = media.flatMap((m) =>
     (m.tracks ?? []).map((t) => ({
-      // Several discs numbered 1, 2, 3… each: prefix the disc ("2-4").
       position:
         media.length > 1 && /^\d+$/.test(t.number)
           ? `${m.position ?? 1}-${t.number}`
@@ -150,7 +125,6 @@ const isFresh = (d: AlbumDetails | undefined, now: number) => {
   );
 };
 
-/** Review sites MusicBrainz links, by their usual names. */
 const SITE_NAMES: Record<string, string> = {
   "pitchfork.com": "Pitchfork",
   "bbc.co.uk": "BBC Music",
@@ -202,7 +176,6 @@ export const getAlbumDetails = async (
   const cached = extra.details as AlbumDetails | undefined;
   if (isFresh(cached, now)) return cached!;
 
-  // A failed request means "unknown", not "none": refresh sooner.
   let partial = false;
   const safe = <T>(p: Promise<T>) =>
     p.catch(() => {
@@ -245,14 +218,12 @@ export const getAlbumDetails = async (
     return text && info?.wikipedia ? { text, url: info.wikipedia.url } : null;
   };
 
-  // Review links editors attached in MusicBrainz, named by their site.
   const reviewLinks: SiteLink[] = (rgLinks?.reviews ?? [])
     .slice(0, 6)
     .flatMap((url) => {
       const name = siteName(url);
       return name ? [{ name, url }] : [];
     });
-  // One link per site; Wikidata's own IDs come first.
   const links = [...(albumInfo?.links ?? []), ...reviewLinks].filter(
     (l, i, all) => all.findIndex((x) => x.name === l.name) === i
   );

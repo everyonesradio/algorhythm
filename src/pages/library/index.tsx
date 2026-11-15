@@ -27,7 +27,6 @@ const Chip = ({
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
-  /** Genres from MusicBrainz are lower case ("contemporary r&b"). */
   capitalize?: boolean;
 }) => (
   <button
@@ -44,11 +43,6 @@ const Chip = ({
   </button>
 );
 
-/**
- * The Library: every record people have scanned and added, worldwide. Open
- * and anonymous. Tap a record for its streaming links, recent notes,
- * tracklist and a little about it.
- */
 const LibraryPage = () => {
   const [sort, setSort] = useState<Sort>("recent");
   const [genre, setGenre] = useState<string | null>(null);

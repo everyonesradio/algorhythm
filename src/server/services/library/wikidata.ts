@@ -1,16 +1,7 @@
-/**
- * Wikidata + Wikipedia for the library's album details.
- *
- * One Wikidata request gives the English Wikipedia article title, the album's
- * IDs on review and reference sites (AllMusic, Metacritic, Rate Your Music,
- * Genius, Discogs) and any review scores recorded with their source. The
- * Wikipedia REST summary gives a plain-text extract and the article URL.
- */
 const UA =
   process.env.MUSICBRAINZ_USER_AGENT ??
   "algoRhythm/0.1 ( https://github.com/everyonesradio/algorhythm )";
 
-/** JSON or null, retrying once when rate-limited or the server errors. */
 const fetchJson = async <T>(
   url: string
 ): Promise<{ data: T | null; transient: boolean }> => {
@@ -41,7 +32,6 @@ type Entity = {
   labels?: { en?: { value: string } };
 };
 
-/** Wikidata external-ID properties → where they link. Only sites we've seen on albums. */
 const SITES: { prop: string; name: string; url: (id: string) => string }[] = [
   {
     prop: "P1729",
@@ -86,7 +76,6 @@ const summary = async (title: string) => {
   }>(
     `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title.replace(/ /g, "_"))}`
   );
-  // Disambiguation pages aren't about the album.
   if (!page?.extract || page.type === "disambiguation") {
     return { page: null, transient };
   }
@@ -115,8 +104,7 @@ export const wikidataInfo = async (qid: string) => {
     return id ? [{ name, url: url(id) }] : [];
   });
 
-  // Review scores (P444) with their publication (P447). Kept only when the
-  // value carries its scale ("4/5", "9.0/10"): a bare "3.5" is ambiguous.
+  // Only scores with a scale ("4/5"): a bare "3.5" is ambiguous.
   const raw = (claims.P444 ?? []).flatMap((c) => {
     const score = stringValue(c.mainsnak);
     const by = c.qualifiers?.P447?.[0]?.datavalue?.value as
@@ -141,7 +129,6 @@ export const wikidataInfo = async (qid: string) => {
   const wiki = title ? await summary(title) : { page: null, transient: false };
   return {
     wikipedia: wiki.page,
-    // Wikipedia was unreachable, not missing: worth asking again soon.
     transient: wiki.transient,
     links,
     scores,

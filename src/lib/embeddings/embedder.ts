@@ -1,9 +1,4 @@
-/**
- * Isomorphic cover-art embedder (browser Web Worker + Node seeding scripts).
- *
- * Both sides MUST go through this file so preprocessing, weights and output
- * pooling are identical. If they diverge, scans stop matching the catalog.
- */
+// Browser and seeder must both embed through this file or scans won't match.
 import type { RawImage as RawImageType } from "@huggingface/transformers";
 
 import {
@@ -27,7 +22,6 @@ export type Embedder = {
   model: EmbeddingModelKey;
   dims: number;
   embed: (image: RawImageType) => Promise<number[]>;
-  /** Re-exported so callers can build RawImage instances without a 2nd import. */
   RawImage: Transformers["RawImage"];
 };
 
@@ -61,8 +55,6 @@ const createEmbedder = async (
   const cfg = getEmbeddingModel(modelKey);
   const tf: Transformers = await import("@huggingface/transformers");
 
-  // Never look for weights on our own server; always pull from the HF hub
-  // (cached by the browser Cache API / ~/.cache on Node after first load).
   tf.env.allowLocalModels = false;
   // Serverless file systems are read-only except /tmp; cache weights there.
   if (typeof window === "undefined" && typeof process !== "undefined") {
@@ -105,7 +97,6 @@ const createEmbedder = async (
     embed: async (image) => {
       const inputs = await processor(image);
       const out = await model(inputs);
-      // DINOv2: pooler_output is the layer-normed CLS token.
       const pooled =
         out.pooler_output ?? out.last_hidden_state.slice(null, 0, null);
       return l2Normalize((pooled.data as Float32Array).slice(0, cfg.dims));

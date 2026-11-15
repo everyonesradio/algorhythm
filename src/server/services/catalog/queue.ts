@@ -6,38 +6,15 @@ import type { IngestOptions, IngestOutcome } from "./ingest";
 import type { MbReleaseGroup } from "./musicbrainz";
 import { decideVinyl, type VinylStatus } from "./vinyl-status";
 
-/**
- * Scan-triggered catalog ingest.
- *
- * When a scan identifies an album (matched, confirmed, or picked from the
- * artist's discography) we request that artist's whole catalog: every album
- * and EP gets its cover vectorised so the next record from the same artist
- * matches instantly.
- *
- * Jobs live in Mongo (IngestJob) so they survive restarts and cold starts:
- * the scan request starts the work in the background right away, and
- * `npm run vinyl:worker` finishes anything that was cut short.
- */
-
-/** Re-ingest an artist after this long (new releases, new pressings). */
 export const REFRESH_AFTER_MS = 30 * 24 * 60 * 60 * 1000;
-/** A job "running" longer than this is assumed dead (crashed instance). */
 export const STALE_RUNNING_MS = 15 * 60 * 1000;
 export const MAX_ATTEMPTS = 3;
-/**
- * After MAX_ATTEMPTS quick retries, try a failed job again this long after
- * its last failure: a MusicBrainz outage shouldn't cost an artist their
- * catalog for good.
- */
 export const FAILED_RETRY_MS = 24 * 60 * 60 * 1000;
-/** Vinyl albums vectorised per artist, newest first, to bound the work. */
 export const CATALOG_LIMIT = 40;
-/** Discography entries considered (most aren't on vinyl: mixtapes, EPs). */
 export const DISCOGRAPHY_LIMIT = 100;
 
 export type Trigger = "scan_match" | "scan_confirm" | "scan_pick" | "cli";
 
-/** Pure: should an existing job be (re)queued? */
 export const isDue = (
   job: Pick<IngestJob, "status" | "attempts" | "startedAt" | "finishedAt">,
   now = Date.now()
@@ -63,10 +40,6 @@ export const isDue = (
   }
 };
 
-/**
- * Record that an artist's catalog is wanted. Returns the job id when there
- * is work to do now, or null when it's already done / in progress.
- */
 export const requestArtistCatalog = async (
   prisma: PrismaClient,
   artist: { mbid: string; name: string },
@@ -90,7 +63,7 @@ export const requestArtistCatalog = async (
       });
       return job.id;
     } catch {
-      return null; // another request created it first
+      return null;
     }
   }
   if (!isDue(existing, now)) return null;
@@ -101,10 +74,6 @@ export const requestArtistCatalog = async (
   return existing.id;
 };
 
-/**
- * Update that puts a due job back to pending. A job retried after the
- * cooldown starts a fresh round of attempts.
- */
 export const requeue = (job: Pick<IngestJob, "status" | "attempts">) => ({
   status: "pending" as const,
   error: null,
@@ -113,7 +82,6 @@ export const requeue = (job: Pick<IngestJob, "status" | "attempts">) => ({
     : {}),
 });
 
-/** Atomically move a job pending -> running. False if someone else has it. */
 export const claimJob = async (prisma: PrismaClient, id: string) => {
   const { count } = await prisma.ingestJob.updateMany({
     where: { id, status: "pending" },
@@ -128,13 +96,9 @@ export const claimJob = async (prisma: PrismaClient, id: string) => {
 
 export type RunnerDeps = {
   discography: (artistMbid: string, limit: number) => Promise<MbReleaseGroup[]>;
-  /** Official vinyl releases per release group, from MusicBrainz. */
   vinylReleases: (artistMbid: string) => Promise<Map<string, number>>;
-  /** Official vinyl releases on Discogs; null when it can't answer. */
   discogsVinyl: (artist: string, title: string) => Promise<number | null>;
-  /** Resolve and store an album's streaming links ahead of its first drawer. */
   prefetchLinks?: (releaseGroupMbid: string) => Promise<void>;
-  /** Record the status on the album, if it's in the catalog. */
   saveVinyl: (releaseGroupMbid: string, vinyl: VinylStatus) => Promise<void>;
   ingest: (
     embedder: Embedder,
@@ -145,7 +109,6 @@ export type RunnerDeps = {
   log?: (msg: string) => void;
 };
 
-/** Run a claimed artist job to completion and record the outcome. */
 export const runArtistJob = async (
   prisma: PrismaClient,
   jobId: string,
@@ -171,9 +134,6 @@ export const runArtistJob = async (
     const mbVinyl = await deps.vinylReleases(job.key);
     stats.releases = groups.length;
 
-    // Vinyl first: only albums that were pressed get vectors. Vectors are
-    // what the search index (memory) scales with, and a mixtape nobody
-    // can hold never gets scanned.
     const toIngest: MbReleaseGroup[] = [];
     for (const rg of groups) {
       const vinyl = await decideVinyl(mbVinyl.get(rg.id) ?? 0, () =>
@@ -185,7 +145,6 @@ export const runArtistJob = async (
       else stats.unknown++;
       if (vinyl.status === "yes" && toIngest.length < CATALOG_LIMIT) {
         toIngest.push(rg);
-        // Store the status on albums this run creates, too.
         vinylOf.set(rg.id, vinyl);
       }
     }
@@ -194,7 +153,6 @@ export const runArtistJob = async (
         ` (${stats.notVinyl} not, ${stats.unknown} unknown)`
     );
 
-    // Loading the model is the expensive part; skip it when nothing's due.
     const embedder = toIngest.length ? await deps.embedder() : null;
     for (const rg of toIngest) {
       if (!embedder) break;
@@ -204,7 +162,6 @@ export const runArtistJob = async (
         if (res.status === "added") stats.added++;
         else if (res.status === "skipped") stats.skipped++;
         else if (res.status === "no-cover") stats.noCover++;
-        // Resolve its streaming links now, so the drawer never waits on them.
         if (res.status === "added" || res.status === "skipped") {
           await deps.prefetchLinks?.(rg.id).catch(() => undefined);
         }

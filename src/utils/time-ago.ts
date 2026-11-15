@@ -8,7 +8,6 @@ const STEPS: [Intl.RelativeTimeFormatUnit, number][] = [
   ["minute", 60],
 ];
 
-/** "3 days ago", "just now". */
 export const timeAgo = (date: Date | string, now = Date.now()) => {
   const seconds = (new Date(date).getTime() - now) / 1000;
   for (const [unit, size] of STEPS) {

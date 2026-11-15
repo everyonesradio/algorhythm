@@ -18,9 +18,7 @@ const NOTE_MAX = 140;
 interface Props {
   albumId: string;
   scanId: string;
-  /** The scan has identified this record, so it can go in. */
   ready: boolean;
-  /** The find this phone holds for the record, or null once removed. */
   onEntry?: (entryId: string | null) => void;
   pageHref?: string;
 }
@@ -35,10 +33,6 @@ const fade = {
 const dugLine = (count: number) =>
   count <= 1 ? "First find" : `Dug ${count} times`;
 
-/**
- * Every scanned record goes into the public library on its own. This row
- * says so, and lets the person take it back out or leave a note.
- */
 const LibraryCta: React.FC<Props> = ({
   albumId,
   scanId,

@@ -8,12 +8,6 @@ import {
   type VinylStatus,
 } from "./vinyl-status";
 
-/**
- * Catalog cleanup for vinyl-first ingest (scripts/vinyl-status.ts):
- *   1. record a vinyl status on every album that lacks one;
- *   2. list albums that were never pressed on vinyl, to prune.
- */
-
 export type CleanupDeps = {
   releasesByArtist: (artistMbid: string) => Promise<MbMediaRelease[]>;
   releasesByReleaseGroup: (mbid: string) => Promise<MbMediaRelease[]>;
@@ -30,8 +24,7 @@ type AlbumRow = {
   artistMbid: string | null;
 };
 
-/** MusicBrainz "Various Artists" special-purpose artist. Browsing it pages
- * tens of thousands of releases and hangs a catalog backfill. */
+// MusicBrainz's Various Artists: browsing it pages tens of thousands of releases.
 export const VARIOUS_ARTISTS_MBID = "89ad4ac3-39f7-470e-963a-56509c546377";
 
 const canBrowseArtist = (artistMbid: string | null) =>
@@ -64,7 +57,6 @@ export const recordVinylStatus = async (
   });
   log(`${albums.length} albums to check`);
 
-  // One MusicBrainz browse per artist covers all their albums.
   const byArtist = new Map<string, Map<string, number>>();
   const mbVinylFor = async (a: AlbumRow) => {
     if (!a.mbid) return 0;
@@ -77,7 +69,6 @@ export const recordVinylStatus = async (
         byArtist.set(artistMbid, vinylReleasesByGroup(releases));
       }
       const n = byArtist.get(artistMbid)!.get(a.mbid);
-      // Not in the artist's browse (credited to a collaboration): ask directly.
       if (n !== undefined) return n;
     }
     const releases = await deps.releasesByReleaseGroup(a.mbid).catch(() => []);
@@ -86,9 +77,7 @@ export const recordVinylStatus = async (
 
   const results: { album: AlbumRow; vinyl: VinylStatus }[] = [];
   for (const album of albums) {
-    // Full credit, not artistName (first credit only). Discogs often lists a
-    // collab under the other name ("Boldy James" vs MusicBrainz's lead
-    // "Nicholas Craven" for Late to My Own Funeral).
+    // Full credit, not artistName: Discogs may list a collab under the other name.
     const vinyl = await decideVinyl(await mbVinylFor(album), () =>
       deps.discogsVinyl(album.artist, album.title)
     );
@@ -107,11 +96,6 @@ export const recordVinylStatus = async (
   return results;
 };
 
-/**
- * Albums never pressed on vinyl, and safe to remove: nobody confirmed a
- * scan of them (a user_scan vector means someone held it). "unknown" is
- * never pruned.
- */
 export const pruneCandidates = async (prisma: PrismaClient) => {
   const notVinyl = await prisma.album.findMany({
     where: { vinylStatus: "no" },
@@ -134,7 +118,6 @@ export const pruneCandidates = async (prisma: PrismaClient) => {
       })
     ).map((e) => e.albumId)
   );
-  // Someone held it: a confirmed scan or a find in the public library.
   const kept = (a: (typeof notVinyl)[number]) =>
     scanned.has(a.id) || (a.libraryCount ?? 0) > 0;
   return {

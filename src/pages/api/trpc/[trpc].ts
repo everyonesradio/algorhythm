@@ -6,8 +6,6 @@ import { env } from "@/env";
 import { appRouter } from "@/server/api/context";
 import { createTRPCContext } from "@/server/api/trpc";
 
-// export API handler
-// @link https://trpc.io/docs/v11/server/adapters
 export default trpcNext.createNextApiHandler({
   router: appRouter,
   createContext: createTRPCContext,
@@ -21,10 +19,5 @@ export default trpcNext.createNextApiHandler({
       : undefined,
 });
 
-/**
- * Scans can start a background catalog ingest (`waitUntil`), which embeds
- * an artist's covers on the server. Give the function room to finish; the
- * effective limit depends on the Vercel plan. Anything cut short is
- * finished by `npm run vinyl:worker`.
- */
+// Room for the background catalog ingest a scan can start via `waitUntil`.
 export const config = { maxDuration: 300 };

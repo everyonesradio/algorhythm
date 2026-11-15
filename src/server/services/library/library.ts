@@ -4,12 +4,7 @@ import type { Prisma, PrismaClient, ScanEvent } from "@prisma/client";
 
 import { scanIsActionable } from "@/server/services/vinyl/scan-log";
 
-/**
- * The public library: records people have scanned (docs/PUBLIC_LIBRARY.md).
- * Separate from the recognition index: adding a find never stores vectors.
- * A find needs a real, recent scan that identified the album, and each phone
- * counts once per record.
- */
+// Separate from the recognition index: adding a find never stores vectors.
 
 export const NOTE_MAX = 140;
 export const ADDS_PER_HOUR = 120;
@@ -43,7 +38,6 @@ export const cleanNote = (note: string | null | undefined) => {
   return text ? [...text].slice(0, NOTE_MAX).join("") : null;
 };
 
-/** Matched by the app, or confirmed/picked by the person scanning. */
 export const scanIdentified = (
   scan: Pick<ScanEvent, "status" | "topAlbumIds" | "confirmedAlbumId">,
   albumId: string
@@ -52,7 +46,6 @@ export const scanIdentified = (
     ? scan.confirmedAlbumId === albumId
     : scan.status === "matched" && scan.topAlbumIds[0] === albumId;
 
-/** Keep the album's "dug N times" and latest-find date in step with its finds. */
 const recount = async (prisma: PrismaClient, albumId: string) => {
   const [count, latest] = await Promise.all([
     prisma.libraryEntry.count({ where: { albumId, hidden: false } }),
@@ -124,7 +117,6 @@ export const addFind = async (
     select: { id: true, note: true },
   });
 
-  // The scan was corrected to another record: its find follows.
   if (fromScan) {
     const previousAlbum = fromScan.albumId;
     if (already) {
@@ -219,14 +211,11 @@ export const setNote = async (
   return { note };
 };
 
-/** Distinct reports that hide a find until it's reviewed. */
 export const REPORTS_TO_HIDE = 3;
-/** Recent finds shown per album: keep it short. */
 export const FINDS_SHOWN = 3;
 
 export type LibrarySort = "recent" | "most";
 
-/** Albums with at least one visible find, newest find first or most dug. */
 export const listLibrary = async <S extends Prisma.AlbumSelect>(
   prisma: PrismaClient,
   input: {
@@ -287,7 +276,6 @@ export const listLibrary = async <S extends Prisma.AlbumSelect>(
   };
 };
 
-/** Counter for the library header. */
 export const libraryStats = async (prisma: PrismaClient) => {
   const [finds, records] = await Promise.all([
     prisma.libraryEntry.count({ where: { hidden: false } }),
@@ -296,7 +284,6 @@ export const libraryStats = async (prisma: PrismaClient) => {
   return { finds, records };
 };
 
-/** Genres and decades present in the library, for the filter chips. */
 export const libraryFacets = async (prisma: PrismaClient) => {
   const albums = await prisma.album.findMany({
     where: { libraryCount: { gt: 0 } },
@@ -318,7 +305,6 @@ export const libraryFacets = async (prisma: PrismaClient) => {
   };
 };
 
-/** The latest few finds of one album: notes and dates, nothing personal. */
 export const albumFinds = async (
   prisma: PrismaClient,
   input: { albumId: string; deviceKey?: string | null; limit?: number }
@@ -353,11 +339,6 @@ export const albumFinds = async (
   };
 };
 
-/**
- * Report a find. Three reports from different phones hide it until it's
- * reviewed; a phone reporting twice counts once, and you can't report your
- * own (remove it instead).
- */
 export const reportFind = async (
   prisma: PrismaClient,
   input: { entryId: string; deviceKey: string }

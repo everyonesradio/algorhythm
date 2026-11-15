@@ -17,7 +17,6 @@ import { albumIdFromSlug, albumPath } from "@/utils/album-path";
 // ** Icon Imports
 import { IoArrowBack, IoCameraOutline, IoShareOutline } from "react-icons/io5";
 
-/** The 3D sleeve is client-only (WebGL). */
 const Sleeve3D = dynamic(() => import("@/components/sleeve-3d"), {
   ssr: false,
   loading: () => (
@@ -32,15 +31,9 @@ type Props = {
   ogImage: string;
 };
 
-/** First find's note, for the share description. */
 const describe = (album: VinylAlbum, count: number) =>
   `${album.title} by ${album.artist}${album.releaseYear ? ` (${album.releaseYear})` : ""}. ${dugTimes(count)} by crate diggers on algoRhythm: listen on every streaming app, read the notes, see the tracklist.`;
 
-/**
- * An album's shareable page in the public library: the record, its
- * streaming links, recent notes, a little about it and its tracklist.
- * Rendered on the server so shared links get a proper preview.
- */
 const AlbumPage = ({ album, count, url, ogImage }: Props) => {
   const [shared, setShared] = useState<"copied" | "failed" | null>(null);
   const title = `${album.title} by ${album.artist} · The Library · algoRhythm`;
@@ -58,7 +51,6 @@ const AlbumPage = ({ album, count, url, ogImage }: Props) => {
       await navigator.clipboard.writeText(url);
       setShared("copied");
     } catch (err) {
-      // Closing the share sheet isn't a failure.
       if ((err as Error).name !== "AbortError") setShared("failed");
     }
   };
@@ -173,7 +165,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async ({
   // Only records people have actually added have a public page.
   if (!album || !album.libraryCount) return { notFound: true };
 
-  // One canonical address per album, whatever the slug said.
   const path = albumPath(album);
   if (`/library/${slug}` !== path) {
     return { redirect: { destination: path, permanent: false } };
@@ -183,7 +174,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async ({
     (req.headers["x-forwarded-proto"] as string | undefined)?.split(",")[0] ??
     "http";
   const origin = `${proto}://${req.headers.host}`;
-  // Fresh enough for finds and notes; cheap for repeat visits.
   res.setHeader(
     "Cache-Control",
     "public, s-maxage=60, stale-while-revalidate=300"

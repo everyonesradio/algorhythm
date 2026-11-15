@@ -9,29 +9,11 @@ import {
   platformOf,
 } from "./platform-links";
 
-/**
- * Streaming links for an album, most trustworthy source first, cached on
- * the Album document (`platformLinks`) for 30 days.
- *
- *   1. MusicBrainz: links editors attached to the album's releases.
- *   2. Barcode: Apple Music / Deezer lookups by the release's UPC.
- *   3. Strict search: Apple / Deezer, accepted only on an artist + title
- *      match.
- *   4. The album's own Spotify match (official Spotify API).
- *
- * YouTube Music and SoundCloud come from MusicBrainz only: neither has an
- * exact way to find an album, and the old page-scraping search could pick
- * the wrong one.
- *
- * A wrong link is worse than none: the card shows what's found here and
- * nothing else.
- */
+// Exact sources only, no fuzzy search: a wrong link is worse than none.
 
-export const LINKS_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-// 3: links found by the old scraping search are no longer trusted.
+export const LINKS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const CACHE_VERSION = 3;
 
-/** Order on the card. */
 export const LINK_ORDER = [
   Adapter.Spotify,
   Adapter.AppleMusic,
@@ -41,10 +23,9 @@ export const LINK_ORDER = [
   Adapter.SoundCloud,
 ];
 
-/** Shape stored in Album.platformLinks. */
 export type CachedPlatformLinks = {
   version: typeof CACHE_VERSION;
-  fetchedAt: string; // ISO date
+  fetchedAt: string;
   links: AlbumLink[];
 };
 
@@ -74,7 +55,6 @@ const isCached = (value: unknown): value is CachedPlatformLinks => {
 export const isFresh = (cached: { fetchedAt: string }, now = Date.now()) =>
   now - new Date(cached.fetchedAt).getTime() < LINKS_TTL_MS;
 
-/** First result that isn't null, trying `fns` in order; errors count as null. */
 const firstOf = async (fns: (() => Promise<AlbumLink | null>)[]) => {
   for (const fn of fns) {
     const link = await fn().catch(() => null);
@@ -90,7 +70,6 @@ export const resolveAlbumLinks = async (
     artist: string;
     artistName: string | null;
     spotifyUrl: string | null;
-    /** Releases already fetched (saves the MusicBrainz request). */
     releases?: MbRelease[];
   },
   deps: LinkDeps
@@ -99,7 +78,6 @@ export const resolveAlbumLinks = async (
   const missing = (types: Adapter[]) => types.filter((t) => !found.has(t));
   const artist = album.artistName ?? album.artist;
 
-  // 1. MusicBrainz relationships (and the barcodes for step 2).
   let barcodes: string[] = [];
   if (album.mbid || album.releases) {
     const releases =
@@ -109,7 +87,6 @@ export const resolveAlbumLinks = async (
     barcodes = fromMb.barcodes.slice(0, 3);
   }
 
-  // 2 + 3. Barcode, then strict search, per platform, in parallel.
   const keyed = missing([Adapter.AppleMusic, Adapter.Deezer]);
   const results = await Promise.all(
     keyed.map((type) =>
@@ -124,7 +101,6 @@ export const resolveAlbumLinks = async (
   );
   results.forEach((l) => l && found.set(l.type, l));
 
-  // 4. Our own Spotify match.
   const spotify = album.spotifyUrl ? platformOf(album.spotifyUrl) : null;
   if (spotify && !found.has(Adapter.Spotify)) {
     found.set(Adapter.Spotify, { ...spotify, via: "spotify" });
@@ -140,7 +116,6 @@ export type AlbumLinksResult =
   | { status: "not-found" }
   | { status: "ok"; cached: boolean; links: AlbumLink[] };
 
-/** What to store in Album.platformLinks. */
 export const cacheEntry = (
   links: AlbumLink[],
   now = Date.now()
@@ -150,7 +125,6 @@ export const cacheEntry = (
   links,
 });
 
-/** Fresh cached links on an album document, if any. */
 export const freshCachedLinks = (platformLinks: unknown, now = Date.now()) =>
   isCached(platformLinks) && isFresh(platformLinks, now)
     ? platformLinks.links
@@ -170,9 +144,7 @@ export const getAlbumLinks = async (
   deps: LinkDeps,
   now = Date.now(),
   opts: {
-    /** Run work after the response (waitUntil on Vercel). */
     background?: (task: Promise<unknown>) => void;
-    /** Called with freshly resolved links (e.g. to index them). */
     onResolved?: (album: AlbumRow, links: AlbumLink[]) => Promise<void>;
   } = {}
 ): Promise<AlbumLinksResult> => {
@@ -191,7 +163,7 @@ export const getAlbumLinks = async (
 
   const refresh = async () => {
     const links = await resolveAlbumLinks(album, deps);
-    // Only cache useful results, so a transient outage isn't frozen in.
+    // Never cache empty results, so a transient outage isn't frozen in.
     if (links.length > 0) {
       await prisma.album.update({
         where: { id: albumId },
@@ -208,7 +180,6 @@ export const getAlbumLinks = async (
   if (isCached(cached)) {
     if (isFresh(cached, now))
       return { status: "ok", cached: true, links: cached.links };
-    // Stale: answer now, refresh after (links rarely change).
     if (opts.background && cached.links.length) {
       opts.background(refresh().catch(() => null));
       return { status: "ok", cached: true, links: cached.links };

@@ -2,12 +2,6 @@ import { dot } from "@/lib/embeddings/vector";
 
 import { centerSquareCrop, cropToImageData } from "./frame-crop";
 
-/**
- * Rank an artist's records by how much their cover looks like the scan,
- * on the device: fetch each thumbnail, embed it with the same model the
- * scanner uses, compare with the scan's vector. Covers that fail to load
- * (no art) sink to the bottom instead of breaking the list.
- */
 export const rankCoversByScan = async <T extends { thumbUrl: string }>(
   items: T[],
   scanVector: number[],
@@ -17,8 +11,6 @@ export const rankCoversByScan = async <T extends { thumbUrl: string }>(
   const canvas = document.createElement("canvas");
   const pool = items.slice(0, opts.limit ?? 12);
 
-  // Network is the slow part (CAA redirects to archive.org), so download
-  // thumbnails in parallel; the model embeds one image at a time anyway.
   const bitmaps: Promise<ImageBitmap | null>[] = new Array(pool.length);
   let next = 0;
   const loadOne = async (i: number) => {
@@ -26,7 +18,7 @@ export const rankCoversByScan = async <T extends { thumbUrl: string }>(
       const res = await fetch(pool[i].thumbUrl, { signal: opts.signal });
       return res.ok ? await createImageBitmap(await res.blob()) : null;
     } catch {
-      return null; // no art / network hiccup: keep it, unranked
+      return null;
     }
   };
   const resolvers: ((b: ImageBitmap | null) => void)[] = [];
@@ -57,16 +49,13 @@ export const rankCoversByScan = async <T extends { thumbUrl: string }>(
       bitmap.close();
       try {
         if (image) similarity = dot(scanVector, await embed(image));
-      } catch {
-        // embedding failed for this one; leave it unranked
-      }
+      } catch {}
     }
     scored.push({ ...pool[i], similarity });
   }
   return sortBySimilarity(scored);
 };
 
-/** Highest similarity first; unscored items keep their order at the end. */
 export const sortBySimilarity = <T extends { similarity: number | null }>(
   xs: T[]
 ) =>

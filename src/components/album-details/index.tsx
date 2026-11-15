@@ -7,7 +7,6 @@ import { useDeviceKey } from "@/hooks/use-device-key";
 import { timeAgo } from "@/utils/time-ago";
 import { api } from "@/utils/trpc";
 
-/** Tracks shown before "Show all". */
 const TRACKS_SHOWN = 6;
 
 const Heading = ({ children }: { children: React.ReactNode }) => (
@@ -24,11 +23,6 @@ const Skeleton = () => (
   </div>
 );
 
-/**
- * Below the streaming links: recent finds from the library, a short "about"
- * from Wikipedia, the tracklist, and links to reviews elsewhere. Everything
- * is sourced and kept short; sections with nothing to show are left out.
- */
 const AlbumDetails: React.FC<{ albumId: string }> = ({ albumId }) => {
   const deviceKey = useDeviceKey();
   const [allTracks, setAllTracks] = useState(false);
@@ -36,7 +30,6 @@ const AlbumDetails: React.FC<{ albumId: string }> = ({ albumId }) => {
 
   const details = api.library.details.useQuery(
     { albumId },
-    // Its own request: a cold cache means MusicBrainz + Wikipedia calls.
     { staleTime: Infinity, retry: 1, trpc: { context: { skipBatch: true } } }
   );
   const finds = api.library.finds.useQuery(

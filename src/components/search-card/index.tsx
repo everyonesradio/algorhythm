@@ -34,7 +34,6 @@ const item = {
   },
 } as const;
 
-/** "Listen on …" links, already in display order. */
 const SearchCard = ({ links }: { links: AlbumLink[] }) => {
   return (
     <motion.ul

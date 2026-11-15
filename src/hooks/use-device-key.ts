@@ -1,13 +1,6 @@
 // ** React/Next.js Imports
 import { useSyncExternalStore } from "react";
 
-/**
- * A random key for this browser, so a phone can undo its own library finds
- * without an account. Only a hash of it is stored on the server.
- *
- * Kept in localStorage; if storage is blocked (private mode), falls back to a
- * key for this page session.
- */
 const STORAGE_KEY = "algorhythm:device-key";
 let memoryKey: string | null = null;
 
@@ -35,6 +28,5 @@ export const getDeviceKey = () => {
 
 const subscribe = () => () => undefined;
 
-/** The device key on the client; null during server rendering. */
 export const useDeviceKey = () =>
   useSyncExternalStore(subscribe, getDeviceKey, () => null);

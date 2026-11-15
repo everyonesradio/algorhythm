@@ -1,13 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
-/**
- * Cover image pass-through for hosts that don't send CORS headers.
- *
- * The 3D sleeve draws the cover as a WebGL texture, which needs CORS.
- * Cover Art Archive and Spotify send `Access-Control-Allow-Origin: *`;
- * Discogs' image CDN doesn't, so its covers (pressings, Discogs-only
- * albums) come through here. Only allow-listed hosts, images only.
- */
+// Allow-listed hosts only, or this becomes an open proxy.
 const ALLOWED_HOSTS = new Set(["i.discogs.com"]);
 const MAX_BYTES = 8 * 1024 * 1024;
 
@@ -36,7 +29,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (body.length > MAX_BYTES) return res.status(502).end();
 
   res.setHeader("Content-Type", type);
-  // Discogs image URLs are content-addressed: cache hard at the edge.
   res.setHeader("Cache-Control", "public, max-age=604800, s-maxage=2592000, immutable");
   res.setHeader("Access-Control-Allow-Origin", "*");
   return res.status(200).send(body);

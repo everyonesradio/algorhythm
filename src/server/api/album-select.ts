@@ -1,4 +1,3 @@
-/** Album fields the app shows (result drawer, library). */
 export const albumSelect = {
   id: true,
   title: true,

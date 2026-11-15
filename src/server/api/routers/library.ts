@@ -29,7 +29,6 @@ import {
 import { wikidataInfo } from "@/server/services/library/wikidata";
 
 const objectId = z.string().regex(/^[a-f\d]{24}$/i);
-/** Random per-device key (src/hooks/use-device-key.ts); only its hash is stored. */
 const deviceKey = z.string().regex(/^[\w-]{20,100}$/);
 
 const detailsDeps = {
@@ -55,19 +54,14 @@ const toTrpc = (err: unknown) => {
   return new TRPCError({ code, message: err.message, cause: err });
 };
 
-/**
- * The public library of records diggers have scanned (docs/PUBLIC_LIBRARY.md).
- * Open and anonymous: no accounts or handles yet.
- */
 export const libraryRouter = createTRPCRouter({
-  /** Add the record a scan just identified. */
   add: publicProcedure
     .input(
       z.object({
         scanId: objectId,
         albumId: objectId,
         deviceKey,
-        // A little slack: the server trims and cuts to NOTE_MAX characters.
+        // Loose on purpose: the service trims and cuts to NOTE_MAX.
         note: z
           .string()
           .max(NOTE_MAX * 4)
@@ -77,9 +71,7 @@ export const libraryRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       try {
         const res = await addFind(ctx.prisma, input);
-        // Fetch tracklist and about text now, so the library page has them.
         if (res.created) {
-          // Background lane: people waiting on screen go first at MusicBrainz.
           waitUntil(
             runInBackground(() =>
               getAlbumDetails(ctx.prisma, input.albumId, detailsDeps)
@@ -92,7 +84,6 @@ export const libraryRouter = createTRPCRouter({
       }
     }),
 
-  /** Undo an add, from the same phone. */
   remove: publicProcedure
     .input(z.object({ entryId: objectId, deviceKey }))
     .mutation(async ({ ctx, input }) => {
@@ -122,7 +113,6 @@ export const libraryRouter = createTRPCRouter({
       }
     }),
 
-  /** The library grid: albums people have dug, newest find first or most dug. */
   list: publicProcedure
     .input(
       z.object({
@@ -141,25 +131,20 @@ export const libraryRouter = createTRPCRouter({
       )
     ),
 
-  /** Header counter: records and finds. */
   stats: publicProcedure.query(({ ctx }) => libraryStats(ctx.prisma)),
 
-  /** Genres and decades present, for the filter chips. */
   facets: publicProcedure.query(({ ctx }) => libraryFacets(ctx.prisma)),
 
-  /** The latest few finds of one album (notes and dates). */
   finds: publicProcedure
     .input(z.object({ albumId: objectId, deviceKey: deviceKey.nullish() }))
     .query(({ ctx, input }) => albumFinds(ctx.prisma, input)),
 
-  /** Tracklist, short about text and links to reviews, cached per album. */
   details: publicProcedure
     .input(z.object({ albumId: objectId }))
     .query(({ ctx, input }) =>
       getAlbumDetails(ctx.prisma, input.albumId, detailsDeps)
     ),
 
-  /** Report a find; three reports from different phones hide it. */
   report: publicProcedure
     .input(z.object({ entryId: objectId, deviceKey }))
     .mutation(async ({ ctx, input }) => {

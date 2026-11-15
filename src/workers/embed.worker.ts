@@ -1,9 +1,4 @@
 /// <reference lib="webworker" />
-/**
- * Runs the cover embedding model off the main thread so the camera preview
- * stays smooth. Weights are fetched once from the Hugging Face hub and then
- * served from the browser cache.
- */
 import { ACTIVE_EMBEDDING_MODEL } from "@/lib/embeddings/config";
 import { loadEmbedder } from "@/lib/embeddings/embedder";
 

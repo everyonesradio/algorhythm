@@ -15,19 +15,13 @@ type Artist = { name: string; mbid: string };
 
 interface Props {
   open: boolean;
-  /** Albums the scan was unsure between (may be empty). */
   matches: VinylMatch[];
-  /** Artists of the nearest covers, for "Is it by one of these?". */
   artistSuggestions: Artist[];
-  /** The scan's own vector; ranks an artist's records by cover likeness. */
   scanVector: number[] | null;
-  /** The on-device embedder (same model as the scanner). */
   embed: (image: ImageData) => Promise<number[]>;
   onPickMatch: (index: number) => void;
-  /** Picked from an artist's discography (MusicBrainz release group id). */
   onPickRecord: (mbid: string) => Promise<void>;
   onDismiss: () => void;
-  /** Fires once the close animation finishes; clear the data here. */
   onExitComplete?: () => void;
 }
 
@@ -50,7 +44,6 @@ const swap = {
   transition: { duration: 0.18 },
 };
 
-/** Wait for typing to pause before searching MusicBrainz. */
 const useDebounced = <T,>(value: T, ms: number) => {
   const [v, setV] = useState(value);
   useEffect(() => {
@@ -60,7 +53,6 @@ const useDebounced = <T,>(value: T, ms: number) => {
   return v;
 };
 
-/** Cover thumbnail that degrades to a plain tile if there's no art. */
 const Thumb = ({
   src,
   title,
@@ -68,7 +60,6 @@ const Thumb = ({
 }: {
   src: string;
   title: string;
-  /** Only a few rows are on screen; load them right away. */
   eager?: boolean;
 }) => {
   const [failed, setFailed] = useState(false);
@@ -88,7 +79,6 @@ const Thumb = ({
   );
 };
 
-/** How many of an artist's records to suggest before "See all". */
 const SUGGESTED = 3;
 
 type Release = {
@@ -131,10 +121,6 @@ const ReleaseRow = ({
   </button>
 );
 
-/**
- * The artist's records as a short list: the three whose covers look most
- * like the scan (ranked on the device), with "See all" as the escape hatch.
- */
 const Discography = ({
   artist,
   onPick,
@@ -156,13 +142,11 @@ const Discography = ({
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
-    // Without a scan vector the list stays newest-first (derived below).
     if (!data || !scanVector) return;
     const ctrl = new AbortController();
     rankCoversByScan(data, scanVector, embed, { signal: ctrl.signal })
       .then((top) => {
         if (ctrl.signal.aborted) return;
-        // Ranked covers first, then the rest of the discography as listed.
         const seen = new Set(top.map((t) => t.mbid));
         setRanked([...top, ...data.filter((d) => !seen.has(d.mbid))]);
       })
@@ -177,8 +161,6 @@ const Discography = ({
       </p>
     );
   }
-  // Show newest-first right away; re-order once the on-device ranking
-  // finishes (it fetches and embeds each thumbnail, which takes a moment).
   const ordered = ranked ?? data ?? null;
   const sorting = !!scanVector && !!data && !ranked;
   if (isLoading || !data || !ordered) {
@@ -218,7 +200,6 @@ const Discography = ({
         animate='show'
       >
         {visible.map((r) => (
-          // `layout` slides rows into their new place when the ranking lands.
           <motion.li key={r.mbid} variants={item} layout='position'>
             <ReleaseRow r={r} onPick={onPick} picking={picking} />
           </motion.li>
@@ -236,12 +217,6 @@ const Discography = ({
   );
 };
 
-/**
- * "Is it one of these?" picker, shown when a scan isn't certain.
- * Albums first, then artists the cover resembles (plus search). Picking a
- * record from an artist's discography adds it to the catalog with the
- * user's scan, and starts vectorising that artist's catalog.
- */
 const CandidateSheet: React.FC<Props> = ({
   open,
   matches,
@@ -263,7 +238,6 @@ const CandidateSheet: React.FC<Props> = ({
     { enabled: debounced.length >= 2, staleTime: 5 * 60 * 1000 }
   );
 
-  // Warm the suggested artists' discographies so tapping one is instant.
   const utils = api.useUtils();
   useEffect(() => {
     for (const a of artistSuggestions) {

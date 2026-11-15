@@ -1,7 +1,6 @@
 // ** React/Next.js Imports
 import React from "react";
 
-/** "Dug once", "Dug 4 times". */
 export const dugTimes = (count: number) =>
   count === 1 ? "Dug once" : `Dug ${count} times`;
 
@@ -15,11 +14,6 @@ interface Props {
   onOpen: () => void;
 }
 
-/**
- * One record in the library grid: the sleeve tilted in CSS 3D (no WebGL, so
- * a whole grid stays light on a phone), straightening when you hover or
- * focus it.
- */
 const LibraryCard: React.FC<Props> = ({
   title,
   artist,
@@ -38,7 +32,6 @@ const LibraryCard: React.FC<Props> = ({
     <div className='aspect-square w-full [perspective:900px]'>
       <div className='h-full w-full rounded-[4px] bg-[#d9d3c7] shadow-[10px_14px_24px_-10px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out [transform:rotateY(-14deg)_rotateX(4deg)] group-hover:[transform:rotateY(-4deg)_rotateX(1deg)] group-focus-visible:[transform:rotateY(-4deg)_rotateX(1deg)] motion-reduce:transition-none'>
         {!coverUrl && (
-          // No artwork anywhere (some records entered by hand): a plain record.
           <div className='flex h-full w-full items-center justify-center'>
             <div className='flex aspect-square w-3/4 items-center justify-center rounded-full bg-[#1a1a1a]'>
               <div className='aspect-square w-1/3 rounded-full bg-[#c9c1b2]' />

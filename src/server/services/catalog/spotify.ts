@@ -1,7 +1,3 @@
-/**
- * Server-side Spotify lookup used while seeding (client-credentials flow).
- * Credentials never touch the browser.
- */
 import { compareTwoStrings } from "string-similarity";
 
 // Read lazily: scripts load .env after their imports have been evaluated.
@@ -62,7 +58,6 @@ const norm = (s: string) =>
     .toLowerCase()
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
-    // drop "(Deluxe Edition)", "[Remastered 2015]" etc.
     .replace(
       /[([].*?(deluxe|remaster|edition|version|expanded|anniversary).*?[)\]]/g,
       ""
@@ -122,7 +117,6 @@ export const findSpotifyAlbum = async (
   return null;
 };
 
-/** GET an official Spotify Web API path; null when not configured or 404. */
 const spotifyGet = async <T>(path: string): Promise<T | null> => {
   if (!spotifyEnabled()) return null;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -151,7 +145,6 @@ export type SpotifyAlbumInfo = {
   imageUrl: string | null;
 };
 
-/** An album by id, with its barcode (UPC) for exact cross-platform lookups. */
 export const getSpotifyAlbum = async (
   id: string
 ): Promise<SpotifyAlbumInfo | null> => {
@@ -169,7 +162,6 @@ export const getSpotifyAlbum = async (
   };
 };
 
-/** The album a Spotify track belongs to. */
 export const spotifyTrackAlbumId = async (id: string) =>
   (
     await spotifyGet<{ album?: { id: string } }>(
@@ -177,7 +169,6 @@ export const spotifyTrackAlbumId = async (id: string) =>
     )
   )?.album?.id ?? null;
 
-/** The Spotify album with this barcode (search `upc:`), as an exact link. */
 export const spotifyAlbumByUpc = async (upc: string) => {
   if (!/^\d{8,14}$/.test(upc)) return null;
   const res = await spotifyGet<{ albums: { items: SpotifyAlbum[] } }>(
@@ -186,7 +177,6 @@ export const spotifyAlbumByUpc = async (upc: string) => {
   return res?.albums.items[0]?.external_urls.spotify ?? null;
 };
 
-/** An album's tracks from the Spotify Web API (fallback tracklist source). */
 export const spotifyAlbumTracks = async (id: string) =>
   (
     await spotifyGet<{

@@ -18,11 +18,6 @@ const swap = {
   transition: { type: "spring", bounce: 0.12, duration: 0.35 },
 } as const;
 
-/**
- * Early-access signup. Errors and success render inline (no toasts) so the
- * result stays where the user is looking, and success hands them straight to
- * the demo instead of auto-redirecting.
- */
 const Waitlist = () => {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);

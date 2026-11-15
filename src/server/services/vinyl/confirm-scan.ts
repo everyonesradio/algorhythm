@@ -4,7 +4,6 @@ import { startScanIngest } from "@/server/services/catalog/background";
 
 import { scanIsActionable } from "./scan-log";
 
-/** Real-world photos kept per album; more adds little and costs index memory. */
 export const MAX_USER_SCANS_PER_ALBUM = 25;
 
 export type ConfirmOutcome =
@@ -14,15 +13,7 @@ export type ConfirmOutcome =
       reason: "already-confirmed" | "album-has-enough-scans" | "scan-expired";
     };
 
-/**
- * The user says this scan shows `albumId` (tapped "Yes", picked a candidate,
- * or added the find to the library). Records the confirmation, makes sure
- * the artist's catalog is coming in, and keeps the camera's vector as a
- * "user_scan" embedding: real-world photos (glare, angle, wear) make future
- * scans of the same record more reliable.
- *
- * The caller checks that `albumId` is one the scan actually offered.
- */
+// The caller must check that `albumId` is one the scan actually offered.
 export const confirmScan = async (
   prisma: PrismaClient,
   scan: ScanEvent,
@@ -37,7 +28,6 @@ export const confirmScan = async (
     data: { confirmedAlbumId: albumId, confirmedAt: new Date() },
   });
 
-  // A confirmed record: make sure the rest of this artist's catalog is in.
   const album = await prisma.album.findUnique({
     where: { id: albumId },
     select: { artist: true, artistMbid: true, artistName: true },
@@ -62,8 +52,7 @@ export const confirmScan = async (
   if (existing >= MAX_USER_SCANS_PER_ALBUM) {
     return { stored: false, reason: "album-has-enough-scans" };
   }
-  // Too old: its vector may be gone (scan-log.ts). The confirmation above
-  // still counts.
+  // Checked after recording: an expired scan still counts as a confirmation.
   if (!scanIsActionable(scan)) return { stored: false, reason: "scan-expired" };
 
   await prisma.coverEmbedding.create({

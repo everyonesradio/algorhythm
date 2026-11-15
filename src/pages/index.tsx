@@ -45,11 +45,6 @@ const PLATFORMS = [
   { icon: FaDeezer, label: "Deezer" },
 ];
 
-/**
- * A record sliding half out of its sleeve, then spinning at 33⅓ rpm
- * (one turn every 1.8s). The slide plays once; the spin stops for people
- * who prefer reduced motion.
- */
 const RecordInSleeve = () => (
   <div
     className='relative h-[200px] w-[300px] sm:h-[260px] sm:w-[390px]'
@@ -71,10 +66,9 @@ const RecordInSleeve = () => (
         className='animate-[spin_1.8s_linear_infinite] drop-shadow-xl motion-reduce:animate-none'
       />
     </motion.div>
-    {/* Sleeve sits on top so the record appears to slide out of it. */}
+    {/* Sleeve renders after the record so it sits on top. */}
     <div className='absolute left-0 top-0 flex h-[200px] w-[200px] flex-col justify-end rounded-md bg-black p-4 shadow-2xl sm:h-[260px] sm:w-[260px] sm:p-5'>
       <div className='absolute inset-3 rounded-sm border border-white/10' />
-      {/* Ring wear: the faint circle a record leaves on a well-played sleeve. */}
       <div className='absolute left-1/2 top-1/2 h-[78%] w-[78%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/[0.07]' />
       <TypeAnimation
         sequence={[400, "algoRhythm"]}
@@ -92,7 +86,6 @@ const RecordInSleeve = () => (
 
 const Home = () => (
   <main className='min-h-dvh bg-[#f4f0e8] text-[#111] [background-image:radial-gradient(circle_at_70%_20%,rgba(255,255,255,0.9),transparent_55%)]'>
-    {/* Top bar: the library is open to anyone, before they try the app. */}
     <nav className='mx-auto flex max-w-5xl justify-end px-4 pt-14 sm:px-8'>
       <Link
         href='/library'
@@ -102,7 +95,6 @@ const Home = () => (
       </Link>
     </nav>
 
-    {/* Hero: record + pitch + signup. Stacks on mobile, side by side on desktop. */}
     <section className='mx-auto flex max-w-5xl flex-col items-center gap-10 px-4 pb-12 pt-8 sm:px-8 md:flex-row-reverse md:items-center md:justify-between md:gap-12 md:pt-16'>
       <RecordInSleeve />
 
@@ -123,7 +115,6 @@ const Home = () => (
       </motion.div>
     </section>
 
-    {/* How it works */}
     <section className='mx-auto max-w-5xl px-4 pb-16 sm:px-8'>
       <motion.ol
         className='grid gap-3 sm:grid-cols-3 sm:gap-4'

@@ -10,11 +10,6 @@ import { api } from "@/utils/trpc";
 // ** Icon Imports
 import { IoArrowForward } from "react-icons/io5";
 
-/**
- * "From the library" on the landing page: the latest records diggers added,
- * so anyone can see what people are finding before trying the app. Hidden
- * until the library has something in it.
- */
 const LibraryStrip = () => {
   const { data } = api.library.list.useQuery(
     { sort: "recent", limit: 6 },

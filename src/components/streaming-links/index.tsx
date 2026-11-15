@@ -12,10 +12,6 @@ import { api } from "@/utils/trpc";
 // ** Icon Imports
 import { FaSpotify } from "react-icons/fa6";
 
-/**
- * "Listen on …" links for an album, cached on the album server-side. Falls
- * back to a Spotify search when no exact link was found.
- */
 const StreamingLinks: React.FC<{
   album: Pick<VinylAlbum, "id" | "title" | "artist" | "spotifyUrl">;
 }> = ({ album }) => {

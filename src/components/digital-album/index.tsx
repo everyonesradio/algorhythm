@@ -21,15 +21,12 @@ import { IoClose } from "react-icons/io5";
 interface Props {
   open: boolean;
   onClose: () => void;
-  /** Fires once the close animation finishes; clear the album data here. */
   onExitComplete?: () => void;
   album: VinylAlbum;
   confirmed?: boolean;
   scanId?: string | null;
-  /** The scan has identified this record, so it goes into the library. */
   identified?: boolean;
   onLibraryEntry?: (entryId: string | null) => void;
-  /** Link to the album's shareable page, when it has one. */
   pageHref?: string;
   onConfirm?: () => void;
   onReject?: () => void;
@@ -48,11 +45,9 @@ const DigitalAlbum: React.FC<Props> = ({
   onConfirm,
   onReject,
 }) => {
-  // Discogs styles are the most specific ("Boom Bap"), then MB genres/tags.
   const seen = new Set<string>();
   const chips = [...(album.styles ?? []), ...album.genres, ...album.tags]
     .filter((v) => {
-      // "Boom Bap" (Discogs) and "boom bap" (MusicBrainz) are one chip.
       const key = v.toLowerCase().replace(/[^a-z0-9]/g, "");
       if (seen.has(key)) return false;
       seen.add(key);
@@ -109,7 +104,6 @@ const DigitalAlbum: React.FC<Props> = ({
           </Canvas>
         </div>
 
-        {/* Once answered, the question just goes away. */}
         <AnimatePresence initial={false}>
           {(onConfirm || onReject) && !confirmed && (
             <motion.div

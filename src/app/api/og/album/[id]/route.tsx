@@ -5,11 +5,6 @@ import { ImageResponse } from "next/og";
 
 import prisma from "@lib/prisma";
 
-/**
- * Share-preview image for an album's library page (1200×630): the cover,
- * the title in the algoRhythm 8-bit face, "dug N times" and the latest note.
- * Only for albums in the library, like the page itself.
- */
 export const runtime = "nodejs";
 export const revalidate = 3600;
 
@@ -17,7 +12,7 @@ const SIZE = { width: 1200, height: 630 };
 const COVER_HOSTS =
   /(^|\.)(coverartarchive\.org|archive\.org|scdn\.co|discogs\.com)$/;
 
-/** The cover as a data URI (JPEG/PNG only: the renderer can't draw WebP). */
+// The renderer can't draw WebP, so JPEG/PNG only.
 const coverData = async (url: string | null) => {
   if (!url) return null;
   try {
@@ -39,7 +34,7 @@ const coverData = async (url: string | null) => {
   }
 };
 
-/** Fonts, read once per instance (bundled via outputFileTracingIncludes). */
+// Font files must be listed in outputFileTracingIncludes.
 let fonts: Promise<{ display: Buffer; body: Buffer }> | null = null;
 const loadFonts = () =>
   (fonts ??= Promise.all([
@@ -192,7 +187,6 @@ export async function GET(
     </div>,
     {
       ...SIZE,
-      // Body text in Geist; the title and the mark in the algoRhythm 8-bit face.
       fonts: fontFiles
         ? [
             { name: "Geist", data: fontFiles.body, style: "normal" as const },
