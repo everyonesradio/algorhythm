@@ -6,7 +6,6 @@ import { scanIsActionable } from "@/server/services/vinyl/scan-log";
 
 // Separate from the recognition index: adding a find never stores vectors.
 
-export const NOTE_MAX = 140;
 export const ADDS_PER_HOUR = 120;
 
 export class LibraryError extends Error {
@@ -16,8 +15,7 @@ export class LibraryError extends Error {
       | "scan-expired"
       | "not-identified"
       | "too-many"
-      | "not-yours"
-      | "not-found",
+      | "not-yours",
     message: string
   ) {
     super(message);
@@ -26,17 +24,6 @@ export class LibraryError extends Error {
 
 export const hashDeviceKey = (key: string) =>
   createHash("sha256").update(`algorhythm-library:${key}`).digest("hex");
-
-export const cleanNote = (note: string | null | undefined) => {
-  const text = (note ?? "")
-    .replace(
-      /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g,
-      " "
-    )
-    .replace(/\s+/g, " ")
-    .trim();
-  return text ? [...text].slice(0, NOTE_MAX).join("") : null;
-};
 
 export const scanIdentified = (
   scan: Pick<ScanEvent, "status" | "topAlbumIds" | "confirmedAlbumId">,
@@ -48,9 +35,9 @@ export const scanIdentified = (
 
 const recount = async (prisma: PrismaClient, albumId: string) => {
   const [count, latest] = await Promise.all([
-    prisma.libraryEntry.count({ where: { albumId, hidden: false } }),
+    prisma.libraryEntry.count({ where: { albumId } }),
     prisma.libraryEntry.findFirst({
-      where: { albumId, hidden: false },
+      where: { albumId },
       orderBy: { createdAt: "desc" },
       select: { createdAt: true },
     }),
@@ -63,7 +50,7 @@ const recount = async (prisma: PrismaClient, albumId: string) => {
 };
 
 const visibleCount = (prisma: PrismaClient, albumId: string) =>
-  prisma.libraryEntry.count({ where: { albumId, hidden: false } });
+  prisma.libraryEntry.count({ where: { albumId } });
 
 export const addFind = async (
   prisma: PrismaClient,
@@ -71,7 +58,6 @@ export const addFind = async (
     scanId: string;
     albumId: string;
     deviceKey: string;
-    note?: string | null;
   },
   now = Date.now()
 ) => {
@@ -86,7 +72,6 @@ export const addFind = async (
   if (fromScan && fromScan.albumId === input.albumId) {
     return {
       entryId: fromScan.id,
-      note: fromScan.note,
       count: await visibleCount(prisma, input.albumId),
       created: false,
     };
@@ -114,7 +99,7 @@ export const addFind = async (
   }
   const already = await prisma.libraryEntry.findFirst({
     where: { albumId: input.albumId, deviceKeyHash },
-    select: { id: true, note: true },
+    select: { id: true },
   });
 
   if (fromScan) {
@@ -130,7 +115,6 @@ export const addFind = async (
     await recount(prisma, previousAlbum);
     return {
       entryId: already?.id ?? fromScan.id,
-      note: already ? already.note : fromScan.note,
       count: await recount(prisma, input.albumId),
       created: !already,
     };
@@ -139,7 +123,6 @@ export const addFind = async (
   if (already) {
     return {
       entryId: already.id,
-      note: already.note,
       count: await visibleCount(prisma, input.albumId),
       created: false,
     };
@@ -163,15 +146,14 @@ export const addFind = async (
       albumId: input.albumId,
       scanId: scan.id,
       deviceKeyHash,
-      note: cleanNote(input.note),
     },
-    select: { id: true, note: true },
+    select: { id: true },
   });
   const count = await recount(prisma, input.albumId);
-  return { entryId: entry.id, note: entry.note, count, created: true };
+  return { entryId: entry.id, count, created: true };
 };
 
-const ownEntry = async (
+export const removeFind = async (
   prisma: PrismaClient,
   input: { entryId: string; deviceKey: string }
 ) => {
@@ -182,37 +164,13 @@ const ownEntry = async (
   if (!entry || entry.deviceKeyHash !== hashDeviceKey(input.deviceKey)) {
     throw new LibraryError(
       "not-yours",
-      "Only the phone that added this find can change it."
+      "Only the phone that added this find can remove it."
     );
   }
-  return entry;
-};
-
-export const removeFind = async (
-  prisma: PrismaClient,
-  input: { entryId: string; deviceKey: string }
-) => {
-  const entry = await ownEntry(prisma, input);
   await prisma.libraryEntry.delete({ where: { id: input.entryId } });
   const count = await recount(prisma, entry.albumId);
   return { count };
 };
-
-export const setNote = async (
-  prisma: PrismaClient,
-  input: { entryId: string; deviceKey: string; note: string | null }
-) => {
-  await ownEntry(prisma, input);
-  const note = cleanNote(input.note);
-  await prisma.libraryEntry.update({
-    where: { id: input.entryId },
-    data: { note },
-  });
-  return { note };
-};
-
-export const REPORTS_TO_HIDE = 3;
-export const FINDS_SHOWN = 3;
 
 export type LibrarySort = "recent" | "most";
 
@@ -254,31 +212,19 @@ export const listLibrary = async <S extends Prisma.AlbumSelect>(
     libraryCount: number | null;
     libraryLastAt: Date | null;
   })[];
-  const latest = await prisma.libraryEntry.findMany({
-    where: { albumId: { in: page.map((a) => a.id) }, hidden: false },
-    orderBy: { createdAt: "desc" },
-    select: { albumId: true, note: true },
-  });
-  const byAlbum = new Map<string, (typeof latest)[number]>();
-  for (const f of latest)
-    if (!byAlbum.has(f.albumId)) byAlbum.set(f.albumId, f);
   return {
-    items: page.map((album) => {
-      const find = byAlbum.get(album.id);
-      return {
-        album,
-        count: album.libraryCount ?? 0,
-        lastFoundAt: album.libraryLastAt,
-        latestNote: find?.note ?? null,
-      };
-    }),
+    items: page.map((album) => ({
+      album,
+      count: album.libraryCount ?? 0,
+      lastFoundAt: album.libraryLastAt,
+    })),
     nextOffset: albums.length > input.limit ? input.offset + input.limit : null,
   };
 };
 
 export const libraryStats = async (prisma: PrismaClient) => {
   const [finds, records] = await Promise.all([
-    prisma.libraryEntry.count({ where: { hidden: false } }),
+    prisma.libraryEntry.count(),
     prisma.album.count({ where: { libraryCount: { gt: 0 } } }),
   ]);
   return { finds, records };
@@ -303,71 +249,4 @@ export const libraryFacets = async (prisma: PrismaClient) => {
       .map(([g]) => g),
     decades: [...decades].sort((a, b) => a - b),
   };
-};
-
-export const albumFinds = async (
-  prisma: PrismaClient,
-  input: { albumId: string; deviceKey?: string | null; limit?: number }
-) => {
-  const keyHash = input.deviceKey ? hashDeviceKey(input.deviceKey) : null;
-  const [count, finds] = await Promise.all([
-    prisma.libraryEntry.count({
-      where: { albumId: input.albumId, hidden: false },
-    }),
-    prisma.libraryEntry.findMany({
-      where: { albumId: input.albumId, hidden: false },
-      orderBy: { createdAt: "desc" },
-      take: input.limit ?? FINDS_SHOWN,
-      select: {
-        id: true,
-        note: true,
-        createdAt: true,
-        deviceKeyHash: true,
-        reporters: true,
-      },
-    }),
-  ]);
-  return {
-    count,
-    finds: finds.map((f) => ({
-      id: f.id,
-      note: f.note,
-      createdAt: f.createdAt,
-      mine: !!keyHash && f.deviceKeyHash === keyHash,
-      reported: !!keyHash && f.reporters.includes(keyHash),
-    })),
-  };
-};
-
-export const reportFind = async (
-  prisma: PrismaClient,
-  input: { entryId: string; deviceKey: string }
-) => {
-  const entry = await prisma.libraryEntry.findUnique({
-    where: { id: input.entryId },
-    select: {
-      albumId: true,
-      deviceKeyHash: true,
-      reporters: true,
-      hidden: true,
-    },
-  });
-  if (!entry) throw new LibraryError("not-found", "That find is gone.");
-  const keyHash = hashDeviceKey(input.deviceKey);
-  if (entry.deviceKeyHash === keyHash) {
-    throw new LibraryError(
-      "not-yours",
-      "You can remove your own find instead."
-    );
-  }
-  const wasHidden = entry.hidden;
-  if (entry.reporters.includes(keyHash)) return { hidden: wasHidden };
-  const reporters = [...entry.reporters, keyHash];
-  const hidden = wasHidden || reporters.length >= REPORTS_TO_HIDE;
-  await prisma.libraryEntry.update({
-    where: { id: input.entryId },
-    data: { reporters, hidden },
-  });
-  if (hidden && !wasHidden) await recount(prisma, entry.albumId);
-  return { hidden };
 };

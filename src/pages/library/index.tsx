@@ -205,7 +205,6 @@ const LibraryPage = () => {
                       year={item.album.releaseYear}
                       coverUrl={item.album.coverUrl || null}
                       count={item.count}
-                      latestNote={item.latestNote}
                       onOpen={() => {
                         setSelected(item.album);
                         setOpen(true);

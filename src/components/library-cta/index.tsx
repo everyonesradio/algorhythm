@@ -1,6 +1,6 @@
 // ** React/Next.js Imports
 import Link from "next/link";
-import React, { useEffect, useId, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 // ** Third-Party Imports
 import { Loader2 } from "lucide-react";
@@ -12,8 +12,6 @@ import { api } from "@/utils/trpc";
 
 // ** Icon Imports
 import { IoAdd, IoCheckmark } from "react-icons/io5";
-
-const NOTE_MAX = 140;
 
 interface Props {
   albumId: string;
@@ -41,23 +39,19 @@ const LibraryCta: React.FC<Props> = ({
   pageHref,
 }) => {
   const deviceKey = useDeviceKey();
-  const noteId = useId();
   const utils = api.useUtils();
-  const [entry, setEntry] = useState<{ id: string; note: string | null }>();
+  const [entryId, setEntryId] = useState<string>();
   const [count, setCount] = useState(0);
-  const [writing, setWriting] = useState(false);
-  const [draft, setDraft] = useState("");
   const tried = useRef(false);
 
   const refresh = () =>
     Promise.all([
-      utils.library.finds.invalidate({ albumId }),
       utils.library.list.invalidate(),
       utils.library.stats.invalidate(),
     ]);
   const add = api.library.add.useMutation({
     onSuccess: (res) => {
-      setEntry({ id: res.entryId, note: res.note });
+      setEntryId(res.entryId);
       setCount(res.count);
       onEntry?.(res.entryId);
       void refresh();
@@ -65,17 +59,9 @@ const LibraryCta: React.FC<Props> = ({
   });
   const remove = api.library.remove.useMutation({
     onSuccess: (res) => {
-      setEntry(undefined);
-      setWriting(false);
+      setEntryId(undefined);
       setCount(res.count);
       onEntry?.(null);
-      void refresh();
-    },
-  });
-  const note = api.library.note.useMutation({
-    onSuccess: (res) => {
-      setEntry((e) => e && { ...e, note: res.note });
-      setWriting(false);
       void refresh();
     },
   });
@@ -93,9 +79,8 @@ const LibraryCta: React.FC<Props> = ({
 
   if (!ready) return null;
 
-  const error =
-    add.error?.message ?? remove.error?.message ?? note.error?.message;
-  const state = entry
+  const error = add.error?.message ?? remove.error?.message;
+  const state = entryId
     ? "added"
     : add.isError || remove.isSuccess
       ? "out"
@@ -134,103 +119,40 @@ const LibraryCta: React.FC<Props> = ({
               Add to library
             </button>
             {count > 0 && (
-              <span className='text-xs text-gray-500'>{dugLine(count)}</span>
+              <span className='text-xs text-gray-500'>
+                {dugLine(count)}
+              </span>
             )}
           </motion.div>
         )}
 
-        {state === "added" && entry && (
+        {state === "added" && entryId && (
           <motion.div
             key='added'
-            className='flex flex-col gap-2 rounded-2xl border-2 border-black p-2 px-4'
+            className='flex items-center justify-between gap-3 rounded-2xl border-2 border-black p-2 px-4'
             {...fade}
           >
-            <div className='flex items-center justify-between gap-3'>
-              <span className='flex items-center gap-2 text-sm font-medium'>
-                <IoCheckmark className='text-lg' />
-                In the library · {dugLine(count)}
-              </span>
-              <span className='flex shrink-0 items-center gap-3'>
-                <Link
-                  href={pageHref ?? "/library"}
-                  className='text-sm text-gray-600 underline-offset-2 hover:underline'
-                >
-                  See it
-                </Link>
-                <button
-                  className='text-sm text-gray-600 underline-offset-2 hover:underline disabled:opacity-50'
-                  disabled={remove.isPending}
-                  onClick={() =>
-                    deviceKey && remove.mutate({ entryId: entry.id, deviceKey })
-                  }
-                >
-                  Remove
-                </button>
-              </span>
-            </div>
-
-            {writing ? (
-              <form
-                className='flex flex-col gap-2 pb-1'
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!deviceKey || note.isPending) return;
-                  note.mutate({
-                    entryId: entry.id,
-                    deviceKey,
-                    note: draft.trim() || null,
-                  });
-                }}
+            <span className='flex items-center gap-2 text-sm font-medium'>
+              <IoCheckmark className='text-lg' />
+              In the library · {dugLine(count)}
+            </span>
+            <span className='flex shrink-0 items-center gap-3'>
+              <Link
+                href={pageHref ?? "/library"}
+                className='text-sm text-gray-600 underline-offset-2 hover:underline'
               >
-                <label htmlFor={noteId} className='sr-only'>
-                  Note
-                </label>
-                <textarea
-                  id={noteId}
-                  rows={2}
-                  maxLength={NOTE_MAX}
-                  value={draft}
-                  autoFocus
-                  onChange={(e) => setDraft(e.target.value)}
-                  placeholder='Where you found it, why it caught your eye…'
-                  className='w-full resize-none rounded-xl border border-gray-300 bg-white p-2 text-sm outline-none focus:border-black'
-                />
-                <div className='flex items-center justify-between gap-2'>
-                  <span className='text-xs tabular-nums text-gray-500'>
-                    {draft.length}/{NOTE_MAX} · Public, no name attached
-                  </span>
-                  <div className='flex gap-2'>
-                    <button
-                      type='button'
-                      className='rounded-full px-3 py-1.5 text-sm text-gray-600'
-                      onClick={() => setWriting(false)}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type='submit'
-                      disabled={note.isPending}
-                      className='flex items-center gap-1.5 rounded-full bg-black px-4 py-1.5 text-sm font-medium text-white transition-transform duration-[120ms] active:scale-[0.97] disabled:opacity-60'
-                    >
-                      {note.isPending && (
-                        <Loader2 className='h-4 w-4 animate-spin' />
-                      )}
-                      Save
-                    </button>
-                  </div>
-                </div>
-              </form>
-            ) : (
+                See it
+              </Link>
               <button
-                className='self-start pb-1 text-left text-sm text-gray-600 underline-offset-2 hover:underline'
-                onClick={() => {
-                  setDraft(entry.note ?? "");
-                  setWriting(true);
-                }}
+                className='text-sm text-gray-600 underline-offset-2 hover:underline disabled:opacity-50'
+                disabled={remove.isPending}
+                onClick={() =>
+                  deviceKey && remove.mutate({ entryId, deviceKey })
+                }
               >
-                {entry.note ? `“${entry.note}” · Edit` : "Add a note"}
+                Remove
               </button>
-            )}
+            </span>
           </motion.div>
         )}
       </AnimatePresence>

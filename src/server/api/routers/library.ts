@@ -16,15 +16,11 @@ import { spotifyAlbumTracks } from "@/server/services/catalog/spotify";
 import { getAlbumDetails } from "@/server/services/library/album-details";
 import {
   addFind,
-  albumFinds,
   LibraryError,
   libraryFacets,
   libraryStats,
   listLibrary,
-  NOTE_MAX,
   removeFind,
-  reportFind,
-  setNote,
 } from "@/server/services/library/library";
 import { wikidataInfo } from "@/server/services/library/wikidata";
 
@@ -44,13 +40,11 @@ const toTrpc = (err: unknown) => {
   const code =
     err.code === "scan-not-found"
       ? "NOT_FOUND"
-      : err.code === "not-found"
-        ? "NOT_FOUND"
-        : err.code === "too-many"
-          ? "TOO_MANY_REQUESTS"
-          : err.code === "not-yours"
-            ? "FORBIDDEN"
-            : "BAD_REQUEST";
+      : err.code === "too-many"
+        ? "TOO_MANY_REQUESTS"
+        : err.code === "not-yours"
+          ? "FORBIDDEN"
+          : "BAD_REQUEST";
   return new TRPCError({ code, message: err.message, cause: err });
 };
 
@@ -61,11 +55,6 @@ export const libraryRouter = createTRPCRouter({
         scanId: objectId,
         albumId: objectId,
         deviceKey,
-        // Loose on purpose: the service trims and cuts to NOTE_MAX.
-        note: z
-          .string()
-          .max(NOTE_MAX * 4)
-          .nullish(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -94,25 +83,6 @@ export const libraryRouter = createTRPCRouter({
       }
     }),
 
-  note: publicProcedure
-    .input(
-      z.object({
-        entryId: objectId,
-        deviceKey,
-        note: z
-          .string()
-          .max(NOTE_MAX * 4)
-          .nullable(),
-      })
-    )
-    .mutation(async ({ ctx, input }) => {
-      try {
-        return await setNote(ctx.prisma, input);
-      } catch (err) {
-        throw toTrpc(err);
-      }
-    }),
-
   list: publicProcedure
     .input(
       z.object({
@@ -135,23 +105,9 @@ export const libraryRouter = createTRPCRouter({
 
   facets: publicProcedure.query(({ ctx }) => libraryFacets(ctx.prisma)),
 
-  finds: publicProcedure
-    .input(z.object({ albumId: objectId, deviceKey: deviceKey.nullish() }))
-    .query(({ ctx, input }) => albumFinds(ctx.prisma, input)),
-
   details: publicProcedure
     .input(z.object({ albumId: objectId }))
     .query(({ ctx, input }) =>
       getAlbumDetails(ctx.prisma, input.albumId, detailsDeps)
     ),
-
-  report: publicProcedure
-    .input(z.object({ entryId: objectId, deviceKey }))
-    .mutation(async ({ ctx, input }) => {
-      try {
-        return await reportFind(ctx.prisma, input);
-      } catch (err) {
-        throw toTrpc(err);
-      }
-    }),
 });

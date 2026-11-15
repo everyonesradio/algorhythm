@@ -70,11 +70,6 @@ export async function GET(
   });
   if (!album?.libraryCount) return new Response("Not found", { status: 404 });
 
-  const latest = await prisma.libraryEntry.findFirst({
-    where: { albumId: id, hidden: false },
-    orderBy: { createdAt: "desc" },
-    select: { note: true },
-  });
   const [cover, fontFiles] = await Promise.all([
     coverData(album.coverUrl),
     loadFonts().catch(() => null),
@@ -161,18 +156,6 @@ export async function GET(
         <div style={{ fontSize: 34, fontWeight: 600 }}>
           {`${clip(album.artist, 40)}${album.releaseYear ? ` · ${album.releaseYear}` : ""}`}
         </div>
-        {latest?.note && (
-          <div
-            style={{
-              fontSize: 26,
-              fontStyle: "italic",
-              color: "rgba(0,0,0,0.7)",
-              marginTop: 8,
-            }}
-          >
-            {`“${clip(latest.note, 110)}”`}
-          </div>
-        )}
         <div
           style={{
             fontSize: 24,

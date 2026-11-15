@@ -32,7 +32,7 @@ type Props = {
 };
 
 const describe = (album: VinylAlbum, count: number) =>
-  `${album.title} by ${album.artist}${album.releaseYear ? ` (${album.releaseYear})` : ""}. ${dugTimes(count)} by crate diggers on algoRhythm: listen on every streaming app, read the notes, see the tracklist.`;
+  `${album.title} by ${album.artist}${album.releaseYear ? ` (${album.releaseYear})` : ""}. ${dugTimes(count)} by diggers on algoRhythm: listen on every streaming app and see the tracklist.`;
 
 const AlbumPage = ({ album, count, url, ogImage }: Props) => {
   const [shared, setShared] = useState<"copied" | "failed" | null>(null);
@@ -130,8 +130,7 @@ const AlbumPage = ({ album, count, url, ogImage }: Props) => {
               <aside className='flex max-w-sm flex-col gap-3 rounded-2xl bg-white/70 p-5 ring-1 ring-black/5'>
                 <p className='font-semibold'>Found a copy too?</p>
                 <p className='text-sm text-black/65'>
-                  Scan it with algoRhythm and add your find to the library, with
-                  a note about where it turned up.
+                  Scan it with algoRhythm and it goes into the library.
                 </p>
                 <Link
                   href='/scan-vinyl'

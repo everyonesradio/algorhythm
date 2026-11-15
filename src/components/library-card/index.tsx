@@ -10,7 +10,6 @@ interface Props {
   year: number | null;
   coverUrl: string | null;
   count: number;
-  latestNote: string | null;
   onOpen: () => void;
 }
 
@@ -20,7 +19,6 @@ const LibraryCard: React.FC<Props> = ({
   year,
   coverUrl,
   count,
-  latestNote,
   onOpen,
 }) => (
   <button
@@ -59,11 +57,6 @@ const LibraryCard: React.FC<Props> = ({
       <span className='mt-1 text-[11px] font-medium uppercase tracking-[0.08em] text-black/45'>
         {dugTimes(count)}
       </span>
-      {latestNote && (
-        <span className='line-clamp-2 text-xs italic text-black/70'>
-          “{latestNote}”
-        </span>
-      )}
     </div>
   </button>
 );

@@ -2,9 +2,6 @@
 import React, { useState } from "react";
 
 // ** Custom Components, Hooks, Utils, etc.
-import { dugTimes } from "@/components/library-card";
-import { useDeviceKey } from "@/hooks/use-device-key";
-import { timeAgo } from "@/utils/time-ago";
 import { api } from "@/utils/trpc";
 
 const TRACKS_SHOWN = 6;
@@ -24,21 +21,12 @@ const Skeleton = () => (
 );
 
 const AlbumDetails: React.FC<{ albumId: string }> = ({ albumId }) => {
-  const deviceKey = useDeviceKey();
   const [allTracks, setAllTracks] = useState(false);
-  const utils = api.useUtils();
 
   const details = api.library.details.useQuery(
     { albumId },
     { staleTime: Infinity, retry: 1, trpc: { context: { skipBatch: true } } }
   );
-  const finds = api.library.finds.useQuery(
-    { albumId, deviceKey },
-    { enabled: !!deviceKey, staleTime: 30_000 }
-  );
-  const report = api.library.report.useMutation({
-    onSuccess: () => void utils.library.finds.invalidate({ albumId }),
-  });
 
   const d = details.data;
   const tracks = d?.tracklist?.tracks ?? [];
@@ -47,44 +35,9 @@ const AlbumDetails: React.FC<{ albumId: string }> = ({ albumId }) => {
     d?.about.album && { label: "The album", ...d.about.album },
     d?.about.artist && { label: "The artist", ...d.about.artist },
   ].filter(Boolean) as { label: string; text: string; url: string }[];
-  const findList = finds.data?.finds ?? [];
 
   return (
     <div className='flex w-full max-w-sm flex-col gap-6 pt-6 text-left'>
-      {findList.length > 0 && (
-        <section className='flex flex-col gap-2'>
-          <Heading>
-            In the library · {dugTimes(finds.data?.count ?? 0).toLowerCase()}
-          </Heading>
-          <ul className='flex flex-col gap-2'>
-            {findList.map((f) => (
-              <li key={f.id} className='flex flex-col gap-0.5'>
-                {f.note ? (
-                  <p className='text-sm'>“{f.note}”</p>
-                ) : (
-                  <p className='text-sm text-gray-500'>Added without a note</p>
-                )}
-                <span className='flex items-center gap-2 text-xs text-gray-500'>
-                  {timeAgo(f.createdAt)}
-                  {!f.mine && f.note && (
-                    <button
-                      type='button'
-                      className='underline-offset-2 hover:underline disabled:no-underline disabled:opacity-60'
-                      disabled={f.reported || report.isPending || !deviceKey}
-                      onClick={() =>
-                        deviceKey && report.mutate({ entryId: f.id, deviceKey })
-                      }
-                    >
-                      {f.reported ? "Reported" : "Report"}
-                    </button>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
       {details.isLoading ? (
         <Skeleton />
       ) : (

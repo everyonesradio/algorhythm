@@ -162,9 +162,6 @@ model LibraryEntry {
   album         Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
   scanId        String   @unique @db.ObjectId // one find per scan
   deviceKeyHash String // lets the same device remove it
-  note          String? // up to 140 characters
-  hidden        Boolean  @default(false) // moderation
-  reporters     String[] // device-key hashes of people who reported it
   createdAt     DateTime @default(now())
 
   @@index([albumId, createdAt])
