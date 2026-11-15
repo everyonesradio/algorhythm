@@ -72,10 +72,10 @@ person in the SendGrid dashboard, DNS or Vercel.
 8. **Deploy the schema.** **Owner:** run `npm run waitlist:dedupe` (dry
    run), then `npm run waitlist:dedupe -- --yes`, then `npx prisma db push`
    to build the unique index and add the new fields.
-8a. **Fill in the contact details.** **Owner:** a real inbox in
-   `src/config/legal.ts` (`contactEmail`, shown on `/privacy`), and the
-   postal address in the template footer (`POSTAL_ADDRESS` in
-   `emails/waitlist-welcome.html` and `.txt`).
+8a. **Fill in the postal address.** **Owner:** replace `POSTAL_ADDRESS` in
+   `emails/waitlist-welcome.html` and `.txt`. The contact inbox
+   (everyonesradio@gmail.com) is set in `src/config/legal.ts` and shown on
+   `/privacy`.
 8b. **Per-IP rate limit.** **Owner:** add a Vercel Firewall rate-limit rule
    matched to the `waitlist` tRPC path (section 3). (Best practice.)
 

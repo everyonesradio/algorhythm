@@ -5,7 +5,7 @@
  */
 export const LEGAL = {
   company: "Everyone's Radio",
-  contactEmail: "privacy@example.com", // TODO: real inbox
+  contactEmail: "everyonesradio@gmail.com",
   postalAddress: "", // TODO: for the email footer (SendGrid template)
   policyUpdated: "15 November 2026",
 } as const;
