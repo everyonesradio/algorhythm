@@ -77,6 +77,11 @@ const VinylScan = () => {
   const ambiguousStreak = useRef(0);
   const unknownStreak = useRef(0);
   const pickerDismissedAt = useRef(0);
+  /**
+   * The record whose drawer was just closed. It's usually still in front of
+   * the camera, so it isn't shown again until something else is in view.
+   */
+  const justClosed = useRef<string | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
 
   const [hint, setHint] = useState(DEFAULT_HINT);
@@ -243,7 +248,14 @@ const VinylScan = () => {
       artistSuggestions: ArtistSuggestion[];
       vector: number[];
     }) => {
-      if (res.status === "matched" && res.matches[0]) {
+      if (
+        res.status === "matched" &&
+        res.matches[0]?.album.id === justClosed.current
+      ) {
+        setLocking(false);
+        setHint("Got that one. Hold up the next record");
+      } else if (res.status === "matched" && res.matches[0]) {
+        justClosed.current = null;
         // A match is confident by itself (score + margin over the runner-
         // up), so open the result now: waiting for a second frame meant the
         // record could leave the frame between "green" and the drawer.
@@ -267,6 +279,7 @@ const VinylScan = () => {
           );
         }
       } else {
+        justClosed.current = null;
         ambiguousStreak.current = 0;
         unknownStreak.current += 1;
         setLocking(false);
@@ -377,6 +390,7 @@ const VinylScan = () => {
   // Clear sheet data only after the close animation (unless it reopened).
   const onResultExit = () => {
     if (resultOpen) return;
+    justClosed.current = result?.match.album.id ?? null;
     setResult(null);
     setLocking(false);
     setHint(DEFAULT_HINT);

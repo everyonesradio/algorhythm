@@ -16,8 +16,6 @@ export type VectorHit = {
   /** Cosine similarity in [-1, 1]. */
   similarity: number;
   source?: string;
-  /** Image the vector was made from (a pressing's cover, Spotify art...). */
-  imageUrl?: string | null;
 };
 
 export type RankedAlbum = {
@@ -27,12 +25,6 @@ export type RankedAlbum = {
   support: number;
   /** Source of the album's best-scoring vector (catalog, closeup, ...). */
   source?: string;
-  /**
-   * The best-scoring vector that has an image (catalog cover, a pressing,
-   * the Spotify art). Augmented and close-up vectors have none, so this can
-   * differ from `source`: it's the cover the scan looks most like.
-   */
-  image?: { url: string; source?: string; similarity: number };
 };
 
 export type MatchStatus = "matched" | "ambiguous" | "none";
@@ -65,39 +57,54 @@ export const DEFAULT_THRESHOLDS: RankingThresholds = {
   candidate: 0.76,
 };
 
-const imageOf = (hit: VectorHit, url: string) => ({
-  url,
-  similarity: hit.similarity,
-  ...(hit.source ? { source: hit.source } : {}),
-});
+/**
+ * Camera photos people confirmed ("user_scan") also capture the desk, light
+ * and hand around the record, so the next record held in the same spot can
+ * look more like that photo than like its own cover. They may lift an album
+ * a little above its best cover score, never past it on their own, and an
+ * album seen only through camera photos stays below the match bar.
+ */
+export const CAMERA_LIFT = 0.07;
+export const CAMERA_ONLY_MAX = DEFAULT_THRESHOLDS.match - 0.01;
+const CAMERA_SOURCE = "user_scan";
 
 export const groupHitsByAlbum = (hits: VectorHit[]): RankedAlbum[] => {
-  const byAlbum = new Map<string, RankedAlbum>();
+  const byAlbum = new Map<
+    string,
+    RankedAlbum & { cover: number; camera: number }
+  >();
   for (const hit of hits) {
-    const prev = byAlbum.get(hit.albumId);
-    if (!prev) {
-      byAlbum.set(hit.albumId, {
+    let album = byAlbum.get(hit.albumId);
+    if (!album) {
+      album = {
         albumId: hit.albumId,
-        similarity: hit.similarity,
-        support: 1,
-        ...(hit.source ? { source: hit.source } : {}),
-        ...(hit.imageUrl ? { image: imageOf(hit, hit.imageUrl) } : {}),
-      });
+        similarity: -Infinity,
+        support: 0,
+        cover: -Infinity,
+        camera: -Infinity,
+      };
+      byAlbum.set(hit.albumId, album);
+    }
+    album.support += 1;
+    if (hit.source === CAMERA_SOURCE) {
+      album.camera = Math.max(album.camera, hit.similarity);
     } else {
-      prev.support += 1;
-      if (hit.similarity > prev.similarity) {
-        prev.similarity = hit.similarity;
-        if (hit.source) prev.source = hit.source;
-      }
-      if (
-        hit.imageUrl &&
-        hit.similarity > (prev.image?.similarity ?? -Infinity)
-      ) {
-        prev.image = imageOf(hit, hit.imageUrl);
-      }
+      album.cover = Math.max(album.cover, hit.similarity);
+    }
+    if (hit.similarity > album.similarity) {
+      album.similarity = hit.similarity;
+      if (hit.source) album.source = hit.source;
     }
   }
-  return [...byAlbum.values()].sort((a, b) => b.similarity - a.similarity);
+  return [...byAlbum.values()]
+    .map(({ cover, camera, ...album }) => ({
+      ...album,
+      similarity:
+        cover === -Infinity
+          ? Math.min(camera, CAMERA_ONLY_MAX)
+          : Math.max(cover, Math.min(camera, cover + CAMERA_LIFT)),
+    }))
+    .sort((a, b) => b.similarity - a.similarity);
 };
 
 export const decideMatch = (

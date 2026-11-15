@@ -286,7 +286,13 @@ shrink-wrap, angle, sleeve wear). In order of effort:
    artwork are different scans/crops of the same cover.
 3. **User-confirmed scans** (shipped): every "Yes, that's it" stores the
    real camera vector (capped at 25 per album). Popular records get more
-   accurate as people use the app.
+   accurate as people use the app. A camera vector also captures the desk,
+   light and hand around the record, so it can lift an album at most 0.07
+   above its best cover score and never makes a match on its own
+   (`CAMERA_LIFT`, `CAMERA_ONLY_MAX` in `ranking.ts`). Without that cap, the
+   next record held in the same spot matched the previous one (seen
+   2026-11-14: 0.862 against an 8-second-old camera vector, 0.731 against
+   the album's own covers).
 4. **Fine-tune a projection head** (next): a small linear/MLP layer on top
    of frozen CLIP, trained contrastively on (phone photo, catalog cover)
    pairs. The `ScanEvent` confirmations *are* that training set. The output
