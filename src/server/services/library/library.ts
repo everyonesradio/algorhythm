@@ -2,22 +2,17 @@ import { createHash } from "node:crypto";
 
 import type { Prisma, PrismaClient, ScanEvent } from "@prisma/client";
 
-import type { ConfirmOutcome } from "@/server/services/vinyl/confirm-scan";
 import { scanIsActionable } from "@/server/services/vinyl/scan-log";
 
 /**
- * The public library: records diggers have actually found and scanned
- * (docs/PUBLIC_LIBRARY.md). Open and anonymous for now.
- *
- * A find can only be added from a real, recent scan, for the album that scan
- * identified: a confident match, a candidate the user confirmed, or a record
- * they entered by hand. That's what makes it a library of records people
- * held, and it keeps junk out without accounts.
+ * The public library: records people have scanned (docs/PUBLIC_LIBRARY.md).
+ * Separate from the recognition index: adding a find never stores vectors.
+ * A find needs a real, recent scan that identified the album, and each phone
+ * counts once per record.
  */
 
 export const NOTE_MAX = 140;
-/** Adds per device per hour. */
-export const ADDS_PER_HOUR = 30;
+export const ADDS_PER_HOUR = 120;
 
 export class LibraryError extends Error {
   constructor(
@@ -34,20 +29,21 @@ export class LibraryError extends Error {
   }
 }
 
-/** Only a hash of the device key is stored. */
 export const hashDeviceKey = (key: string) =>
   createHash("sha256").update(`algorhythm-library:${key}`).digest("hex");
 
-/** Plain text, one line of whitespace, at most 140 characters; empty is null. */
 export const cleanNote = (note: string | null | undefined) => {
   const text = (note ?? "")
-    .replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, " ")
+    .replace(
+      /[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g,
+      " "
+    )
     .replace(/\s+/g, " ")
     .trim();
   return text ? [...text].slice(0, NOTE_MAX).join("") : null;
 };
 
-/** Did this scan identify this album (matched, confirmed or picked)? */
+/** Matched by the app, or confirmed/picked by the person scanning. */
 export const scanIdentified = (
   scan: Pick<ScanEvent, "status" | "topAlbumIds" | "confirmedAlbumId">,
   albumId: string
@@ -55,11 +51,6 @@ export const scanIdentified = (
   scan.confirmedAlbumId
     ? scan.confirmedAlbumId === albumId
     : scan.status === "matched" && scan.topAlbumIds[0] === albumId;
-
-export type LibraryDeps = {
-  /** Record the scan as confirmed for this album (vinyl/confirm-scan.ts). */
-  confirm: (scan: ScanEvent, albumId: string) => Promise<ConfirmOutcome>;
-};
 
 /** Keep the album's "dug N times" and latest-find date in step with its finds. */
 const recount = async (prisma: PrismaClient, albumId: string) => {
@@ -78,6 +69,9 @@ const recount = async (prisma: PrismaClient, albumId: string) => {
   return count;
 };
 
+const visibleCount = (prisma: PrismaClient, albumId: string) =>
+  prisma.libraryEntry.count({ where: { albumId, hidden: false } });
+
 export const addFind = async (
   prisma: PrismaClient,
   input: {
@@ -85,9 +79,7 @@ export const addFind = async (
     albumId: string;
     deviceKey: string;
     note?: string | null;
-    coverUrl?: string | null;
   },
-  deps: LibraryDeps,
   now = Date.now()
 ) => {
   const scan = await prisma.scanEvent.findUnique({
@@ -95,15 +87,16 @@ export const addFind = async (
   });
   if (!scan) throw new LibraryError("scan-not-found", "Scan not found");
 
-  // Adding twice (double tap, retry) returns the find already there.
-  const existing = await prisma.libraryEntry.findUnique({
+  const fromScan = await prisma.libraryEntry.findUnique({
     where: { scanId: scan.id },
   });
-  if (existing) {
-    const count = await prisma.libraryEntry.count({
-      where: { albumId: existing.albumId, hidden: false },
-    });
-    return { entryId: existing.id, count, created: false };
+  if (fromScan && fromScan.albumId === input.albumId) {
+    return {
+      entryId: fromScan.id,
+      note: fromScan.note,
+      count: await visibleCount(prisma, input.albumId),
+      created: false,
+    };
   }
 
   if (!scanIsActionable(scan, now)) {
@@ -120,6 +113,46 @@ export const addFind = async (
   }
 
   const deviceKeyHash = hashDeviceKey(input.deviceKey);
+  if (fromScan && fromScan.deviceKeyHash !== deviceKeyHash) {
+    throw new LibraryError(
+      "not-yours",
+      "This scan was added from another phone."
+    );
+  }
+  const already = await prisma.libraryEntry.findFirst({
+    where: { albumId: input.albumId, deviceKeyHash },
+    select: { id: true, note: true },
+  });
+
+  // The scan was corrected to another record: its find follows.
+  if (fromScan) {
+    const previousAlbum = fromScan.albumId;
+    if (already) {
+      await prisma.libraryEntry.delete({ where: { id: fromScan.id } });
+    } else {
+      await prisma.libraryEntry.update({
+        where: { id: fromScan.id },
+        data: { albumId: input.albumId },
+      });
+    }
+    await recount(prisma, previousAlbum);
+    return {
+      entryId: already?.id ?? fromScan.id,
+      note: already ? already.note : fromScan.note,
+      count: await recount(prisma, input.albumId),
+      created: !already,
+    };
+  }
+
+  if (already) {
+    return {
+      entryId: already.id,
+      note: already.note,
+      count: await visibleCount(prisma, input.albumId),
+      created: false,
+    };
+  }
+
   const recent = await prisma.libraryEntry.count({
     where: {
       deviceKeyHash,
@@ -133,58 +166,20 @@ export const addFind = async (
     );
   }
 
-  // Adding a find says "this is the record": count it as a confirmation.
-  if (!scan.confirmedAlbumId) await deps.confirm(scan, input.albumId);
-
-  // Only artwork we already hold for this album (catalog, pressing, Spotify).
-  let coverUrl: string | null = null;
-  if (input.coverUrl) {
-    const known = await prisma.coverEmbedding.findFirst({
-      where: { albumId: input.albumId, imageUrl: input.coverUrl },
-      select: { id: true },
-    });
-    if (known) coverUrl = input.coverUrl;
-  }
-
   const entry = await prisma.libraryEntry.create({
     data: {
       albumId: input.albumId,
       scanId: scan.id,
-      coverUrl,
       deviceKeyHash,
       note: cleanNote(input.note),
     },
-    select: { id: true },
+    select: { id: true, note: true },
   });
   const count = await recount(prisma, input.albumId);
-  return { entryId: entry.id, count, created: true };
+  return { entryId: entry.id, note: entry.note, count, created: true };
 };
 
-/** "Dug by N", and whether this scan's find is already in. */
-export const findStatus = async (
-  prisma: PrismaClient,
-  input: { albumId: string; scanId?: string | null; deviceKey?: string | null }
-) => {
-  const [count, entry] = await Promise.all([
-    prisma.libraryEntry.count({
-      where: { albumId: input.albumId, hidden: false },
-    }),
-    input.scanId
-      ? prisma.libraryEntry.findUnique({
-          where: { scanId: input.scanId },
-          select: { id: true, deviceKeyHash: true },
-        })
-      : Promise.resolve(null),
-  ]);
-  const mine =
-    !!entry &&
-    !!input.deviceKey &&
-    entry.deviceKeyHash === hashDeviceKey(input.deviceKey);
-  return { count, entryId: mine ? entry!.id : null, added: !!entry };
-};
-
-/** Undo: only the device that added a find can remove it. */
-export const removeFind = async (
+const ownEntry = async (
   prisma: PrismaClient,
   input: { entryId: string; deviceKey: string }
 ) => {
@@ -195,12 +190,33 @@ export const removeFind = async (
   if (!entry || entry.deviceKeyHash !== hashDeviceKey(input.deviceKey)) {
     throw new LibraryError(
       "not-yours",
-      "Only the phone that added this find can remove it."
+      "Only the phone that added this find can change it."
     );
   }
+  return entry;
+};
+
+export const removeFind = async (
+  prisma: PrismaClient,
+  input: { entryId: string; deviceKey: string }
+) => {
+  const entry = await ownEntry(prisma, input);
   await prisma.libraryEntry.delete({ where: { id: input.entryId } });
   const count = await recount(prisma, entry.albumId);
   return { count };
+};
+
+export const setNote = async (
+  prisma: PrismaClient,
+  input: { entryId: string; deviceKey: string; note: string | null }
+) => {
+  await ownEntry(prisma, input);
+  const note = cleanNote(input.note);
+  await prisma.libraryEntry.update({
+    where: { id: input.entryId },
+    data: { note },
+  });
+  return { note };
 };
 
 /** Distinct reports that hide a find until it's reviewed. */
@@ -249,11 +265,10 @@ export const listLibrary = async <S extends Prisma.AlbumSelect>(
     libraryCount: number | null;
     libraryLastAt: Date | null;
   })[];
-  // The latest visible find of each album: its note and the art it matched.
   const latest = await prisma.libraryEntry.findMany({
     where: { albumId: { in: page.map((a) => a.id) }, hidden: false },
     orderBy: { createdAt: "desc" },
-    select: { albumId: true, note: true, coverUrl: true },
+    select: { albumId: true, note: true },
   });
   const byAlbum = new Map<string, (typeof latest)[number]>();
   for (const f of latest)
@@ -266,7 +281,6 @@ export const listLibrary = async <S extends Prisma.AlbumSelect>(
         count: album.libraryCount ?? 0,
         lastFoundAt: album.libraryLastAt,
         latestNote: find?.note ?? null,
-        coverUrl: find?.coverUrl ?? null,
       };
     }),
     nextOffset: albums.length > input.limit ? input.offset + input.limit : null,

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
   ADDS_PER_HOUR,
@@ -8,10 +8,10 @@ import {
   REPORTS_TO_HIDE,
   reportFind,
   cleanNote,
-  findStatus,
   hashDeviceKey,
   LibraryError,
   removeFind,
+  setNote,
   scanIdentified,
 } from "@/server/services/library/library";
 
@@ -33,7 +33,7 @@ const scanRow = (over: Row = {}): Row => ({
 });
 
 /** Just enough Prisma for the library service. */
-const fakePrisma = (scans: Row[], covers: Row[] = []) => {
+const fakePrisma = (scans: Row[]) => {
   const entries: Row[] = [];
   const albums: Row = { [ALBUM]: { id: ALBUM }, [OTHER]: { id: OTHER } };
   let n = 0;
@@ -70,6 +70,11 @@ const fakePrisma = (scans: Row[], covers: Row[] = []) => {
           entries.push(row);
           return row;
         },
+        update: async ({ where, data }: Row) =>
+          Object.assign(
+            entries.find((e) => e.id === where.id)!,
+            data
+          ),
         delete: async ({ where }: Row) =>
           entries.splice(
             entries.findIndex((e) => e.id === where.id),
@@ -78,39 +83,25 @@ const fakePrisma = (scans: Row[], covers: Row[] = []) => {
       },
       album: {
         update: async ({ where, data }: Row) =>
-          Object.assign(albums[where.id], data),
-      },
-      coverEmbedding: {
-        findFirst: async ({ where }: Row) =>
-          covers.find(
-            (c) => c.albumId === where.albumId && c.imageUrl === where.imageUrl
-          ) ?? null,
+          Object.assign((albums[where.id] ??= { id: where.id }), data),
       },
     } as any,
   };
 };
 
-const deps = () => ({
-  confirm: vi.fn(async () => ({ stored: true as const, reason: null })),
-});
+const SCAN = "s".repeat(24);
+const add = (prisma: any, over: Row = {}) =>
+  addFind(
+    prisma,
+    { scanId: SCAN, albumId: ALBUM, deviceKey: KEY, ...over } as any,
+    NOW
+  );
 
 describe("addFind", () => {
-  it("adds the record a scan matched, confirms it, and counts it on the album", async () => {
+  it("adds the record a scan matched and counts it on the album", async () => {
     const { prisma, entries, albums } = fakePrisma([scanRow()]);
-    const d = deps();
-    const res = await addFind(
-      prisma,
-      {
-        scanId: "s".repeat(24),
-        albumId: ALBUM,
-        deviceKey: KEY,
-        note: "  £3 bin,\nPeckham  ",
-      },
-      d,
-      NOW
-    );
+    const res = await add(prisma, { note: "  £3 bin,\nPeckham  " });
     expect(res).toMatchObject({ count: 1, created: true });
-    expect(d.confirm).toHaveBeenCalledOnce();
     expect(entries[0]).toMatchObject({
       albumId: ALBUM,
       note: "£3 bin, Peckham",
@@ -120,35 +111,31 @@ describe("addFind", () => {
     expect(albums[ALBUM].libraryCount).toBe(1);
   });
 
-  it("accepts a record the user confirmed or picked, without confirming again", async () => {
+  it("never confirms the scan: the library stays apart from recognition", async () => {
+    const scan = scanRow();
+    const { prisma } = fakePrisma([scan]);
+    await add(prisma);
+    expect(scan.confirmedAlbumId).toBeNull();
+    expect(prisma.coverEmbedding).toBeUndefined();
+  });
+
+  it("accepts a record the person confirmed or picked", async () => {
     const { prisma } = fakePrisma([
       scanRow({ status: "ambiguous", confirmedAlbumId: OTHER }),
     ]);
-    const d = deps();
-    await addFind(
-      prisma,
-      { scanId: "s".repeat(24), albumId: OTHER, deviceKey: KEY },
-      d,
-      NOW
-    );
-    expect(d.confirm).not.toHaveBeenCalled();
+    await expect(add(prisma, { albumId: OTHER })).resolves.toMatchObject({
+      created: true,
+    });
   });
 
   it("refuses a record the scan didn't identify", async () => {
     for (const scan of [
       scanRow({ topAlbumIds: [OTHER, ALBUM] }), // only the runner-up
       scanRow({ status: "ambiguous" }), // nothing chosen yet
-      scanRow({ confirmedAlbumId: OTHER }), // the user said it's another one
+      scanRow({ confirmedAlbumId: OTHER }), // the person said it's another one
     ]) {
       const { prisma } = fakePrisma([scan]);
-      await expect(
-        addFind(
-          prisma,
-          { scanId: scan.id, albumId: ALBUM, deviceKey: KEY },
-          deps(),
-          NOW
-        )
-      ).rejects.toMatchObject({
+      await expect(add(prisma)).rejects.toMatchObject({
         code: "not-identified",
       });
     }
@@ -158,30 +145,13 @@ describe("addFind", () => {
     const { prisma } = fakePrisma([
       scanRow({ createdAt: new Date(NOW - 31 * 60 * 1000) }),
     ]);
-    await expect(
-      addFind(
-        prisma,
-        { scanId: "s".repeat(24), albumId: ALBUM, deviceKey: KEY },
-        deps(),
-        NOW
-      )
-    ).rejects.toBeInstanceOf(LibraryError);
+    await expect(add(prisma)).rejects.toBeInstanceOf(LibraryError);
   });
 
-  it("adds a scan only once; a second tap returns the same find", async () => {
+  it("adds a scan only once", async () => {
     const { prisma, entries } = fakePrisma([scanRow()]);
-    const first = await addFind(
-      prisma,
-      { scanId: "s".repeat(24), albumId: ALBUM, deviceKey: KEY },
-      deps(),
-      NOW
-    );
-    const again = await addFind(
-      prisma,
-      { scanId: "s".repeat(24), albumId: ALBUM, deviceKey: KEY },
-      deps(),
-      NOW
-    );
+    const first = await add(prisma);
+    const again = await add(prisma);
     expect(again).toMatchObject({
       entryId: first.entryId,
       created: false,
@@ -190,88 +160,66 @@ describe("addFind", () => {
     expect(entries).toHaveLength(1);
   });
 
-  it("keeps only artwork we already hold for the album", async () => {
-    const pressing = "https://i.discogs.com/pressing.jpg";
-    const { prisma, entries } = fakePrisma(
-      [scanRow(), scanRow({ id: "t".repeat(24) })],
-      [{ albumId: ALBUM, imageUrl: pressing }]
-    );
-    await addFind(
-      prisma,
-      {
-        scanId: "s".repeat(24),
-        albumId: ALBUM,
-        deviceKey: KEY,
-        coverUrl: pressing,
-      },
-      deps(),
-      NOW
-    );
-    await addFind(
-      prisma,
-      {
-        scanId: "t".repeat(24),
-        albumId: ALBUM,
-        deviceKey: KEY,
-        coverUrl: "https://evil.example/x.jpg",
-      },
-      deps(),
-      NOW
-    );
-    expect(entries.map((e) => e.coverUrl)).toEqual([pressing, null]);
+  it("counts each phone once per record, however often it's scanned", async () => {
+    const { prisma, entries } = fakePrisma([
+      scanRow(),
+      scanRow({ id: "t".repeat(24) }),
+    ]);
+    const first = await add(prisma, { note: "first" });
+    const rescan = await add(prisma, { scanId: "t".repeat(24) });
+    expect(rescan).toMatchObject({
+      entryId: first.entryId,
+      note: "first",
+      created: false,
+      count: 1,
+    });
+    expect(entries).toHaveLength(1);
+  });
+
+  it("moves the find when the scan is corrected to another record", async () => {
+    const scan = scanRow();
+    const { prisma, entries, albums } = fakePrisma([scan]);
+    await add(prisma);
+    scan.confirmedAlbumId = OTHER;
+    const res = await add(prisma, { albumId: OTHER });
+    expect(res).toMatchObject({ count: 1, created: true });
+    expect(entries.map((e) => e.albumId)).toEqual([OTHER]);
+    expect(albums[ALBUM].libraryCount).toBe(0);
+    expect(albums[OTHER].libraryCount).toBe(1);
   });
 
   it("limits how many finds one phone adds an hour", async () => {
-    const scans = Array.from({ length: ADDS_PER_HOUR + 1 }, (_, i) =>
-      scanRow({ id: String(i).padStart(24, "0") })
-    );
+    const scans = Array.from({ length: ADDS_PER_HOUR + 1 }, (_, i) => {
+      const id = String(i).padStart(24, "0");
+      return scanRow({ id, topAlbumIds: [id] });
+    });
     const { prisma } = fakePrisma(scans);
     for (const s of scans.slice(0, ADDS_PER_HOUR)) {
-      await addFind(
-        prisma,
-        { scanId: s.id, albumId: ALBUM, deviceKey: KEY },
-        deps(),
-        NOW
-      );
+      await add(prisma, { scanId: s.id, albumId: s.id });
     }
+    const last = scans[ADDS_PER_HOUR].id;
     await expect(
-      addFind(
-        prisma,
-        { scanId: scans[ADDS_PER_HOUR].id, albumId: ALBUM, deviceKey: KEY },
-        deps(),
-        NOW
-      )
+      add(prisma, { scanId: last, albumId: last })
     ).rejects.toMatchObject({ code: "too-many" });
   });
 });
 
-describe("findStatus and removeFind", () => {
-  it("shows the count, and lets only the adding phone undo", async () => {
-    const { prisma, albums } = fakePrisma([scanRow()]);
-    const { entryId } = await addFind(
-      prisma,
-      { scanId: "s".repeat(24), albumId: ALBUM, deviceKey: KEY },
-      deps(),
-      NOW
-    );
-
-    expect(
-      await findStatus(prisma, {
-        albumId: ALBUM,
-        scanId: "s".repeat(24),
-        deviceKey: KEY,
-      })
-    ).toEqual({ count: 1, entryId, added: true });
-    expect(
-      await findStatus(prisma, {
-        albumId: ALBUM,
-        scanId: "s".repeat(24),
-        deviceKey: "someone-else-aaaaaaaaaaa",
-      })
-    ).toMatchObject({ entryId: null, added: true });
+describe("removeFind and setNote", () => {
+  it("lets only the adding phone remove a find or change its note", async () => {
+    const { prisma, albums, entries } = fakePrisma([scanRow()]);
+    const { entryId } = await add(prisma);
+    const stranger = "someone-else-aaaaaaaaaaa";
 
     await expect(
-      removeFind(prisma, { entryId, deviceKey: "someone-else-aaaaaaaaaaa" })
+      setNote(prisma, { entryId, deviceKey: stranger, note: "hi" })
+    ).rejects.toMatchObject({ code: "not-yours" });
+    expect(
+      await setNote(prisma, { entryId, deviceKey: KEY, note: " found it\n" })
+    ).toEqual({ note: "found it" });
+    expect(entries[0].note).toBe("found it");
+
+    await expect(
+      removeFind(prisma, { entryId, deviceKey: stranger })
     ).rejects.toMatchObject({ code: "not-yours" });
     expect(await removeFind(prisma, { entryId, deviceKey: KEY })).toEqual({
       count: 0,
@@ -351,7 +299,6 @@ const seed = (
     id: `x${entries.length}`,
     albumId,
     note,
-    coverUrl: null,
     deviceKeyHash: hashDeviceKey(key),
     hidden: false,
     reporters: [],

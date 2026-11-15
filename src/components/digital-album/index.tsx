@@ -25,10 +25,10 @@ interface Props {
   onExitComplete?: () => void;
   album: VinylAlbum;
   confirmed?: boolean;
-  /** The scan that identified this record; enables "Add to library". */
   scanId?: string | null;
-  /** Adding to the library also confirms the record. */
-  onAddedToLibrary?: () => void;
+  /** The scan has identified this record, so it goes into the library. */
+  identified?: boolean;
+  onLibraryEntry?: (entryId: string | null) => void;
   /** Link to the album's shareable page, when it has one. */
   pageHref?: string;
   onConfirm?: () => void;
@@ -42,7 +42,8 @@ const DigitalAlbum: React.FC<Props> = ({
   album,
   confirmed,
   scanId,
-  onAddedToLibrary,
+  identified = false,
+  onLibraryEntry,
   pageHref,
   onConfirm,
   onReject,
@@ -144,13 +145,13 @@ const DigitalAlbum: React.FC<Props> = ({
         </AnimatePresence>
 
         <div className='flex w-full max-w-sm flex-col gap-3'>
-          {/* Only a record a scan identified (matched, confirmed or
-              entered by hand) can go into the library. */}
           {scanId && (
             <LibraryCta
+              key={`${scanId}:${album.id}`}
               albumId={album.id}
               scanId={scanId}
-              onAdded={onAddedToLibrary}
+              ready={identified}
+              onEntry={onLibraryEntry}
               pageHref={pageHref}
             />
           )}

@@ -12,6 +12,7 @@ import DigitalAlbum from "@/components/digital-album";
 import Sheet from "@/components/sheet";
 import { useCamera } from "@/hooks/use-camera";
 import { useCoverEmbedder } from "@/hooks/use-cover-embedder";
+import { useDeviceKey } from "@/hooks/use-device-key";
 import type { VinylMatch } from "@/types/api";
 import {
   centerSquareCrop,
@@ -62,6 +63,9 @@ type Result = {
   scanId: string | null;
   match: VinylMatch;
   others: VinylMatch[];
+  /** Matched by the app, or confirmed/picked: it goes into the library. */
+  identified: boolean;
+  entryId?: string | null;
 };
 
 const VinylScan = () => {
@@ -70,6 +74,8 @@ const VinylScan = () => {
   const identify = api.vinyl.identify.useMutation();
   const confirm = api.vinyl.confirm.useMutation();
   const pick = api.vinyl.pick.useMutation();
+  const removeFind = api.library.remove.useMutation();
+  const deviceKey = useDeviceKey();
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ambiguousStreak = useRef(0);
@@ -116,13 +122,19 @@ const VinylScan = () => {
   }, [paused]);
 
   const showResult = useCallback(
-    (scanId: string | null, matches: VinylMatch[], pick = 0) => {
+    (
+      scanId: string | null,
+      matches: VinylMatch[],
+      pick = 0,
+      identified = true
+    ) => {
       setConfirmed(false);
       setCandidatesOpen(false);
       setResult({
         scanId,
         match: matches[pick],
         others: matches.filter((_, i) => i !== pick),
+        identified,
       });
       setResultOpen(true);
     },
@@ -380,9 +392,19 @@ const VinylScan = () => {
   };
 
   // ---- confirmation (feeds real-world photos back into the index) --------
-  const confirmAlbum = (scanId: string | null, albumId: string) => {
+  const confirmAlbum = async (scanId: string | null, albumId: string) => {
     setConfirmed(true);
-    if (scanId) confirm.mutate({ scanId, albumId });
+    if (!scanId) return;
+    const ok = await confirm
+      .mutateAsync({ scanId, albumId })
+      .then(() => true)
+      .catch(() => false);
+    if (!ok) return;
+    setResult((r) =>
+      r && r.scanId === scanId && r.match.album.id === albumId
+        ? { ...r, identified: true }
+        : r
+    );
   };
 
   // Clear sheet data only after the close animation (unless it reopened).
@@ -527,8 +549,8 @@ const VinylScan = () => {
           embed={embedder.embed}
           onPickMatch={(i) => {
             const picked = candidates.matches[i];
-            showResult(candidates.scanId, candidates.matches, i);
-            confirmAlbum(candidates.scanId, picked.album.id);
+            showResult(candidates.scanId, candidates.matches, i, false);
+            void confirmAlbum(candidates.scanId, picked.album.id);
           }}
           onPickRecord={pickRecord}
           onDismiss={() => {
@@ -569,13 +591,19 @@ const VinylScan = () => {
           album={result.match.album}
           confirmed={confirmed}
           scanId={result.scanId}
+          identified={result.identified}
+          onLibraryEntry={(entryId) => setResult((r) => r && { ...r, entryId })}
           pageHref={albumPath(result.match.album)}
-          // The server records adding a find as a confirmation.
-          onAddedToLibrary={() => setConfirmed(true)}
-          onConfirm={() => confirmAlbum(result.scanId, result.match.album.id)}
+          onConfirm={() =>
+            void confirmAlbum(result.scanId, result.match.album.id)
+          }
           onReject={
             result.others.length
               ? () => {
+                  // Not this record: take it back out of the library.
+                  if (result.entryId && deviceKey) {
+                    removeFind.mutate({ entryId: result.entryId, deviceKey });
+                  }
                   setResultOpen(false);
                   showCandidates(result.scanId, result.others, []);
                 }

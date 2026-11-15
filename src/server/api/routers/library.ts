@@ -17,7 +17,6 @@ import { getAlbumDetails } from "@/server/services/library/album-details";
 import {
   addFind,
   albumFinds,
-  findStatus,
   LibraryError,
   libraryFacets,
   libraryStats,
@@ -25,9 +24,9 @@ import {
   NOTE_MAX,
   removeFind,
   reportFind,
+  setNote,
 } from "@/server/services/library/library";
 import { wikidataInfo } from "@/server/services/library/wikidata";
-import { confirmScan } from "@/server/services/vinyl/confirm-scan";
 
 const objectId = z.string().regex(/^[a-f\d]{24}$/i);
 /** Random per-device key (src/hooks/use-device-key.ts); only its hash is stored. */
@@ -73,14 +72,11 @@ export const libraryRouter = createTRPCRouter({
           .string()
           .max(NOTE_MAX * 4)
           .nullish(),
-        coverUrl: z.string().url().nullish(),
       })
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        const res = await addFind(ctx.prisma, input, {
-          confirm: (scan, albumId) => confirmScan(ctx.prisma, scan, albumId),
-        });
+        const res = await addFind(ctx.prisma, input);
         // Fetch tracklist and about text now, so the library page has them.
         if (res.created) {
           // Background lane: people waiting on screen go first at MusicBrainz.
@@ -96,23 +92,31 @@ export const libraryRouter = createTRPCRouter({
       }
     }),
 
-  /** "Dug by N", and whether this scan's find is already in the library. */
-  status: publicProcedure
-    .input(
-      z.object({
-        albumId: objectId,
-        scanId: objectId.nullish(),
-        deviceKey: deviceKey.nullish(),
-      })
-    )
-    .query(({ ctx, input }) => findStatus(ctx.prisma, input)),
-
   /** Undo an add, from the same phone. */
   remove: publicProcedure
     .input(z.object({ entryId: objectId, deviceKey }))
     .mutation(async ({ ctx, input }) => {
       try {
         return await removeFind(ctx.prisma, input);
+      } catch (err) {
+        throw toTrpc(err);
+      }
+    }),
+
+  note: publicProcedure
+    .input(
+      z.object({
+        entryId: objectId,
+        deviceKey,
+        note: z
+          .string()
+          .max(NOTE_MAX * 4)
+          .nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await setNote(ctx.prisma, input);
       } catch (err) {
         throw toTrpc(err);
       }

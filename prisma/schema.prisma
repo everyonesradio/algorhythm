@@ -153,16 +153,14 @@ model LinkIndex {
   @@index([mbid])
 }
 
-// The public library: records diggers have actually found and scanned. One
-// entry per scan, added from the result drawer (docs/PUBLIC_LIBRARY.md).
-// Open and anonymous for now: no handles or profiles until the music
-// education ("Letterboxd for music") phase.
+// The public library: records people have scanned, added automatically once
+// a scan identifies the album; one entry per phone per record
+// (docs/PUBLIC_LIBRARY.md). Separate from the recognition index above.
 model LibraryEntry {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
   albumId       String   @db.ObjectId
   album         Album    @relation(fields: [albumId], references: [id], onDelete: Cascade)
   scanId        String   @unique @db.ObjectId // one find per scan
-  coverUrl      String? // the art that matched (pressing / Spotify)
   deviceKeyHash String // lets the same device remove it
   note          String? // up to 140 characters
   hidden        Boolean  @default(false) // moderation
@@ -170,6 +168,7 @@ model LibraryEntry {
   createdAt     DateTime @default(now())
 
   @@index([albumId, createdAt])
+  @@index([albumId, deviceKeyHash])
   @@index([createdAt])
   @@index([deviceKeyHash, createdAt])
 }
