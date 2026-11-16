@@ -5,35 +5,12 @@ import { ImageResponse } from "next/og";
 
 import prisma from "@lib/prisma";
 
+import { coverData } from "@/server/services/og/cover-data";
+
 export const runtime = "nodejs";
 export const revalidate = 3600;
 
 const SIZE = { width: 1200, height: 630 };
-const COVER_HOSTS =
-  /(^|\.)(coverartarchive\.org|archive\.org|scdn\.co|discogs\.com)$/;
-
-// The renderer can't draw WebP, so JPEG/PNG only.
-const coverData = async (url: string | null) => {
-  if (!url) return null;
-  try {
-    if (!COVER_HOSTS.test(new URL(url).hostname)) return null;
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent":
-          "algoRhythm/0.1 (+https://github.com/everyonesradio/algorhythm)",
-      },
-      signal: AbortSignal.timeout(6000),
-    });
-    const type = res.headers.get("content-type") ?? "";
-    if (!res.ok || !/^image\/(jpeg|png)/.test(type)) return null;
-    const bytes = Buffer.from(await res.arrayBuffer());
-    if (bytes.length > 4 * 1024 * 1024) return null;
-    return `data:${type.split(";")[0]};base64,${bytes.toString("base64")}`;
-  } catch {
-    return null;
-  }
-};
-
 // Font files must be listed in outputFileTracingIncludes.
 let fonts: Promise<{ display: Buffer; body: Buffer }> | null = null;
 const loadFonts = () =>

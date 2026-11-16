@@ -50,6 +50,8 @@ const { startScanIngest } =
   await import("@/server/services/catalog/background");
 const { vinylRouter } = await import("@/server/api/routers/vinyl");
 const { createCallerFactory } = await import("@/server/api/trpc");
+const { MAX_USER_SCANS_PER_ALBUM } =
+  await import("@/server/services/vinyl/confirm-scan");
 
 const KDOT = "381086ea-f511-4aba-bdf9-71c753dc5077";
 const GNX = "11111111-2222-3333-4444-555555555555";
@@ -279,6 +281,15 @@ describe("vinyl router", () => {
     ).rejects.toThrow(/Vector size/);
   });
 
+  it("rejects an oversized vector before checking its size against the model", async () => {
+    await expect(
+      caller.identify({
+        model: "clip-vit-b32",
+        vectors: [new Array<number>(100_000).fill(0)],
+      })
+    ).rejects.toThrow(/too_big/);
+  });
+
   it("stores the confirmed scan as a new user_scan embedding, once, and requests the catalog", async () => {
     const { scanId } = await caller.identify({
       model: "clip-vit-b32",
@@ -402,6 +413,45 @@ describe("vinyl router", () => {
       await expect(caller.pick({ scanId: scanId!, mbid: GNX })).rejects.toThrow(
         /expired/
       );
+    });
+
+    it("does not add another scan vector once the picked album has enough", async () => {
+      const gnxId = oid(50);
+      prisma.albums.push({
+        id: gnxId,
+        sourceKey: `mb:${GNX}`,
+        title: "GNX",
+        artist: "Kendrick Lamar",
+        artistMbid: KDOT,
+        genres: [],
+        tags: [],
+        labels: [],
+        coverUrl: "gnx.jpg",
+        releaseYear: 2024,
+      });
+      for (let i = 0; i < MAX_USER_SCANS_PER_ALBUM; i++) {
+        prisma.embeddings.push({
+          albumId: gnxId,
+          model: "clip-vit-b32",
+          vector: vec(400 + i),
+          source: "user_scan",
+        });
+      }
+      const { scanId } = await caller.identify({
+        model: "clip-vit-b32",
+        vectors: [vec(300)],
+        log: true,
+      });
+
+      const { album } = await caller.pick({ scanId: scanId!, mbid: GNX });
+
+      expect(album.id).toBe(gnxId);
+      expect(
+        prisma.embeddings.filter(
+          (e) => e.albumId === gnxId && e.source === "user_scan"
+        )
+      ).toHaveLength(MAX_USER_SCANS_PER_ALBUM);
+      expect(prisma.scans[0].confirmedAlbumId).toBe(gnxId);
     });
 
     it("returns the same album if a scan is picked twice", async () => {

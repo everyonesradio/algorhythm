@@ -1,12 +1,19 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import react from "@vitejs/plugin-react";
 import tsconfigPaths from "vite-tsconfig-paths";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [tsconfigPaths(), react()],
   test: {
     environment: "jsdom",
+    // Agent skill folders carry their own node:test suites.
+    exclude: [
+      ...configDefaults.exclude,
+      ".claude/**",
+      ".cursor/**",
+      ".agents/**",
+    ],
   },
 });
