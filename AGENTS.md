@@ -25,6 +25,10 @@ skills are real folders under `.cursor/skills/` and `.claude/skills/`.
 
 Overview: `docs/agents/PLAYBOOK-START-HERE.md`
 
+Security: any review touching user input, the shared catalog/index, secrets,
+CI, headers, or an LLM/agent/MCP tool follows `.claude/skills/security-harness/`
+and `docs/security/THREAT-MODEL.md`.
+
 ### Engineering (after the ask is clear)
 
 Router: **`/ask-matt`**. Common path: grill → domain-modeling → to-spec →

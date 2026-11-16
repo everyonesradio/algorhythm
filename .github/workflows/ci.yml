@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SKIP_ENV_VALIDATION: "1"
+  # The browser download is only needed by puppeteer at runtime, never in CI.
+  PUPPETEER_SKIP_DOWNLOAD: "true"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # Generates the client only; it never connects to a database.
+      - run: npx prisma generate
+      - run: npm run type-check
+      - run: npm run lint
+      - run: npm test -- --run

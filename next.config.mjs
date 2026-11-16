@@ -5,9 +5,48 @@
  */
 const nodeOnlyStub = { browser: "./src/lib/stubs/empty.js" };
 
+// Report-only until the browser reports are reviewed. Hosts come from the
+// code: transformers.js loads CLIP weights from Hugging Face (which redirects
+// to its hf.co CDN) and the onnxruntime-web wasm from jsDelivr; covers come
+// from Spotify, Cover Art Archive (redirects to archive.org) and Discogs.
+const coverHosts =
+  "https://i.scdn.co https://coverartarchive.org https://archive.org https://*.archive.org https://i.discogs.com";
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net",
+  "style-src 'self' 'unsafe-inline'",
+  `img-src 'self' data: blob: ${coverHosts}`,
+  "font-src 'self' data:",
+  `connect-src 'self' blob: data: https://huggingface.co https://*.huggingface.co https://*.hf.co https://cdn.jsdelivr.net ${coverHosts}`,
+  "worker-src 'self' blob:",
+  "media-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+const securityHeaders = [
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains",
+  },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "X-Frame-Options", value: "DENY" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(self), microphone=(), geolocation=()",
+  },
+  { key: "Content-Security-Policy-Report-Only", value: contentSecurityPolicy },
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
   // Keep Turbopack rooted on this app when a parent-directory lockfile exists.
   turbopack: {
     root: import.meta.dirname,
