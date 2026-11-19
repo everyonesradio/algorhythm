@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "security-harness/finding.schema.json",
+  "title": "Security harness finding",
+  "description": "Documentation of the record scripts/harness.mjs accepts. The script enforces these rules itself (zero dependencies) plus checks a schema can't express: cited files and lines exist, trace roles are ordered, verdict-specific fields.",
+  "type": "object",
+  "required": ["fingerprint", "title", "attack_class", "threat_model", "trace", "proposed_verdict"],
+  "additionalProperties": false,
+  "properties": {
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+-]*$",
+      "description": "Source-derived, stable across runs: <attack_class>:<repo-path>:<symbol>. Never a line number, agent, wave or severity."
+    },
+    "title": { "type": "string", "minLength": 8 },
+    "attack_class": { "type": "string" },
+    "unit_id": { "type": "string" },
+    "threat_model": {
+      "type": "object",
+      "required": ["attacker", "entry_point", "boundary", "asset"],
+      "additionalProperties": false,
+      "properties": {
+        "attacker": { "type": "string", "description": "Lowest-trust principal and starting capability" },
+        "entry_point": { "type": "string" },
+        "boundary": { "type": "string", "description": "Boundary crossed or assumption broken" },
+        "asset": { "type": "string", "description": "Principal, data or resource affected" }
+      }
+    },
+    "trace": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["path", "role"],
+        "additionalProperties": false,
+        "properties": {
+          "path": { "type": "string", "description": "Repo-relative" },
+          "line": { "type": "integer", "minimum": 1 },
+          "role": { "enum": ["entrypoint", "propagation", "control", "sink"] },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "impact": { "type": "string" },
+    "proposed_verdict": { "enum": ["confirmed", "needs_validation"] },
+    "poc": {
+      "type": "object",
+      "required": ["kind", "command", "expected"],
+      "properties": {
+        "kind": { "enum": ["test", "request", "fixture", "script"] },
+        "command": { "type": "string" },
+        "path": { "type": "string" },
+        "source": { "type": "string", "description": "PoC test body, when it isn't committed yet" },
+        "expected": { "type": "string", "description": "What the PoC shows on untouched code" }
+      }
+    },
+    "patch": { "type": "string", "description": "Unified diff of the smallest fix" },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "validation_plan": { "type": "string" },
+    "notes": { "type": "string" }
+  }
+}

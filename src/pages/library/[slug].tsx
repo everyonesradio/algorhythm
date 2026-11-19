@@ -20,7 +20,7 @@ import { IoArrowBack, IoCameraOutline, IoShareOutline } from "react-icons/io5";
 const Sleeve3D = dynamic(() => import("@/components/sleeve-3d"), {
   ssr: false,
   loading: () => (
-    <div className='aspect-square w-full max-w-[420px] animate-pulse rounded-md bg-black/5' />
+    <div className='aspect-square w-full max-w-105 animate-pulse rounded-md bg-black/5' />
   ),
 });
 
@@ -32,7 +32,7 @@ type Props = {
 };
 
 const describe = (album: VinylAlbum, count: number) =>
-  `${album.title} by ${album.artist}${album.releaseYear ? ` (${album.releaseYear})` : ""}. ${scannedTimes(count)} by diggers on algoRhythm: listen on every streaming app and see the tracklist.`;
+  `${album.title} by ${album.artist}${album.releaseYear ? ` (${album.releaseYear})` : ""}. ${scannedTimes(count)} by listeners on algoRhythm: listen on every streaming app and see the tracklist.`;
 
 const AlbumPage = ({ album, count, url, ogImage }: Props) => {
   const [shared, setShared] = useState<"copied" | "failed" | null>(null);
@@ -99,7 +99,7 @@ const AlbumPage = ({ album, count, url, ogImage }: Props) => {
 
           <div className='grid gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:gap-12'>
             <div className='flex flex-col items-center gap-6 md:sticky md:top-8 md:self-start'>
-              <div className='aspect-square w-full max-w-[420px]'>
+              <div className='aspect-square w-full max-w-105'>
                 <Sleeve3D coverArt={album.coverUrl} />
               </div>
             </div>
@@ -134,7 +134,7 @@ const AlbumPage = ({ album, count, url, ogImage }: Props) => {
                 </p>
                 <Link
                   href='/scan-vinyl'
-                  className='flex items-center justify-center gap-2 rounded-full bg-black px-4 py-2.5 text-sm font-medium text-white transition-transform duration-[120ms] active:scale-[0.97]'
+                  className='flex items-center justify-center gap-2 rounded-full bg-black px-4 py-2.5 text-sm font-medium text-white transition-transform duration-120 active:scale-[0.97]'
                 >
                   <IoCameraOutline className='text-lg' />
                   Scan a record

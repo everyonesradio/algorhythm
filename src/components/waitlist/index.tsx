@@ -21,6 +21,8 @@ const swap = {
 const Waitlist = () => {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Honeypot: hidden from people, filled in by bots.
+  const [hp, setHp] = useState("");
   const join = api.waitlist.add.useMutation();
 
   const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -32,7 +34,7 @@ const Waitlist = () => {
     }
     setError(null);
     join.mutate(
-      { email: value },
+      { email: value, hp: hp || undefined },
       {
         onError: () =>
           setError("We couldn't save your spot. Give it another try."),
@@ -63,7 +65,7 @@ const Waitlist = () => {
             </p>
             <Link
               href='/scan-vinyl'
-              className='flex h-12 items-center justify-center gap-2 rounded-full bg-black px-5 font-semibold text-white transition-transform duration-[120ms] active:scale-[0.97]'
+              className='flex h-12 items-center justify-center gap-2 rounded-full bg-black px-5 font-semibold text-white transition-transform duration-120 active:scale-[0.97]'
             >
               Scan your first record
               <ArrowRight className='h-4 w-4' />
@@ -75,7 +77,7 @@ const Waitlist = () => {
             {...swap}
             onSubmit={onSubmit}
             noValidate
-            className='flex flex-col gap-2'
+            className='relative flex flex-col gap-2'
           >
             <div className='flex flex-col gap-2 sm:flex-row'>
               <label className='sr-only' htmlFor='waitlist-email'>
@@ -94,7 +96,7 @@ const Waitlist = () => {
                   if (error) setError(null);
                 }}
                 aria-invalid={!!error}
-                aria-describedby='waitlist-msg'
+                aria-describedby='waitlist-msg waitlist-consent'
                 disabled={join.isPending}
                 // 16px text on mobile stops iOS zooming in on focus.
                 className='h-12 w-full rounded-full border-2 border-black bg-white px-5 text-base placeholder:text-black/40 focus:outline-none focus-visible:ring-4 focus-visible:ring-black/15 disabled:opacity-60 aria-[invalid=true]:border-red-600'
@@ -102,7 +104,7 @@ const Waitlist = () => {
               <button
                 type='submit'
                 disabled={join.isPending}
-                className='flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-black px-6 font-semibold text-white transition-transform duration-[120ms] active:scale-[0.97] disabled:opacity-80'
+                className='flex h-12 shrink-0 items-center justify-center gap-2 rounded-full bg-black px-6 font-semibold text-white transition-transform duration-120 active:scale-[0.97] disabled:opacity-80'
               >
                 {join.isPending ? (
                   <>
@@ -114,12 +116,40 @@ const Waitlist = () => {
                 )}
               </button>
             </div>
+            <div
+              aria-hidden='true'
+              className='absolute -left-[9999px] h-px w-px overflow-hidden'
+            >
+              <label htmlFor='waitlist-hp'>Leave this empty</label>
+              <input
+                id='waitlist-hp'
+                name='hp_extra'
+                type='text'
+                tabIndex={-1}
+                autoComplete='off'
+                value={hp}
+                onChange={(e) => setHp(e.target.value)}
+              />
+            </div>
             <p
               id='waitlist-msg'
               aria-live='polite'
-              className={`min-h-5 px-5 text-sm ${error ? "text-red-700" : "text-black/60"}`}
+              className='min-h-5 px-5 text-sm text-red-700 empty:hidden'
             >
-              {error ?? "Free while we're in early access. No spam, ever."}
+              {error}
+            </p>
+            <p
+              id='waitlist-consent'
+              className='px-5 text-xs leading-relaxed text-black/55'
+            >
+              We&apos;ll email you about early access, launches and algoRhythm
+              events. Unsubscribe anytime.{" "}
+              <Link
+                href='/privacy'
+                className='underline underline-offset-2 hover:text-black'
+              >
+                Privacy policy
+              </Link>
             </p>
           </motion.form>
         )}

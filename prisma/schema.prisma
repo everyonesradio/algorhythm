@@ -13,10 +13,16 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Early-access signups. consentVersion + source record what the person
+// agreed to and where; welcomeSentAt makes the welcome email one per address.
 model Waitlist {
-  id        String    @id @default(auto()) @map("_id") @db.ObjectId
-  email     String
-  timestamp DateTime?
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  email          String    @unique
+  // When they signed up.
+  timestamp      DateTime?
+  consentVersion String?
+  source         String?
+  welcomeSentAt  DateTime?
 }
 
 // ---------------------------------------------------------------------------

@@ -30,7 +30,10 @@ import {
   maybeSweepScanLog,
   scanIsActionable,
 } from "@/server/services/vinyl/scan-log";
-import { confirmScan } from "@/server/services/vinyl/confirm-scan";
+import {
+  confirmScan,
+  MAX_USER_SCANS_PER_ALBUM,
+} from "@/server/services/vinyl/confirm-scan";
 import { getAlbumLinks } from "@/server/services/vinyl/links";
 import { albumLinkDeps, indexAlbumLinks } from "@/server/services/links/server";
 import {
@@ -50,6 +53,10 @@ const modelKeys = Object.keys(EMBEDDING_MODELS) as [
   ...EmbeddingModelKey[],
 ];
 
+const MAX_DIMS = Math.max(
+  ...Object.values(EMBEDDING_MODELS).map((m) => m.dims)
+);
+
 const objectId = z.string().regex(/^[a-f\d]{24}$/i);
 const mbid = z.string().regex(/^[0-9a-f-]{36}$/i);
 
@@ -68,7 +75,10 @@ export const vinylRouter = createTRPCRouter({
       z
         .object({
           model: z.enum(modelKeys),
-          vectors: z.array(z.array(z.number().finite())).min(1).max(3),
+          vectors: z
+            .array(z.array(z.number().finite()).max(MAX_DIMS))
+            .min(1)
+            .max(3),
           log: z.boolean().optional(),
           probe: z.boolean().optional(),
         })
@@ -282,14 +292,19 @@ export const vinylRouter = createTRPCRouter({
         });
       }
 
-      await ctx.prisma.coverEmbedding.create({
-        data: {
-          albumId: album.id,
-          model: scan.model,
-          vector: scan.vector,
-          source: "user_scan",
-        },
+      const userScans = await ctx.prisma.coverEmbedding.count({
+        where: { albumId: album.id, model: scan.model, source: "user_scan" },
       });
+      if (userScans < MAX_USER_SCANS_PER_ALBUM) {
+        await ctx.prisma.coverEmbedding.create({
+          data: {
+            albumId: album.id,
+            model: scan.model,
+            vector: scan.vector,
+            source: "user_scan",
+          },
+        });
+      }
       await ctx.prisma.scanEvent.update({
         where: { id: scan.id },
         data: { confirmedAlbumId: album.id, confirmedAt: new Date() },

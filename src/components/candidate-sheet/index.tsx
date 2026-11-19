@@ -100,7 +100,7 @@ const ReleaseRow = ({
   picking: string | null;
 }) => (
   <button
-    className='flex w-full items-center gap-3 rounded-lg p-2 text-left transition-[transform,background-color] duration-[120ms] hover:bg-gray-100 active:scale-[0.98] disabled:opacity-50'
+    className='flex w-full items-center gap-3 rounded-lg p-2 text-left transition-[transform,background-color] duration-120 hover:bg-gray-100 active:scale-[0.98] disabled:opacity-50'
     onClick={() => onPick(r.mbid)}
     disabled={!!picking}
   >
@@ -258,7 +258,7 @@ const CandidateSheet: React.FC<Props> = ({
   };
 
   const chip =
-    "rounded-full border border-gray-300 px-3 py-1.5 text-sm transition-[transform,background-color] duration-[120ms] hover:bg-gray-100 active:scale-[0.97]";
+    "rounded-full border border-gray-300 px-3 py-1.5 text-sm transition-[transform,background-color] duration-120 hover:bg-gray-100 active:scale-[0.97]";
 
   return (
     <Sheet
@@ -315,7 +315,7 @@ const CandidateSheet: React.FC<Props> = ({
                   {matches.slice(0, SUGGESTED).map((m, i) => (
                     <motion.li key={m.album.id} variants={item}>
                       <button
-                        className='flex w-full items-center gap-3 rounded-lg p-2 text-left transition-[transform,background-color] duration-[120ms] hover:bg-gray-100 active:scale-[0.98]'
+                        className='flex w-full items-center gap-3 rounded-lg p-2 text-left transition-[transform,background-color] duration-120 hover:bg-gray-100 active:scale-[0.98]'
                         onClick={() => onPickMatch(i)}
                       >
                         <span className='w-14 shrink-0'>

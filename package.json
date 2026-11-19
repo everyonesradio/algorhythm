@@ -23,7 +23,8 @@
     "vinyl:worker": "tsx scripts/ingest-worker.ts",
     "vinyl:remove": "tsx scripts/remove-album.ts",
     "vinyl:status": "tsx scripts/vinyl-status.ts",
-    "vinyl:links": "tsx scripts/prefetch-links.ts"
+    "vinyl:links": "tsx scripts/prefetch-links.ts",
+    "waitlist:dedupe": "tsx scripts/waitlist-dedupe.ts"
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",

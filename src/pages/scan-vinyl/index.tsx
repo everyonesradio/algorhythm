@@ -378,7 +378,7 @@ const VinylScan = () => {
           : hint;
 
   return (
-    <div className='relative h-[100dvh] w-full overflow-hidden bg-black text-white'>
+    <div className='relative h-dvh w-full overflow-hidden bg-black text-white'>
       <video
         ref={videoRef}
         playsInline
@@ -408,7 +408,7 @@ const VinylScan = () => {
 
       <Link
         href='/library'
-        className='absolute right-4 top-12 z-30 rounded-full bg-black/60 px-3 py-1.5 text-sm text-white backdrop-blur transition-transform duration-[120ms] active:scale-[0.97]'
+        className='absolute right-4 top-12 z-30 rounded-full bg-black/60 px-3 py-1.5 text-sm text-white backdrop-blur transition-transform duration-120 active:scale-[0.97]'
       >
         Library
       </Link>
@@ -457,7 +457,7 @@ const VinylScan = () => {
         </div>
 
         <button
-          className='flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-black transition-[transform,opacity] duration-[120ms] active:scale-[0.97] disabled:opacity-50'
+          className='flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-black transition-[transform,opacity] duration-120 active:scale-[0.97] disabled:opacity-50'
           disabled={embedder.status !== "ready" || busyUpload}
           onClick={() => fileInput.current?.click()}
         >
@@ -511,7 +511,7 @@ const VinylScan = () => {
               <p className='mt-1 text-sm text-black/70'>{notice.body}</p>
             </div>
             <button
-              className='flex h-12 items-center justify-center rounded-full bg-black px-5 font-semibold text-white transition-transform duration-[120ms] active:scale-[0.97]'
+              className='flex h-12 items-center justify-center rounded-full bg-black px-5 font-semibold text-white transition-transform duration-120 active:scale-[0.97]'
               onClick={() => setNoticeOpen(false)}
             >
               Try again

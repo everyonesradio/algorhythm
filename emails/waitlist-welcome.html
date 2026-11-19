@@ -1,0 +1,140 @@
+<!doctype html>
+<!--
+  algoRhythm · waitlist welcome email (SendGrid dynamic template)
+
+  Paste into SendGrid: Email API → Dynamic Templates → Add version → Code editor.
+  Subject (template settings): You're on the algoRhythm waitlist
+  Plain text: leave "Plain Text" auto-generated, or paste emails/waitlist-welcome.txt.
+
+  Data sent by src/server/services/waitlist/sendgrid.ts:
+    site_url, demo_url, library_url, privacy_url, has_unsubscribe
+  {{{unsubscribe}}} is filled in by SendGrid when the send has an
+  unsubscribe group (SENDGRID_UNSUBSCRIBE_GROUP_ID).
+
+  Before launch: replace POSTAL_ADDRESS below (required for marketing email).
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light only" />
+    <meta name="supported-color-schemes" content="light" />
+    <title>You're on the algoRhythm waitlist</title>
+    <style>
+      body { margin: 0; padding: 0; background: #f4f0e8; }
+      a { color: #111111; }
+      @media (max-width: 620px) {
+        .container { width: 100% !important; }
+        .px { padding-left: 20px !important; padding-right: 20px !important; }
+        .h1 { font-size: 28px !important; }
+      }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background:#f4f0e8;">
+    <!-- Inbox preview text -->
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#f4f0e8;">
+      You're in. We'll email you when early access opens. The demo is already open.
+      &#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f0e8;">
+      <tr>
+        <td align="center" style="padding:0;">
+          <table role="presentation" class="container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
+            <!-- Header: the landing page's record in its sleeve -->
+            <tr>
+              <td style="padding:28px 0 0 0;">
+                <a href="{{site_url}}" style="text-decoration:none;">
+                  <img
+                    src="{{site_url}}/email/waitlist-header.png"
+                    width="600"
+                    alt="algoRhythm"
+                    style="display:block;width:100%;max-width:600px;height:auto;border:0;"
+                  />
+                </a>
+              </td>
+            </tr>
+
+            <!-- Card -->
+            <tr>
+              <td class="px" style="padding:8px 32px 0 32px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border:2px solid #111111;border-radius:16px;">
+                  <tr>
+                    <td class="px" style="padding:32px 32px 28px 32px;font-family:Helvetica,Arial,sans-serif;color:#111111;">
+                      <h1 class="h1" style="margin:0 0 12px 0;font-size:32px;line-height:1.1;font-weight:700;letter-spacing:-0.5px;">
+                        You're on the list.
+                      </h1>
+                      <p style="margin:0 0 16px 0;font-size:16px;line-height:1.55;color:#444444;">
+                        Thanks for joining the algoRhythm waitlist. We'll email you
+                        about product updates and when early access opens.
+                      </p>
+                      <p style="margin:0 0 24px 0;font-size:16px;line-height:1.55;color:#444444;">
+                        In the meantime, grab a record, point your phone at the sleeve, 
+                        and we'll find it on the streaming app you already use.
+                      </p>
+
+                      <!-- Button -->
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td align="center" bgcolor="#111111" style="border-radius:999px;">
+                            <a
+                              href="{{demo_url}}"
+                              style="display:inline-block;padding:15px 28px;font-family:Helvetica,Arial,sans-serif;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:999px;"
+                            >Scan your first record &rarr;</a>
+                          </td>
+                        </tr>
+                      </table>
+
+                      <p style="margin:20px 0 0 0;font-size:14px;line-height:1.5;color:#666666;">
+                        Or see what other listeners have found in our
+                        <a href="{{library_url}}" style="color:#111111;text-decoration:underline;">public library</a>.
+                      </p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Steps, as on the landing page -->
+            <tr>
+              <td class="px" style="padding:20px 32px 0 32px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td width="33%" valign="top" style="padding:0 6px 0 0;font-family:Helvetica,Arial,sans-serif;">
+                      <p style="margin:0;font-size:13px;font-weight:700;color:#111111;"><span style="color:#aaaaaa;">1</span>&nbsp; Point</p>
+                      <p style="margin:4px 0 0 0;font-size:13px;line-height:1.45;color:#666666;">Hold a sleeve up to your camera.</p>
+                    </td>
+                    <td width="33%" valign="top" style="padding:0 3px;font-family:Helvetica,Arial,sans-serif;">
+                      <p style="margin:0;font-size:13px;font-weight:700;color:#111111;"><span style="color:#aaaaaa;">2</span>&nbsp; Match</p>
+                      <p style="margin:4px 0 0 0;font-size:13px;line-height:1.45;color:#666666;">We recognise the cover in a second or two.</p>
+                    </td>
+                    <td width="33%" valign="top" style="padding:0 0 0 6px;font-family:Helvetica,Arial,sans-serif;">
+                      <p style="margin:0;font-size:13px;font-weight:700;color:#111111;"><span style="color:#aaaaaa;">3</span>&nbsp; Listen</p>
+                      <p style="margin:4px 0 0 0;font-size:13px;line-height:1.45;color:#666666;">Open in Spotify, Apple Music and more.</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td class="px" align="center" style="padding:36px 32px 40px 32px;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;color:#888888;">
+                <p style="margin:0 0 8px 0;">
+                  You're getting this because you joined the algoRhythm waitlist.
+                  If that wasn't you,
+                  {{#if has_unsubscribe}}<a href="{{{unsubscribe}}}" style="color:#888888;text-decoration:underline;">unsubscribe</a>{{else}}reply to this email{{/if}}
+                  and you won't hear from us again.
+                </p>
+                <p style="margin:0 0 8px 0;">
+                  {{#if has_unsubscribe}}<a href="{{{unsubscribe}}}" style="color:#888888;text-decoration:underline;">Unsubscribe</a> &middot; {{/if}}<a href="{{privacy_url}}" style="color:#888888;text-decoration:underline;">Privacy policy</a>
+                </p>
+                <p style="margin:0;">algoRhythm by Everyone's Radio &middot; POSTAL_ADDRESS</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

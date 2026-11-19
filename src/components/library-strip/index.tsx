@@ -26,7 +26,7 @@ const LibraryStrip = () => {
             From the library
           </p>
           <h2 className='text-xl font-bold tracking-tight sm:text-2xl'>
-            What diggers are finding
+            What listeners are finding
           </h2>
         </div>
         <Link

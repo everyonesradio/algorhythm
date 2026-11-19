@@ -25,6 +25,10 @@ skills are real folders under `.cursor/skills/` and `.claude/skills/`.
 
 Overview: `docs/agents/PLAYBOOK-START-HERE.md`
 
+Security: any review touching user input, the shared catalog/index, secrets,
+CI, headers, or an LLM/agent/MCP tool follows `.claude/skills/security-harness/`
+and the local threat model in `.security/` (gitignored).
+
 ### Engineering (after the ask is clear)
 
 Router: **`/ask-matt`**. Common path: grill → domain-modeling → to-spec →
@@ -85,6 +89,7 @@ PR titles are **not** commit messages. They are a short Title Case headline for 
 | `./scripts/seed-local.sh` | Schema + vector index + seed covers (see `docs/VINYL_RECOGNITION.md`) |
 | `npm run vinyl:seed` / `vinyl:index` / `vinyl:eval` / `vinyl:synth` | Recognition catalog + accuracy tooling |
 | `npm run vinyl:status` / `vinyl:remove` / `vinyl:worker` / `vinyl:links` | Catalog upkeep: vinyl status + pruning, remove one album, finish ingest jobs, prefetch streaming links |
+| `npm run waitlist:dedupe` | Merge duplicate waitlist emails (dry run without `--yes`) |
 
 ## Architecture sketch
 

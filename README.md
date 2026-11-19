@@ -35,6 +35,7 @@ npm run dev                     # open /scan-vinyl
 | `npm run vinyl:status [-- --prune [--yes]]` | Record which albums were pressed on vinyl; prune the rest (dry run without `--yes`) |
 | `npm run vinyl:remove -- --mbid <id> [--yes]` | Remove one album and its vectors |
 | `npm run vinyl:links [-- --refresh]` | Resolve + store streaming links for catalog albums ahead of time |
+| `npm run waitlist:dedupe [-- --yes]` | Merge duplicate waitlist emails before `prisma db push` builds the unique index |
 | `npm run vinyl:index` | Create/update the Atlas vector index |
 | `npm run vinyl:eval -- --dir ./photos` | Measure accuracy on real photos and calibrate thresholds |
 | `npm run vinyl:synth -- --out ./eval-synthetic` | Generate phone-style test photos of seeded covers (+ negatives) |
@@ -43,6 +44,11 @@ npm run dev                     # open /scan-vinyl
 Spotify credentials are server-only: `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET`
 (the old `NEXT_PUBLIC_SPOTIFY_*` names were removed because they exposed the
 secret to the browser).
+
+The waitlist welcome email uses SendGrid: `SENDGRID_API_KEY` (Mail Send only),
+`SENDGRID_FROM_EMAIL`, `SENDGRID_WAITLIST_TEMPLATE_ID` and
+`SENDGRID_UNSUBSCRIBE_GROUP_ID`. The template is `emails/waitlist-welcome.html`;
+setup and compliance steps are in `docs/WAITLIST_EMAIL_COMPLIANCE.md`.
 
 ## Getting Started
 
@@ -59,8 +65,6 @@ pnpm dev
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
-
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
 
 The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
 

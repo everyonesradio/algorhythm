@@ -31,7 +31,7 @@ const StreamingLinks: React.FC<{
         href={album.spotifyUrl ?? spotifySearchUrl}
         target='_blank'
         rel='noreferrer'
-        className='flex w-full items-center space-x-2 rounded-full bg-black p-2 px-4 text-white transition-transform duration-[120ms] active:scale-[0.97]'
+        className='flex w-full items-center space-x-2 rounded-full bg-black p-2 px-4 text-white transition-transform duration-120 active:scale-[0.97]'
       >
         <FaSpotify className='text-lg' />
         <span>
