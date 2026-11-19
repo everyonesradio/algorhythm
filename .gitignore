@@ -46,3 +46,6 @@ next-env.d.ts
 /eval-far/
 /eval-close/
 /eval-veryclose/
+
+# private security notes (threat model) — never commit
+.security/

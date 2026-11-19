@@ -45,7 +45,7 @@ Same root cause = one finding, even across many endpoints; one fix should close 
 
 ## 5. Judge and fix
 
-For each confirmed finding, a judgment pass decides priority: internet-reachable and unauthenticated first, then authenticated cross-tenant, then internal, then latent. It also checks the bug still exists on the default branch and names the owner (CODEOWNERS / git blame).
+For each confirmed finding, a judgment pass decides priority: internet-reachable and unauthenticated first, then authenticated cross-tenant, then internal, then latent. It also checks the bug still exists on the default branch and names the owner (git blame / the team that owns the area).
 
 The fixer rewrites the patch to repo style, adds the PoC as a regression test, and runs the relevant suite before and after. Required: a clean red → green flip and no new failures. A failing post-patch suite or downstream regression blocks the branch and goes to a human. The fixer opens a PR; it never merges or deploys. One root cause per PR so review stays small; critical/high get fast-tracked.
 
@@ -60,7 +60,7 @@ Rendered from state by a script, no model: run metadata, coverage (covered / sha
 Where results go:
 - Confirmed, unfixed findings → private: a GitHub Security Advisory draft or a restricted Linear ticket. Never a public issue, PR title, or commit message that describes an exploitable unfixed bug in a public repo.
 - Fix PRs describe the invariant enforced ("deal endpoints now scope by organization"), not a step-by-step exploit.
-- Harness state stays outside the repo; commit only `THREAT-MODEL.md` updates and regression tests.
+- Harness state stays outside the repo and the threat model stays in gitignored `.security/`; commit only fixes and regression tests.
 
 ## Triage mode
 

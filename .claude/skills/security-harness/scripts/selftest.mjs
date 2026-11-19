@@ -110,3 +110,37 @@ test("uncovered surfaces become new units; changed source requeues covered units
   assert.equal(r2.id, "run-2");
   assert.ok(r2.requeued.includes(u.id));
 });
+
+test("a needs_validation finding can later gain proof; changed evidence clears an old verdict", () => {
+  const { run, json } = fixture();
+  run("init");
+  const nv = finding({ proposed_verdict: "needs_validation", poc: undefined, patch: undefined, blockers: ["prod org scoping unknown"], validation_plan: "owner checks the org filter in prod config" });
+  run("finding", "add", json("nv.json", nv), "--agent", "hunter-1");
+  assert.throws(() => run("verdict", nv.fingerprint, "--agent", "validator-1", "--verdict", "confirmed", "--reachability", "internet_authenticated", "--severity", "high"), /valid proof/);
+  const res = run("finding", "add", json("full.json", finding()), "--agent", "hunter-2");
+  assert.ok(res.updated.includes("poc") && res.updated.includes("patch"));
+  run("verdict", nv.fingerprint, "--agent", "validator-1", "--verdict", "confirmed", "--reachability", "internet_authenticated", "--severity", "high");
+  const changedPatch = finding().patch.replace("org__members=user", "organization__in=user.orgs");
+  run("finding", "add", json("fix.json", finding({ patch: changedPatch })), "--agent", "hunter-3");
+  assert.equal(run("status").findings.candidate, 1);
+  assert.equal(run("status").findings.confirmed, 0);
+});
+
+test("a candidate unit whose candidate fails the checks stays blocked, not covered", () => {
+  const { run, json } = fixture();
+  run("init");
+  run("unit", "import", json("units.json", [unit]));
+  const [u] = run("next", "--agent", "hunter-1");
+  const res = run("submit", "hunter-1", json("r.json", { units: [{ unit_id: u.id, disposition: "candidate", reviewed_paths: ["api/deals.py"] }], candidates: [finding({ unit_id: u.id, patch: "nope" })] }));
+  assert.equal(res.closed[u.id], "blocked");
+  assert.equal(run("gapfill").empty_cells.length, 1);
+});
+
+test("malformed proof is rejected even on needs_validation, so reports can't crash", () => {
+  const { run, json, repo } = fixture();
+  const bad = finding({ proposed_verdict: "needs_validation", poc: { kind: "test" }, patch: 123, blockers: ["x"], validation_plan: "y" });
+  assert.ok(checkFinding(repo, bad).some((e) => e.includes("unified diff")));
+  assert.ok(checkFinding(repo, bad).some((e) => e.includes("poc")));
+  run("init");
+  assert.throws(() => run("finding", "add", json("bad.json", bad), "--agent", "hunter-1"), /deterministic checks/);
+});

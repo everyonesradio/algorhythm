@@ -64,7 +64,7 @@ node <skill-dir>/scripts/harness.mjs submit hunter-07 result.json
 
 ## Attack classes
 
-Use these plus the repo-specific classes in `THREAT-MODEL.md`. Ids in backticks are the `attack_class` values.
+Use these plus the repo-specific classes in `.security/THREAT-MODEL.md`. Ids in backticks are the `attack_class` values.
 
 - `access-control` — Not "does a check exist" but "is it the right check for the right resource". Find the codebase's ownership helper, then find every handler that loads an object by id without it: nested ids (`/orgs/{a}/deals/{b}` where `b` isn't scoped to `a`), list/search/export/bulk paths, serializers that accept `owner_id`/`org_id`/`role` from the body (mass assignment), admin-only actions reachable by members, soft-deleted or archived objects.
 - `authn` — routes missing the auth dependency; middleware matchers that skip paths; token verification that accepts expired/unsigned/wrong-audience tokens; dev/test bypass flags reachable in prod; account linking and invite acceptance binding to the wrong identity.

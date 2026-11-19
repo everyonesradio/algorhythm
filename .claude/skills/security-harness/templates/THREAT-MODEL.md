@@ -1,6 +1,6 @@
 # Threat model — <repo>
 
-The `security-harness` skill reads this file before every security review and audit. Keep it short, factual, and current. Update it in the same PR that changes a boundary, adds an entry surface, or adds an agent tool.
+Lives at `.security/THREAT-MODEL.md`, which is **gitignored: never commit or share it**. The `security-harness` skill reads this file before every security review and audit. Keep it short, factual, and current. Update it in the same PR that changes a boundary, adds an entry surface, or adds an agent tool.
 
 ## Product and assets
 

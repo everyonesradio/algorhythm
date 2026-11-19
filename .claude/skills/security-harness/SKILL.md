@@ -7,7 +7,7 @@ description: Security policy and vulnerability harness for this repo. Use for an
 
 Find bugs that cross a real **trust boundary**, prove them against **untouched code**, and ship the smallest fix with a regression test. Adapted from Cloudflare's vulnerability harness (see `README.md` for sources). The harness — narrow tasks, external state, a validator that is never the hunter — does the work; the model is an interchangeable part.
 
-Read `docs/security/THREAT-MODEL.md` first. It is this repo's recon: principals, boundaries, entry surfaces, known controls, and the attack classes that matter here. If it is missing or stale for the code you are touching, fix it as part of the task.
+Read `.security/THREAT-MODEL.md` first. It is this repo's recon: principals, boundaries, entry surfaces, known controls, and the attack classes that matter here. It is **local and private**: `.security/` is gitignored and never committed, pushed, pasted into PRs, issues, or external tools. If it is missing (fresh clone, new machine) or stale for the code you are touching, draft or update it with [references/recon.md](references/recon.md) from `templates/THREAT-MODEL.md` before reviewing, and make sure `.security/` is in `.gitignore`.
 
 ## Pick the mode
 

@@ -24,7 +24,7 @@ Each returns facts with repo-relative `file:line` refs and writes nothing.
 
 ## 3. Synthesize `architecture.md`
 
-Update `docs/security/THREAT-MODEL.md` in the repo when it is wrong or missing something; copy its current text into the run as `architecture.md` (cap ~1,000 words): product and assets, principals, trust boundaries with the strongest control on each, entry surfaces, prohibited commands, offline test commands, and **repo-specific attack classes** — invent them when the domain needs one (e.g. "split-percentage tampering", "royalty statement parser abuse", "waitlist enumeration"), each with a one-line method.
+Update the local, gitignored `.security/THREAT-MODEL.md` when it is wrong or missing something (create it from `templates/THREAT-MODEL.md` if absent; never commit it); copy its current text into the run as `architecture.md` (cap ~1,000 words): product and assets, principals, trust boundaries with the strongest control on each, entry surfaces, prohibited commands, offline test commands, and **repo-specific attack classes** — invent them when the domain needs one (e.g. "split-percentage tampering", "royalty statement parser abuse", "waitlist enumeration"), each with a one-line method.
 
 ## 4. Seed coverage units
 

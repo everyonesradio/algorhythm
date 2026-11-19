@@ -193,15 +193,8 @@ export function checkFinding(repo, f) {
   }
   const pv = f.proposed_verdict;
   if (!["confirmed", "needs_validation"].includes(pv)) errs.push("proposed_verdict must be confirmed|needs_validation");
-  if (pv === "confirmed") {
-    const poc = f.poc || {};
-    if (!poc.command || !poc.expected || !["test", "request", "fixture", "script"].includes(poc.kind)) {
-      errs.push("confirmed needs poc {kind, command, expected} that runs against untouched code");
-    }
-    if (typeof f.patch !== "string" || !/^--- /m.test(f.patch) || !/^\+\+\+ /m.test(f.patch) || !/^@@/m.test(f.patch)) {
-      errs.push("confirmed needs patch as a unified diff (---, +++, @@)");
-    }
-  }
+  // Proof is checked whenever it is supplied, and required for a confirmed proposal.
+  errs.push(...proofErrors(f, { required: pv === "confirmed" }));
   if (pv === "needs_validation") {
     if (!Array.isArray(f.blockers) || f.blockers.length === 0) errs.push("needs_validation needs at least one exact blocker");
     if (typeof f.validation_plan !== "string" || !f.validation_plan.trim()) errs.push("needs_validation needs a validation_plan");
@@ -209,6 +202,24 @@ export function checkFinding(repo, f) {
   if ("severity" in f) errs.push("hunters do not assign severity; the validator does");
   return errs;
 }
+
+export function proofErrors(f, { required }) {
+  const errs = [];
+  if (required || f.poc !== undefined) {
+    const poc = f.poc && typeof f.poc === "object" ? f.poc : {};
+    const ok = ["test", "request", "fixture", "script"].includes(poc.kind) && [poc.command, poc.expected].every((v) => typeof v === "string" && v.trim());
+    if (!ok) errs.push("confirmed needs poc {kind, command, expected} that runs against untouched code");
+  }
+  if (required || f.patch !== undefined) {
+    const p = f.patch;
+    if (typeof p !== "string" || !/^--- /m.test(p) || !/^\+\+\+ /m.test(p) || !/^@@/m.test(p)) {
+      errs.push("confirmed needs patch as a unified diff (---, +++, @@)");
+    }
+  }
+  return errs;
+}
+
+const EVIDENCE_FIELDS = ["title", "attack_class", "unit_id", "threat_model", "trace", "impact", "proposed_verdict", "poc", "patch", "blockers", "validation_plan", "notes"];
 
 export function addFinding(state, repo, f, agent) {
   requireRun(state);
@@ -219,7 +230,17 @@ export function addFinding(state, repo, f, agent) {
     // Same root cause: keep one record, remember every hunter so none of them can validate it.
     existing.found_by = [...new Set([...existing.found_by, agent])];
     existing.duplicates = (existing.duplicates || 0) + 1;
-    return { fingerprint: f.fingerprint, created: false };
+    const changed = EVIDENCE_FIELDS.filter((k) => k in f && JSON.stringify(f[k]) !== JSON.stringify(existing[k]));
+    if (changed.length) {
+      // New or corrected evidence replaces the old; any earlier verdict no longer applies.
+      for (const k of changed) existing[k] = f[k];
+      if (existing.verdict !== "candidate") {
+        existing.verdicts.push({ agent, verdict: "candidate", reason: `evidence updated: ${changed.join(", ")}`, at: now() });
+        existing.verdict = "candidate";
+        delete existing.severity;
+      }
+    }
+    return { fingerprint: f.fingerprint, created: false, updated: changed };
   }
   state.findings[f.fingerprint] = { ...f, verdict: "candidate", found_by: [agent], verdicts: [], run_id: state.current_run, added_at: now() };
   return { fingerprint: f.fingerprint, created: true };
@@ -234,7 +255,8 @@ export function recordVerdict(state, fp, { agent, verdict, reachability, severit
   if (verdict === "confirmed") {
     if (!REACHABILITY.includes(reachability)) fail(`confirmed needs --reachability ${REACHABILITY.join("|")}`);
     if (!SEVERITIES.includes(severity)) fail(`confirmed needs --severity ${SEVERITIES.join("|")}`);
-    if (!f.poc || !f.patch) fail("confirmed needs a PoC and a patch on the finding");
+    const missing = proofErrors(f, { required: true });
+    if (missing.length) fail(`confirmed needs valid proof on the finding: ${missing.join("; ")}`);
   } else if (severity) {
     fail("only confirmed findings carry severity");
   }
@@ -263,14 +285,26 @@ export function mergeFindings(state, keep, drop) {
 export function submitResult(state, repo, agent, result) {
   requireRun(state);
   const out = { closed: {}, findings: [], rejected: [], uncovered: [], wishlist: 0 };
-  for (const r of result.units || []) out.closed[r.unit_id] = closeUnit(state, agent, r);
+  const savedUnits = new Set();
+  let savedUnlinked = false;
   for (const c of result.candidates || []) {
     try {
       out.findings.push(addFinding(state, repo, c, agent).fingerprint);
+      if (c.unit_id) savedUnits.add(c.unit_id);
+      else savedUnlinked = true;
     } catch (e) {
       if (!(e instanceof HarnessError)) throw e;
       out.rejected.push(e.message);
     }
+  }
+  for (const r of result.units || []) {
+    // A unit is only "candidate" if a candidate actually passed the checks; otherwise its
+    // evidence is unresolved and it stays blocked (not covered) until resubmitted.
+    const hasSaved = savedUnits.has(r.unit_id) || (savedUnlinked && savedUnits.size === 0);
+    const unit = r.disposition === "candidate" && !hasSaved
+      ? { ...r, disposition: "blocked", notes: `${r.notes || ""} [candidate rejected by deterministic checks]`.trim() }
+      : r;
+    out.closed[r.unit_id] = closeUnit(state, agent, unit);
   }
   for (const w of result.wishlist || []) {
     state.wishlist.push({ ...w, agent, run_id: state.current_run, at: now(), status: "open" });

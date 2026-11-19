@@ -16,6 +16,9 @@ env:
   SKIP_ENV_VALIDATION: "1"
   # The browser download is only needed by puppeteer at runtime, never in CI.
   PUPPETEER_SKIP_DOWNLOAD: "true"
+  # onnxruntime-node's postinstall fetches optional CUDA (GPU) binaries on linux-x64;
+  # CI runs CPU-only and the GPU asset download can 404, so skip it.
+  ONNXRUNTIME_NODE_INSTALL_CUDA: skip
 
 jobs:
   check:
