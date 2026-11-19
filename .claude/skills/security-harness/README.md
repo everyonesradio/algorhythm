@@ -1,6 +1,6 @@
 # security-harness
 
-One security skill, shared by every repo (Patchbay, Project Hard Drive, Algorhythm). It sets the security policy agents follow and gives them a vulnerability harness for audits. The skill is identical in every repo. What makes it repo-specific is `docs/security/THREAT-MODEL.md`, which each repo keeps current.
+One security skill, shared by every repo (Patchbay, Project Hard Drive, Algorhythm). It sets the security policy agents follow and gives them a vulnerability harness for audits. The skill is identical in every repo. What makes it repo-specific is a threat model at `.security/THREAT-MODEL.md`. It is gitignored and stays on your machine, never on GitHub. If it's missing, the skill drafts it on first use.
 
 ## What it does
 
@@ -9,7 +9,7 @@ One security skill, shared by every repo (Patchbay, Project Hard Drive, Algorhyt
 | review | A checklist for diffs and PRs (authn, ownership/IDOR, input bounds, sinks, secrets, abuse, AI) |
 | audit | A full harness run: recon → narrow hunters → adversarial validators → gapfill → report rendered by a script |
 | triage | Scanner alerts and external reports. Each one becomes a validated verdict with reachability and severity |
-| harden | The baseline every repo should meet: SECURITY.md, threat model, CODEOWNERS, security CI, dependabot, headers, agent config |
+| harden | The baseline every repo should meet: SECURITY.md, local threat model, security CI, dependabot, headers, agent config |
 
 The AI and agent policy (`references/ai-agents.md`) applies whenever a model, tool, or MCP server touches untrusted input.
 
@@ -32,11 +32,11 @@ templates/                       THREAT-MODEL.md and SECURITY.md starters for a 
 ## Adding it to a new repo
 
 1. Copy this folder to `.claude/skills/security-harness/`. In repos that mirror skills for Cursor, run `./scripts/sync-cursor-skills.sh` or symlink `.cursor/skills/security-harness`.
-2. Copy `templates/SECURITY.md` to the repo root and `templates/THREAT-MODEL.md` to `docs/security/`, then fill them in. Recon mode can draft the threat model for you.
+2. Copy `templates/SECURITY.md` to the repo root and add `.security/` to `.gitignore`. Copy `templates/THREAT-MODEL.md` to `.security/` and fill it in, or let recon mode draft it. It is never committed.
 3. Work through `references/baseline.md` and open a hardening PR.
 4. Add one line to `AGENTS.md`/`CLAUDE.md` pointing at the skill. That line is what triggers it.
 
-Keep the copies in sync. When you change the skill in one repo, port the change to the others in the same week. Keep repo-specific facts in `THREAT-MODEL.md`, never in the skill.
+Keep the copies in sync. When you change the skill in one repo, port the change to the others in the same week. Keep repo-specific facts in the local `.security/THREAT-MODEL.md`, never in the skill.
 
 ## Why it's shaped this way
 

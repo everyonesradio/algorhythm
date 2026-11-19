@@ -1,12 +1,11 @@
 # Repo hardening baseline (harden mode)
 
-The minimum every repo carries. Run through it top to bottom; each item is either present, added in this PR, or recorded in `docs/security/THREAT-MODEL.md` under "Accepted gaps" with a reason and owner. Done when every row has one of those three outcomes.
+The minimum every repo carries. Run through it top to bottom; each item is either present, added in this PR, or recorded in the local `.security/THREAT-MODEL.md` under "Accepted gaps" with a reason and owner. Done when every row has one of those three outcomes.
 
 ## Policy and ownership
 
 - [ ] `SECURITY.md` — how to report privately (GitHub private vulnerability reporting / security advisories, or a security email), what's in scope, response targets, and "do not open public issues for vulnerabilities".
-- [ ] `docs/security/THREAT-MODEL.md` — the recon seed this skill reads: assets, principals, trust boundaries + controls, entry surfaces, approved MCP servers, prohibited commands, offline test commands, repo-specific attack classes, accepted gaps.
-- [ ] `.github/CODEOWNERS` — required review on auth, permissions, settings/config, CI workflows, infra, MCP/agent tool registries, and this skill.
+- [ ] `.security/THREAT-MODEL.md` (local only) — the recon seed this skill reads: assets, principals, trust boundaries + controls, entry surfaces, approved MCP servers, prohibited commands, offline test commands, repo-specific attack classes, accepted gaps. `.security/` is in `.gitignore`; the file never reaches GitHub.
 
 ## CI and supply chain
 
@@ -14,13 +13,14 @@ The minimum every repo carries. Run through it top to bottom; each item is eithe
   - secret scanning (gitleaks) over the PR range;
   - dependency audit (`pip-audit` / `npm audit` / `pnpm audit`) at `high`+, non-blocking until the backlog is clear, then blocking;
   - a SAST pass suited to the stack (bandit or semgrep for Python; CodeQL or semgrep for TS) — report-only to start.
+  - "Report-only" means `continue-on-error: true` on the scanner **step**, not the job: a job-level flag still shows a red check on the PR.
 - [ ] `.github/dependabot.yml` for the package ecosystem(s), `github-actions`, and `docker` where used; weekly, grouped minor/patch.
 - [ ] Every workflow has an explicit `permissions:` block; third-party actions pinned to a commit SHA; untrusted `${{ github.event.* }}` / `inputs.*` values passed via `env:`, never interpolated into `run:`; no `pull_request_target` checking out PR code.
 - [ ] Long-lived cloud keys in CI are a tracked gap until replaced by OIDC / Workload Identity Federation.
 
 ## Secrets and data in the repo
 
-- [ ] `.gitignore` covers `.env*` (allow `.env.example`), key files (`*.pem`, `*-sa.json`), local agent settings (`.claude/settings.local.json`), and data exports.
+- [ ] `.gitignore` covers `.security/` (threat model and other private security notes), `.env*` (allow `.env.example`), key files (`*.pem`, `*-sa.json`), local agent settings (`.claude/settings.local.json`), and data exports.
 - [ ] No customer data, exports, or credentials tracked (`git ls-files` for `*.csv`, `*.json` dumps, `.env`). Removing a file doesn't remove history — tell the owner so they can decide on rotation/purge.
 - [ ] Client bundles expose only intentionally public config (`NEXT_PUBLIC_*`, `VITE_*`).
 
@@ -39,4 +39,4 @@ The minimum every repo carries. Run through it top to bottom; each item is eithe
 
 ## Shipping a hardening PR
 
-Bundle low-risk items (policy files, CI, dependabot, CODEOWNERS, headers in report-only, gitignore, small fixes with regression tests) into one PR. Split anything that can change prod behavior — enforcing CSP, flipping debug/secure settings, tightening service auth, blocking scanners — into its own PR with a rollout note. List every deferred item in the PR body.
+Bundle low-risk items (policy files, CI, dependabot, headers in report-only, gitignore, small fixes with regression tests) into one PR. Split anything that can change prod behavior — enforcing CSP, flipping debug/secure settings, tightening service auth, blocking scanners — into its own PR with a rollout note. List deferred items in the PR body at the level of "what control is missing", never as an exploit recipe; the detail lives in the local threat model.

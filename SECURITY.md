@@ -16,4 +16,4 @@ Test only against your own accounts and data. Don't access, modify, or delete ot
 
 ## How we handle security work
 
-Agents and engineers follow the `security-harness` skill (`.claude/skills/security-harness/`) and the repo threat model (`docs/security/THREAT-MODEL.md`): threat model first, proof against unmodified code, an independent validator, the smallest fix with a regression test, and human review before merge.
+Agents and engineers follow the `security-harness` skill (`.claude/skills/security-harness/`) with a threat model kept privately: threat model first, proof against unmodified code, an independent validator, the smallest fix with a regression test, and human review before merge.

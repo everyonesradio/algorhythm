@@ -15,7 +15,7 @@ the Claude Code entry point.
 - First-time config: **`/setup-matt-pocock-skills`**
 - Security: any review touching user input, the shared catalog/index, secrets,
   CI, headers, or an LLM/agent/MCP tool follows
-  **`.claude/skills/security-harness/`** and `docs/security/THREAT-MODEL.md`
+  **`.claude/skills/security-harness/`** and the local threat model in `.security/` (gitignored)
 
 Non-trivial work → **`deepen-task`**, then the product flow. Skip only for
 continuations, meta, or explicit **skip deepen** / **just do it**.
